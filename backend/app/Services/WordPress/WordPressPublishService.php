@@ -7,15 +7,13 @@ use App\Exceptions\WordPress\WordPressAuthException;
 use App\Exceptions\WordPress\WordPressPublishException;
 use App\Exceptions\WordPress\WordPressValidationException;
 use App\Models\WordPressSite;
-use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Http;
 
 class WordPressPublishService
 {
     public function publish(PublishingDTO $dto, WordPressSite $site): array
     {
-        $decryptedPassword = Crypt::decryptString($site->app_password);
-        $auth = base64_encode($site->username . ':' . $decryptedPassword);
+        $auth = base64_encode($site->username . ':' . $site->app_password);
 
         $body = [
             'title' => $dto->title,
@@ -63,8 +61,7 @@ class WordPressPublishService
     public function testConnection(WordPressSite $site): bool
     {
         try {
-            $decryptedPassword = Crypt::decryptString($site->app_password);
-            $auth = base64_encode($site->username . ':' . $decryptedPassword);
+            $auth = base64_encode($site->username . ':' . $site->app_password);
 
             $apiUrl = rtrim($site->api_url, '/');
             

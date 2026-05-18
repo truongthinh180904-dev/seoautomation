@@ -12,32 +12,40 @@ export interface LoginResponse {
   };
 }
 
+type LoginPayload = {
+  email: string;
+  password: string;
+};
+
+type LoginResult = LoginResponse['data'];
+
+type LoginRawResponse = LoginResponse | LoginResult;
+
+function isWrappedLoginResponse(response: LoginRawResponse): response is LoginResponse {
+  return 'data' in response && typeof response.data === 'object' && response.data !== null;
+}
+
+function isApiError(error: unknown): error is ApiError {
+  return typeof error === 'object' && error !== null && 'message' in error;
+}
+
 export function useAuth() {
   const router = useRouter();
   const { setAuth, logout, isAuthenticated, user } = useAuthStore();
   const queryClient = useQueryClient();
 
   const loginMutation = useMutation({
-    mutationFn: async (credentials: Record<string, string>) => {
-      // The backend login endpoint might return `{ data: { token, user } }` or just `{ token, user }`.
-      // Based on standard Laravel Resources, it usually returns `{ data: { token, user } }` 
-      // or directly `{ token, user }` from a custom response.
-      // We will cast to any to be safe or use LoginResponse if typed.
-      const res = await post<any>(ENDPOINTS.AUTH.LOGIN, credentials);
-      // Handle both cases
-      if (res.data && res.data.token) {
-        return res.data;
-      }
-      return res;
+    mutationFn: async (credentials: LoginPayload) => {
+      const res = await post<LoginRawResponse>(ENDPOINTS.AUTH.LOGIN, credentials);
+      return isWrappedLoginResponse(res) ? res.data : res;
     },
     onSuccess: (data) => {
       setAuth(data.user, data.token);
       toast.success('Đăng nhập thành công');
-      router.push('/dashboard');
     },
-    onError: (error: any) => {
-      if (!error.errors) {
-        toast.error(error.message || 'Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.');
+    onError: (error: unknown) => {
+      if (!isApiError(error) || !error.errors) {
+        toast.error(isApiError(error) ? error.message : 'Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.');
       }
     },
   });

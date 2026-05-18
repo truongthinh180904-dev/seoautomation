@@ -5,6 +5,7 @@ namespace App\Agents;
 use App\DTOs\AgentResultDTO;
 use App\DTOs\AIRequestDTO;
 use App\Enums\AgentType;
+use App\Services\AI\JsonResponseParser;
 
 class SEOOptimizationAgent extends BaseAgent
 {
@@ -33,7 +34,7 @@ class SEOOptimizationAgent extends BaseAgent
         $request = new AIRequestDTO(
             systemPrompt: $systemPrompt,
             userPrompt: $promptData['user_prompt'],
-            model: 'gpt-4o-mini',
+            model: '',
             agentType: $this->getType(),
             tenantId: $tenantId,
             articleId: $context['article_id'] ?? null,
@@ -42,11 +43,10 @@ class SEOOptimizationAgent extends BaseAgent
         );
 
         $response = $this->callAI($request);
-        $content = $this->cleanJsonResponse($response->content);
-        $parsed = json_decode($content, true);
+        $parsed = app(JsonResponseParser::class)->parse($response->content);
 
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            return AgentResultDTO::failure($this->getType(), "Failed to parse JSON SEO data: " . json_last_error_msg());
+        if (!$parsed) {
+            return AgentResultDTO::failure($this->getType(), 'Failed to parse JSON SEO data from AI response.');
         }
 
         $seoTitle = $parsed['seo_title'] ?? '';
@@ -67,19 +67,5 @@ class SEOOptimizationAgent extends BaseAgent
             tokens: $response->totalTokens,
             latency: $response->latencyMs
         );
-    }
-
-    protected function cleanJsonResponse(string $content): string
-    {
-        $content = trim($content);
-        if (str_starts_with($content, '```json')) {
-            $content = substr($content, 7);
-        } elseif (str_starts_with($content, '```')) {
-            $content = substr($content, 3);
-        }
-        if (str_ends_with($content, '```')) {
-            $content = substr($content, 0, -3);
-        }
-        return trim($content);
     }
 }

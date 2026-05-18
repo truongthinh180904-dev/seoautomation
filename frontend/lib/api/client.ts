@@ -30,16 +30,20 @@ apiClient.interceptors.response.use(
           window.location.href = '/login';
         }
       } else if (error.response.status === 422) {
-        const data = error.response.data as any;
+        const data = error.response.data as Partial<ApiValidationError>;
         throw {
           message: data.message || 'Validation failed',
           errors: data.errors || {},
         };
       }
     }
+
+    const responseData = error.response?.data as Partial<ApiError> | undefined;
+    const importError = error.response?.data as { error?: string; message?: string } | undefined;
     
     throw new Error(
-      (error.response?.data as any)?.message || 
+      importError?.error ||
+      responseData?.message ||
       error.message || 
       'An unexpected error occurred'
     );

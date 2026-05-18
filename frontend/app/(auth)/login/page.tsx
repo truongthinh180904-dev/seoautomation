@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -27,8 +27,13 @@ const loginSchema = z.object({
 
 type LoginFormValues = z.infer<typeof loginSchema>;
 
+function isValidationError(error: unknown): error is ApiValidationError {
+  return typeof error === 'object' && error !== null && 'errors' in error;
+}
+
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { login, isLoggingIn } = useAuth();
   
   // Use store directly to avoid hydration mismatch by checking after mount
@@ -38,14 +43,16 @@ export default function LoginPage() {
 
   useEffect(() => {
     initialize();
-    setMounted(true);
+    const frame = requestAnimationFrame(() => setMounted(true));
+
+    return () => cancelAnimationFrame(frame);
   }, [initialize]);
 
   useEffect(() => {
     if (mounted && isAuthenticated) {
-      router.push('/dashboard');
+      router.replace(searchParams.get('redirect') || '/dashboard');
     }
-  }, [mounted, isAuthenticated, router]);
+  }, [mounted, isAuthenticated, router, searchParams]);
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -58,12 +65,13 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginFormValues) => {
     try {
       await login(data);
-    } catch (error: any) {
-      if (error.errors) {
-        Object.keys(error.errors).forEach((key) => {
-          form.setError(key as any, {
+      router.replace(searchParams.get('redirect') || '/dashboard');
+    } catch (error: unknown) {
+      if (isValidationError(error)) {
+        Object.entries(error.errors).forEach(([key, messages]) => {
+          form.setError(key as keyof LoginFormValues, {
             type: 'server',
-            message: error.errors[key][0],
+            message: messages[0],
           });
         });
       }

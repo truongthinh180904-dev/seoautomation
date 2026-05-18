@@ -9,6 +9,17 @@ export interface User {
   avatar_url: string | null;
 }
 
+const AUTH_TOKEN_KEY = 'seo_auth_token';
+const AUTH_USER_KEY = 'seo_auth_user';
+
+function persistAuthCookie(token: string) {
+  document.cookie = `token=${token}; path=/; max-age=86400; SameSite=Lax`;
+}
+
+function clearAuthCookie() {
+  document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+}
+
 interface AuthState {
   user: User | null;
   token: string | null;
@@ -25,15 +36,17 @@ export const useAuthStore = create<AuthState>((set) => {
   let initialIsAuthenticated = false;
 
   if (typeof window !== 'undefined') {
-    initialToken = localStorage.getItem('seo_auth_token');
-    const userStr = localStorage.getItem('seo_auth_user');
+    initialToken = localStorage.getItem(AUTH_TOKEN_KEY);
+    const userStr = localStorage.getItem(AUTH_USER_KEY);
     if (initialToken && userStr) {
       try {
         initialUser = JSON.parse(userStr);
         initialIsAuthenticated = true;
-      } catch (e) {
-        localStorage.removeItem('seo_auth_token');
-        localStorage.removeItem('seo_auth_user');
+        persistAuthCookie(initialToken);
+      } catch {
+        localStorage.removeItem(AUTH_TOKEN_KEY);
+        localStorage.removeItem(AUTH_USER_KEY);
+        clearAuthCookie();
       }
     }
   }
@@ -45,35 +58,41 @@ export const useAuthStore = create<AuthState>((set) => {
 
     setAuth: (user: User, token: string) => {
       if (typeof window !== 'undefined') {
-        localStorage.setItem('seo_auth_token', token);
-        localStorage.setItem('seo_auth_user', JSON.stringify(user));
-        document.cookie = `token=${token}; path=/; max-age=86400; SameSite=Lax`;
+        localStorage.setItem(AUTH_TOKEN_KEY, token);
+        localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
+        persistAuthCookie(token);
       }
       set({ user, token, isAuthenticated: true });
     },
 
     logout: () => {
       if (typeof window !== 'undefined') {
-        localStorage.removeItem('seo_auth_token');
-        localStorage.removeItem('seo_auth_user');
-        document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+        localStorage.removeItem(AUTH_TOKEN_KEY);
+        localStorage.removeItem(AUTH_USER_KEY);
+        clearAuthCookie();
       }
       set({ user: null, token: null, isAuthenticated: false });
     },
 
     initialize: () => {
       if (typeof window !== 'undefined') {
-        const token = localStorage.getItem('seo_auth_token');
-        const userStr = localStorage.getItem('seo_auth_user');
+        const token = localStorage.getItem(AUTH_TOKEN_KEY);
+        const userStr = localStorage.getItem(AUTH_USER_KEY);
         
         if (token && userStr) {
           try {
             const user = JSON.parse(userStr);
+            persistAuthCookie(token);
             set({ user, token, isAuthenticated: true });
-          } catch (e) {
-            localStorage.removeItem('seo_auth_token');
-            localStorage.removeItem('seo_auth_user');
+          } catch {
+            localStorage.removeItem(AUTH_TOKEN_KEY);
+            localStorage.removeItem(AUTH_USER_KEY);
+            clearAuthCookie();
+            set({ user: null, token: null, isAuthenticated: false });
           }
+        } else {
+          clearAuthCookie();
+          set({ user: null, token: null, isAuthenticated: false });
         }
       }
     },

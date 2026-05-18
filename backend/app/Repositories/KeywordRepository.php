@@ -16,10 +16,15 @@ class KeywordRepository implements KeywordRepositoryInterface
         return Keyword::find($id);
     }
 
+    public function findByIdForTenant(int $id, int $tenantId): ?Keyword
+    {
+        return Keyword::where('tenant_id', $tenantId)->find($id);
+    }
+
     public function paginateForTenant(int $tenantId, array $filters, int $perPage = 20): LengthAwarePaginator
     {
         $query = Keyword::where('tenant_id', $tenantId)
-            ->with(['wordpressSite:id,name', 'user:id,name']);
+            ->with(['wordpressSite:id,name', 'user:id,name', 'article:id,keyword_id']);
 
         if (!empty($filters['status'])) {
             $query->where('status', $filters['status']);
@@ -38,6 +43,14 @@ class KeywordRepository implements KeywordRepositoryInterface
         }
 
         return $query->paginate($perPage);
+    }
+
+    public function paginateScheduledForTenant(int $tenantId, int $perPage = 20): LengthAwarePaginator
+    {
+        return Keyword::where('tenant_id', $tenantId)
+            ->whereNotNull('scheduled_at')
+            ->orderBy('scheduled_at')
+            ->paginate($perPage);
     }
 
     public function findPendingForProcessing(int $tenantId, int $limit = 50): Collection
@@ -122,5 +135,12 @@ class KeywordRepository implements KeywordRepositoryInterface
 
         Keyword::insert($records);
         return count($records);
+    }
+
+    public function bulkMarkSkippedForTenant(int $tenantId, array $ids): int
+    {
+        return Keyword::where('tenant_id', $tenantId)
+            ->whereIn('id', $ids)
+            ->update(['status' => KeywordStatus::SKIPPED]);
     }
 }

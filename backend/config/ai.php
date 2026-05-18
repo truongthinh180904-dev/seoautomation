@@ -15,7 +15,8 @@ return [
         ],
         'gemini' => [
             'api_key' => env('GEMINI_API_KEY'),
-            'default_model' => env('GEMINI_DEFAULT_MODEL', 'gemini-1.5-pro'),
+            'default_model' => env('GEMINI_DEFAULT_MODEL', 'gemini-2.5-flash'),
+            'fallback_models' => array_values(array_filter(explode(',', env('GEMINI_FALLBACK_MODELS', 'gemini-1.5-flash')))),
         ],
         'deepseek' => [
             'api_key' => env('DEEPSEEK_API_KEY'),
@@ -23,5 +24,9 @@ return [
         ],
     ],
 
-    'fallback_chain' => ['openai', 'anthropic', 'gemini'],
+    'fallback_chain' => array_values(array_filter(explode(',', env('AI_FALLBACK_CHAIN', 'openai,anthropic,gemini')))),
+
+    'http' => [
+        'verify_ssl' => filter_var(env('AI_HTTP_VERIFY_SSL', true), FILTER_VALIDATE_BOOLEAN),
+    ],
 ];

@@ -4,6 +4,7 @@ namespace App\Jobs\AI;
 
 use App\Agents\SEOOptimizationAgent;
 use App\Enums\ArticleStatus;
+use App\Enums\KeywordStatus;
 use App\Models\Article;
 use App\Services\SEO\SEOScoreService;
 use Illuminate\Bus\Queueable;
@@ -62,6 +63,10 @@ class GenerateSeoMetadataJob implements ShouldQueue
         $article->status = ArticleStatus::REVIEW;
         $article->generateReviewToken();
         $article->save();
+        $article->keyword->update([
+            'status' => KeywordStatus::COMPLETED,
+            'processed_at' => now(),
+        ]);
 
         if (class_exists('App\Jobs\Notification\SendZaloNotificationJob')) {
             \App\Jobs\Notification\SendZaloNotificationJob::dispatch($article->id)->onQueue('default');

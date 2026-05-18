@@ -7,7 +7,7 @@ import { useArticleActions } from '@/hooks/useArticles';
 import Link from 'next/link';
 
 interface ArticleTableProps {
-  articles: any[];
+  articles: Article[];
   isLoading: boolean;
 }
 
@@ -47,7 +47,7 @@ export default function ArticleTable({ articles, isLoading }: ArticleTableProps)
                   </div>
                 </td>
                 <td className="px-6 py-4 text-sm font-medium text-slate-600">
-                  {article.keyword?.keyword || article.keyword || 'N/A'}
+                  {article.keyword?.keyword || 'N/A'}
                 </td>
                 <td className="px-6 py-4">
                   <ArticleStatusBadge status={article.status} />
@@ -66,14 +66,12 @@ export default function ArticleTable({ articles, isLoading }: ArticleTableProps)
                 </td>
                 <td className="px-6 py-4 text-right text-sm font-medium">
                   <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    {article.review_token && (
-                      <Link href={`/review/${article.review_token}`} target="_blank" className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all" title="Xem public review">
-                        <Eye className="w-4 h-4" />
-                      </Link>
-                    )}
-                    <button className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all" title="Chỉnh sửa">
+                    <Link href={`/articles/${article.id}`} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all" title="Xem bài viết">
+                      <Eye className="w-4 h-4" />
+                    </Link>
+                    <Link href={`/articles/${article.id}/edit`} className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all" title="Chỉnh sửa">
                       <Edit className="w-4 h-4" />
-                    </button>
+                    </Link>
                     {article.status === 'failed' && (
                       <button 
                         onClick={() => {

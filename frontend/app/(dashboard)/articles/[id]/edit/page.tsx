@@ -1,26 +1,23 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import React from 'react';
+import { useParams } from 'next/navigation';
 import { useArticle, useArticleActions } from '@/hooks/useArticles';
 import ArticleEditor from '@/components/features/articles/ArticleEditor';
 import ArticleTimeline from '@/components/features/articles/ArticleTimeline';
-import { ArrowLeft, Loader2, Save, Trash2, CheckCircle, XCircle } from 'lucide-react';
+import { ArrowLeft, Loader2, CheckCircle, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { toast } from 'sonner';
 
 export default function ArticleEditPage() {
   const { id } = useParams();
-  const router = useRouter();
   const { data: articleResponse, isLoading, error } = useArticle(Number(id));
-  const { updateArticle, deleteArticle } = useArticleActions();
-  const [isSaving, setIsSaving] = useState(false);
+  const { updateArticle } = useArticleActions();
 
   const article = articleResponse?.data;
 
   const handleSave = async (updatedData: { title: string, content: string, metaDescription: string }) => {
-    setIsSaving(true);
     try {
       await updateArticle.mutateAsync({
         id: Number(id),
@@ -31,21 +28,19 @@ export default function ArticleEditPage() {
         }
       });
       toast.success("Article saved successfully");
-    } catch (err) {
+    } catch {
       toast.error("Failed to save article");
-    } finally {
-      setIsSaving(false);
     }
   };
 
-  const handleStatusChange = async (newStatus: string) => {
+  const handleStatusChange = async (newStatus: Article['status']) => {
     try {
       await updateArticle.mutateAsync({
         id: Number(id),
         data: { status: newStatus }
       });
       toast.success(`Article ${newStatus}`);
-    } catch (err) {
+    } catch {
       toast.error("Failed to update status");
     }
   };
@@ -122,7 +117,7 @@ export default function ArticleEditPage() {
         <div className="xl:col-span-9">
           <ArticleEditor 
             initialTitle={article.title}
-            initialContent={article.content}
+            initialContent={article.content ?? ''}
             initialMetaDescription={article.seo_description || ''}
             keyword={article.keyword?.keyword || ''}
             onSave={handleSave}

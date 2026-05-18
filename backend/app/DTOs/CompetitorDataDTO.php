@@ -4,7 +4,7 @@ namespace App\DTOs;
 
 use Spatie\LaravelData\Data;
 
-readonly class CompetitorDataDTO extends Data
+class CompetitorDataDTO extends Data
 {
     public function __construct(
         public string $url,

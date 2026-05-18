@@ -2,6 +2,7 @@
 
 namespace App\Services\WordPress;
 
+use App\Models\WordPressSite;
 use App\Repositories\Contracts\WordPressSiteRepositoryInterface;
 use Illuminate\Support\Facades\Http;
 use Exception;
@@ -22,14 +23,14 @@ class WordPressSiteService
         try {
             $response = Http::withBasicAuth($site->username, $site->app_password)
                 ->timeout(10)
-                ->get(rtrim($site->url, '/') . '/wp-json/wp/v2/users/me');
+                ->get($this->usersMeEndpoint($site));
 
             if ($response->successful()) {
                 $this->repository->updateConnectionStatus($site->id, 'connected');
                 return ['success' => true, 'message' => 'Connection successful'];
             }
 
-            $this->repository->updateConnectionStatus($site->id, 'failed');
+            $this->repository->updateConnectionStatus($site->id, 'error');
             return [
                 'success' => false, 
                 'message' => 'Connection failed: ' . $response->status()
@@ -39,5 +40,10 @@ class WordPressSiteService
             $this->repository->updateConnectionStatus($site->id, 'error');
             return ['success' => false, 'message' => 'Error: ' . $e->getMessage()];
         }
+    }
+
+    protected function usersMeEndpoint(WordPressSite $site): string
+    {
+        return rtrim($site->api_url ?: rtrim($site->url, '/') . '/wp-json', '/') . '/wp/v2/users/me';
     }
 }

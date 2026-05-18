@@ -45,8 +45,8 @@ Route::prefix('v1')->group(function () {
         // Schedules
         Route::get('schedules', [\App\Http\Controllers\Api\V1\ScheduleController::class, 'index']);
         Route::post('schedules', [\App\Http\Controllers\Api\V1\ScheduleController::class, 'store']);
-        Route::put('schedules/{keywordId}', [\App\Http\Controllers\Api\V1\ScheduleController::class, 'update']);
-        Route::delete('schedules/{keywordId}', [\App\Http\Controllers\Api\V1\ScheduleController::class, 'destroy']);
+        Route::put('schedules/{id}', [\App\Http\Controllers\Api\V1\ScheduleController::class, 'update']);
+        Route::delete('schedules/{id}', [\App\Http\Controllers\Api\V1\ScheduleController::class, 'destroy']);
 
         // Queue status (powered by Horizon)
         Route::get('queue/status', [\App\Http\Controllers\Api\V1\QueueStatusController::class, 'index']);

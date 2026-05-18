@@ -8,13 +8,17 @@ class ImportKeywordsRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user() !== null;
+        return $this->user() !== null && in_array($this->user()->role->value, [
+            'super_admin',
+            'admin',
+            'editor',
+        ], true);
     }
 
     public function rules(): array
     {
         return [
-            'keywords' => ['required', 'array'],
+            'file' => ['required', 'file', 'mimes:xlsx,xls,csv', 'max:10240'],
         ];
     }
 }

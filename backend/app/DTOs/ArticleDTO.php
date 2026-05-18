@@ -6,7 +6,7 @@ use App\Enums\ArticleStatus;
 use App\Models\Article;
 use Spatie\LaravelData\Data;
 
-readonly class ArticleDTO extends Data
+class ArticleDTO extends Data
 {
     public function __construct(
         public int $tenantId,

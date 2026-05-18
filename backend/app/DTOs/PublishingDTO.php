@@ -4,7 +4,7 @@ namespace App\DTOs;
 
 use Spatie\LaravelData\Data;
 
-readonly class PublishingDTO extends Data
+class PublishingDTO extends Data
 {
     public function __construct(
         public string $title,

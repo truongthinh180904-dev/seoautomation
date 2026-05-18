@@ -3,6 +3,7 @@
 namespace App\Jobs\AI;
 
 use App\Agents\OutlineAgent;
+use App\Enums\KeywordStatus;
 use App\Models\Article;
 use App\Models\CompetitorAnalysis;
 use App\Models\Keyword;
@@ -53,6 +54,7 @@ class GenerateOutlineJob implements ShouldQueue
 
         if (!$result->success) {
             $article->update(['status' => 'failed', 'review_notes' => 'Outline generation failed: ' . $result->error]);
+            $keyword->update(['status' => KeywordStatus::FAILED]);
             Log::error("GenerateOutlineJob failed: " . $result->error);
             return;
         }

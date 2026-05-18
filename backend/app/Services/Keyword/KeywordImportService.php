@@ -20,25 +20,37 @@ class KeywordImportService
         $errors = [];
 
         $validRows = [];
+        $seenKeywords = [];
         $existingKeywords = Keyword::where('tenant_id', $tenantId)
             ->whereIn('keyword', array_column($rows, 'keyword'))
             ->pluck('keyword')
             ->toArray();
 
         foreach ($rows as $row) {
-            if (in_array($row['keyword'], $existingKeywords)) {
+            $keyword = trim((string) ($row['keyword'] ?? ''));
+
+            if ($keyword === '') {
                 $skipped++;
                 continue;
             }
+
+            $keywordKey = mb_strtolower($keyword);
+
+            if (in_array($keyword, $existingKeywords, true) || isset($seenKeywords[$keywordKey])) {
+                $skipped++;
+                continue;
+            }
+
+            $seenKeywords[$keywordKey] = true;
 
             $validRows[] = [
                 'tenant_id' => $tenantId,
                 'user_id' => $userId,
                 'batch_id' => $batchId,
-                'keyword' => $row['keyword'],
-                'search_volume' => $row['search_volume'] ?? 0,
-                'difficulty' => $row['difficulty'] ?? 0,
-                'priority' => $row['priority'] ?? 'medium',
+                'keyword' => $keyword,
+                'search_volume' => $row['search_volume'] ?? null,
+                'difficulty' => $row['difficulty'] ?? null,
+                'priority' => $row['priority'] ?? 5,
                 'wordpress_site_id' => $row['wordpress_site_id'] ?? null,
                 'scheduled_at' => $row['scheduled_at'] ?? null,
                 'status' => 'pending',

@@ -4,6 +4,7 @@ namespace App\Jobs\AI;
 
 use App\Agents\WritingAgent;
 use App\Enums\ArticleStatus;
+use App\Enums\KeywordStatus;
 use App\Models\Article;
 use App\Models\CompetitorAnalysis;
 use App\Models\Keyword;
@@ -85,9 +86,10 @@ class GenerateArticleJob implements ShouldQueue
             'excerpt' => $data['excerpt'],
             'word_count' => $data['word_count'],
             'ai_provider' => $data['ai_provider'] ?? 'openai',
-            'ai_model' => $data['ai_model'] ?? 'gpt-4o',
+            'ai_model' => $data['ai_model'] ?? null,
             'ai_tokens_used' => $result->tokensUsed,
             'ai_cost_usd' => $data['ai_cost_usd'] ?? 0,
+            'duplicate_check_hash' => $data['duplicate_check_hash'] ?? null,
         ]);
 
         // Dispatch GenerateSeoMetadataJob
@@ -106,6 +108,8 @@ class GenerateArticleJob implements ShouldQueue
                 'status' => ArticleStatus::FAILED,
                 'review_notes' => "Writing generation failed: " . $exception->getMessage()
             ]);
+
+            $article->keyword?->update(['status' => KeywordStatus::FAILED]);
         }
     }
 }

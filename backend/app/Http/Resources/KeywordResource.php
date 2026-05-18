@@ -28,6 +28,7 @@ class KeywordResource extends JsonResource
                     'name' => $this->wordpressSite->name,
                 ];
             }),
+            'article_id' => $this->whenLoaded('article', fn () => $this->article?->id),
             'created_at' => $this->created_at,
         ];
     }

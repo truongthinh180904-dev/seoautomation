@@ -5,7 +5,7 @@ namespace App\DTOs;
 use App\Enums\AgentType;
 use Spatie\LaravelData\Data;
 
-readonly class AIRequestDTO extends Data
+class AIRequestDTO extends Data
 {
     public function __construct(
         public string $systemPrompt,

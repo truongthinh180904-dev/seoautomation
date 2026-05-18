@@ -1,7 +1,7 @@
 import React from 'react';
 
 interface ArticlePreviewProps {
-  article: any; 
+  article: Article;
 }
 
 export default function ArticlePreview({ article }: ArticlePreviewProps) {
@@ -21,7 +21,7 @@ export default function ArticlePreview({ article }: ArticlePreviewProps) {
         </div>
         
         <div className="text-sm text-slate-600 mb-2">
-          <strong className="text-slate-800">Keyword:</strong> {article.keyword?.keyword || article.keyword || 'N/A'}
+          <strong className="text-slate-800">Keyword:</strong> {article.keyword?.keyword || 'N/A'}
         </div>
         
         {article.seo_description && (

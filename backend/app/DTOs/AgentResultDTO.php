@@ -5,7 +5,7 @@ namespace App\DTOs;
 use App\Enums\AgentType;
 use Spatie\LaravelData\Data;
 
-readonly class AgentResultDTO extends Data
+class AgentResultDTO extends Data
 {
     public function __construct(
         public AgentType $agentType,

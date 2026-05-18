@@ -2,26 +2,36 @@
 
 namespace App\Services\Keyword;
 
+use Illuminate\Http\UploadedFile;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use Exception;
 
 class KeywordParserService
 {
-    public function parseExcel(string $filePath): array
+    public function parseUploadedFile(UploadedFile $file): array
+    {
+        return $this->parseExcel(
+            $file->getRealPath(),
+            strtolower($file->getClientOriginalExtension())
+        );
+    }
+
+    public function parseExcel(string $filePath, ?string $extension = null): array
     {
         try {
-            $spreadsheet = IOFactory::load($filePath);
+            $reader = $this->makeReader($filePath, $extension);
+            $spreadsheet = $reader->load($filePath);
             $worksheet = $spreadsheet->getActiveSheet();
             $rows = $worksheet->toArray();
         } catch (Exception $e) {
-            throw new Exception("Could not read Excel file: " . $e->getMessage());
+            throw new Exception("Không đọc được file import: " . $e->getMessage());
         }
 
         if (empty($rows)) {
             return [];
         }
 
-        $headers = array_map(fn($h) => mb_strtolower(trim((string)$h)), array_shift($rows));
+        $headers = array_map(fn($h) => $this->normalizeHeader((string) $h), array_shift($rows));
         
         $colMap = [
             'keyword' => -1,
@@ -33,16 +43,16 @@ class KeywordParserService
         ];
 
         foreach ($headers as $index => $header) {
-            if (in_array($header, ['keyword', 'từ khóa'])) $colMap['keyword'] = $index;
-            elseif (in_array($header, ['search_volume', 'lượt tìm kiếm'])) $colMap['search_volume'] = $index;
-            elseif (in_array($header, ['difficulty', 'độ khó'])) $colMap['difficulty'] = $index;
-            elseif (in_array($header, ['priority', 'ưu tiên'])) $colMap['priority'] = $index;
+            if (in_array($header, ['keyword', 'keywords', 'tu khoa', 'từ khóa', 'từ khoá'])) $colMap['keyword'] = $index;
+            elseif (in_array($header, ['search_volume', 'search volume', 'volume', 'luot tim kiem', 'lượt tìm kiếm'])) $colMap['search_volume'] = $index;
+            elseif (in_array($header, ['difficulty', 'do kho', 'độ khó'])) $colMap['difficulty'] = $index;
+            elseif (in_array($header, ['priority', 'uu tien', 'ưu tiên'])) $colMap['priority'] = $index;
             elseif (in_array($header, ['wordpress_site_id', 'website_id'])) $colMap['wordpress_site_id'] = $index;
-            elseif (in_array($header, ['scheduled_at', 'lên lịch'])) $colMap['scheduled_at'] = $index;
+            elseif (in_array($header, ['scheduled_at', 'len lich', 'lên lịch'])) $colMap['scheduled_at'] = $index;
         }
 
         if ($colMap['keyword'] === -1) {
-            throw new Exception("Parse Exception: No keyword column found. Allowed headers: 'keyword' or 'từ khóa'.");
+            $colMap['keyword'] = 0;
         }
 
         $parsedRows = [];
@@ -74,5 +84,32 @@ class KeywordParserService
         }
 
         return $parsedRows;
+    }
+
+    protected function makeReader(string $filePath, ?string $extension)
+    {
+        $readerType = match ($extension) {
+            'csv' => 'Csv',
+            'xls' => 'Xls',
+            'xlsx' => 'Xlsx',
+            default => null,
+        };
+
+        $reader = $readerType
+            ? IOFactory::createReader($readerType)
+            : IOFactory::createReaderForFile($filePath);
+
+        $reader->setReadDataOnly(true);
+
+        return $reader;
+    }
+
+    protected function normalizeHeader(string $header): string
+    {
+        $header = preg_replace('/^\xEF\xBB\xBF/', '', $header) ?? $header;
+        $header = mb_strtolower(trim($header));
+        $header = preg_replace('/\s+/', ' ', $header) ?? $header;
+
+        return $header;
     }
 }

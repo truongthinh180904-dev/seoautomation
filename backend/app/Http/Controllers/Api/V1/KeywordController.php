@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Enums\KeywordStatus;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\BulkDestroyKeywordsRequest;
 use App\Http\Requests\ImportKeywordsRequest;
 use App\Http\Requests\StoreKeywordRequest;
 use App\Http\Requests\UpdateKeywordRequest;
@@ -12,7 +13,6 @@ use App\Repositories\Contracts\KeywordRepositoryInterface;
 use App\Services\Keyword\KeywordImportService;
 use App\Services\Keyword\KeywordParserService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 use Exception;
 
 class KeywordController extends Controller
@@ -35,52 +35,60 @@ class KeywordController extends Controller
 
     public function store(StoreKeywordRequest $request)
     {
-        $data = $request->validated();
+        $data = array_merge($request->validated(), [
+            'tenant_id' => $request->user()->tenant_id,
+            'user_id' => $request->user()->id,
+        ]);
         $keyword = $this->repository->create($data);
         return new KeywordResource($keyword);
     }
 
     public function import(ImportKeywordsRequest $request)
     {
-        \Illuminate\Support\Facades\Log::info('Keyword Import Started', [
-            'count' => count($request->input('keywords', [])),
-            'first_row' => $request->input('keywords.0'),
-        ]);
-
         try {
+            $rows = $this->parserService->parseUploadedFile($request->file('file'));
+
             $summary = $this->importService->import(
-                $request->input('keywords'), 
+                $rows,
                 $request->user()->tenant_id, 
                 $request->user()->id
             );
             
             return response()->json($summary);
         } catch (Exception $e) {
-            return response()->json(['error' => $e->getMessage()], 400);
+            return response()->json([
+                'message' => 'Import keywords failed.',
+                'error' => $e->getMessage(),
+            ], 400);
         }
     }
 
     public function update(UpdateKeywordRequest $request, int $id)
     {
-        $keyword = $this->repository->findById($id);
+        $keyword = $this->repository->findByIdForTenant($id, $request->user()->tenant_id);
         if (!$keyword) abort(404);
         $keyword->update($request->validated());
         return new KeywordResource($keyword);
     }
 
-    public function destroy(int $id)
+    public function destroy(Request $request, int $id)
     {
-        $keyword = $this->repository->findById($id);
+        $keyword = $this->repository->findByIdForTenant($id, $request->user()->tenant_id);
         if (!$keyword) abort(404);
         
         $keyword->update(['status' => KeywordStatus::SKIPPED]);
         return response()->noContent();
     }
 
-    public function bulkDestroy(Request $request)
+    public function bulkDestroy(BulkDestroyKeywordsRequest $request)
     {
-        $ids = $request->input('ids', []);
-        \App\Models\Keyword::whereIn('id', $ids)->update(['status' => KeywordStatus::SKIPPED]);
+        $validated = $request->validated();
+
+        $this->repository->bulkMarkSkippedForTenant(
+            $request->user()->tenant_id,
+            $validated['ids']
+        );
+
         return response()->noContent();
     }
 }

@@ -2,11 +2,11 @@
 
 import React, { useCallback, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { UploadCloud, FileSpreadsheet, AlertCircle } from 'lucide-react';
+import { UploadCloud, AlertCircle } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
 interface KeywordImportDropzoneProps {
-  onFileParsed: (data: any[]) => void;
+  onFileParsed: (file: File, data: KeywordImportPreviewRow[]) => void;
 }
 
 export default function KeywordImportDropzone({ onFileParsed }: KeywordImportDropzoneProps) {
@@ -26,19 +26,22 @@ export default function KeywordImportDropzone({ onFileParsed }: KeywordImportDro
         const firstSheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[firstSheetName];
         
-        const rawJson = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
+        const rawJson = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as unknown[][];
         
         if (rawJson.length < 2) {
           setError('File Excel rỗng hoặc không đúng định dạng (cần Header ở dòng 1).');
           return;
         }
 
-        const mappedData = rawJson.slice(1).map(row => ({
-          keyword: row[0],
-        })).filter(item => item.keyword);
+        const mappedData = rawJson
+          .slice(1)
+          .map((row) => ({
+            keyword: String(row[0] ?? '').trim(),
+          }))
+          .filter((item) => item.keyword);
 
-        onFileParsed(mappedData);
-      } catch (err) {
+        onFileParsed(file, mappedData);
+      } catch {
         setError('Lỗi khi đọc file Excel. Đảm bảo file không bị lỗi định dạng.');
       }
     };

@@ -15,6 +15,7 @@ interface Keyword {
     id: number;
     name: string;
   } | null;
+  article_id?: number | null;
   created_at: string;
 }
 
@@ -24,4 +25,8 @@ interface KeywordImportResult {
   imported: number;
   skipped: number;
   errors: string[];
+}
+
+interface KeywordImportPreviewRow {
+  keyword: string;
 }

@@ -20,8 +20,6 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\ApiRateLimiter::class,
             'throttle:api',
         ]);
-        
-        $middleware->statefulApi();
     })
     ->withSchedule(function (\Illuminate\Console\Scheduling\Schedule $schedule): void {
         // Process keywords due for AI pipeline — every 5 minutes
@@ -41,4 +39,3 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withExceptions(function (Exceptions $exceptions): void {
         //
     })->create();
-

@@ -2,7 +2,7 @@
 
 import React from 'react';
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, AreaChart, Area
+  Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, AreaChart, Area
 } from 'recharts';
 import { useAICosts } from '@/hooks/useAnalytics';
 
@@ -10,14 +10,39 @@ interface AIUsageChartProps {
   days: number;
 }
 
+interface AICostRow {
+  date?: string;
+  total_cost?: number | string;
+  calls?: number;
+  tokens?: number;
+}
+
+interface ChartTooltipProps {
+  active?: boolean;
+  payload?: Array<{ value?: number | string }>;
+  label?: string;
+}
+
+function CustomTooltip({ active, payload, label }: ChartTooltipProps) {
+  if (!active || !payload?.length) return null;
+
+  return (
+    <div className="bg-white border border-slate-200 rounded-xl shadow-lg p-3 text-sm">
+      <p className="font-bold text-slate-700 mb-1">{label}</p>
+      <p className="text-blue-600">Chi phí: <strong>${payload[0]?.value}</strong></p>
+      <p className="text-purple-500">Lượt gọi: <strong>{payload[1]?.value}</strong></p>
+    </div>
+  );
+}
+
 export default function AIUsageChart({ days }: AIUsageChartProps) {
   const { data, isLoading } = useAICosts(days);
 
-  const chartData = (data?.data ?? []).map((row: any) => ({
+  const chartData = ((data?.data ?? []) as AICostRow[]).map((row) => ({
     date: row.date?.slice(5), // "MM-DD"
     cost: parseFloat(Number(row.total_cost).toFixed(4)),
-    calls: row.calls,
-    tokens: row.tokens,
+    calls: row.calls ?? 0,
+    tokens: row.tokens ?? 0,
   }));
 
   if (isLoading) {
@@ -27,17 +52,6 @@ export default function AIUsageChart({ days }: AIUsageChartProps) {
   if (!chartData.length) {
     return <div className="h-72 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400 font-medium">Chưa có dữ liệu AI trong khoảng thời gian này.</div>;
   }
-
-  const CustomTooltip = ({ active, payload, label }: any) => {
-    if (!active || !payload?.length) return null;
-    return (
-      <div className="bg-white border border-slate-200 rounded-xl shadow-lg p-3 text-sm">
-        <p className="font-bold text-slate-700 mb-1">{label}</p>
-        <p className="text-blue-600">Chi phí: <strong>${payload[0]?.value}</strong></p>
-        <p className="text-purple-500">Lượt gọi: <strong>{payload[1]?.value}</strong></p>
-      </div>
-    );
-  };
 
   return (
     <ResponsiveContainer width="100%" height={288}>

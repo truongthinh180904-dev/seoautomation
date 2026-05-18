@@ -34,7 +34,7 @@ export function useArticleActions() {
   const queryClient = useQueryClient();
 
   const updateArticle = useMutation({
-    mutationFn: async ({ id, data }: { id: number, data: any }) => {
+    mutationFn: async ({ id, data }: { id: number, data: ArticleUpdatePayload }) => {
       await apiClient.put(`/articles/${id}`, data);
     },
     onSuccess: (_, { id }) => {
@@ -61,6 +61,15 @@ export function useArticleActions() {
     },
   });
 
-  return { updateArticle, deleteArticle, retryArticle };
-}
+  const generateArticle = useMutation({
+    mutationFn: async (keywordId: number) => {
+      await apiClient.post('/articles/generate', { keyword_id: keywordId });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['articles'] });
+      queryClient.invalidateQueries({ queryKey: ['keywords'] });
+    },
+  });
 
+  return { updateArticle, deleteArticle, retryArticle, generateArticle };
+}

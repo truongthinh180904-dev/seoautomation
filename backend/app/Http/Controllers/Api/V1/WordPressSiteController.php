@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreWordPressSiteRequest;
 use App\Http\Requests\UpdateWordPressSiteRequest;
 use App\Http\Resources\WordPressSiteResource;
-use App\Models\WordPressSite;
 use App\Repositories\Contracts\WordPressSiteRepositoryInterface;
 use App\Services\WordPress\WordPressSiteService;
 use Illuminate\Http\Request;
@@ -20,7 +19,11 @@ class WordPressSiteController extends Controller
 
     public function index(Request $request)
     {
-        $sites = WordPressSite::paginate(20);
+        $sites = $this->repository->paginateForTenant(
+            $request->user()->tenant_id,
+            $request->integer('per_page', 20)
+        );
+
         return WordPressSiteResource::collection($sites);
     }
 
@@ -30,27 +33,36 @@ class WordPressSiteController extends Controller
         return new WordPressSiteResource($site);
     }
 
-    public function show(int $id)
+    public function show(Request $request, int $id)
     {
-        $site = $this->repository->findById($id);
+        $site = $this->repository->findByIdForTenant($id, $request->user()->tenant_id);
         if (!$site) abort(404);
         return new WordPressSiteResource($site);
     }
 
     public function update(UpdateWordPressSiteRequest $request, int $id)
     {
+        $site = $this->repository->findByIdForTenant($id, $request->user()->tenant_id);
+        if (!$site) abort(404);
+
         $this->repository->update($id, $request->validated());
-        return new WordPressSiteResource($this->repository->findById($id));
+        return new WordPressSiteResource($this->repository->findByIdForTenant($id, $request->user()->tenant_id));
     }
 
-    public function destroy(int $id)
+    public function destroy(Request $request, int $id)
     {
+        $site = $this->repository->findByIdForTenant($id, $request->user()->tenant_id);
+        if (!$site) abort(404);
+
         $this->repository->delete($id);
         return response()->noContent();
     }
 
-    public function test(int $id)
+    public function test(Request $request, int $id)
     {
+        $site = $this->repository->findByIdForTenant($id, $request->user()->tenant_id);
+        if (!$site) abort(404);
+
         $result = $this->service->testConnection($id);
         return response()->json($result, $result['success'] ? 200 : 400);
     }

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import {
   CAN_REDO_COMMAND,
@@ -13,8 +13,8 @@ import {
   $isRangeSelection,
 } from 'lexical';
 import { $setBlocksType } from '@lexical/selection';
-import { $createHeadingNode, $isHeadingNode, HeadingTagType } from '@lexical/rich-text';
-import { $createListNode, $isListNode, ListNode, ListType } from '@lexical/list';
+import { $createHeadingNode, HeadingTagType } from '@lexical/rich-text';
+import { $createListNode, ListType } from '@lexical/list';
 import {
   Undo,
   Redo,

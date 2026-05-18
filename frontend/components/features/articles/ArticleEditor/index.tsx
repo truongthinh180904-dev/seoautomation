@@ -16,8 +16,8 @@ import { CodeHighlightNode, CodeNode } from '@lexical/code';
 import { AutoLinkNode, LinkNode } from '@lexical/link';
 import ToolbarPlugin from './ToolbarPlugin';
 import SEOScorePanel from './SEOScorePanel';
-import { $generateHtmlFromNodes, $generateNodesFromHtml } from '@lexical/html';
-import { $getRoot, $insertNodes, EditorState } from 'lexical';
+import { $generateHtmlFromNodes, $generateNodesFromDOM } from '@lexical/html';
+import { $getRoot, $insertNodes, EditorState, LexicalEditor } from 'lexical';
 
 const editorConfig = {
   namespace: 'ArticleEditor',
@@ -77,7 +77,7 @@ export default function ArticleEditor({
   const [title, setTitle] = useState(initialTitle);
   const [metaDescription, setMetaDescription] = useState(initialMetaDescription);
 
-  const onChange = (editorState: EditorState, editor: any) => {
+  const onChange = (editorState: EditorState, editor: LexicalEditor) => {
     editorState.read(() => {
       const htmlString = $generateHtmlFromNodes(editor, null);
       setContent(htmlString);
@@ -116,7 +116,8 @@ export default function ArticleEditor({
           <LexicalComposer initialConfig={{
             ...editorConfig,
             editorState: (editor) => {
-              const nodes = $generateNodesFromHtml(editor, initialContent);
+              const dom = new DOMParser().parseFromString(initialContent, 'text/html');
+              const nodes = $generateNodesFromDOM(editor, dom);
               $getRoot().select();
               $insertNodes(nodes);
             }

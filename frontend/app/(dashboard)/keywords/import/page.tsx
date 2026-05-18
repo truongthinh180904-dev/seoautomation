@@ -3,21 +3,34 @@
 import { useState } from 'react';
 import KeywordImportDropzone from '@/components/features/keywords/KeywordImportDropzone';
 import { useKeywordImport } from '@/hooks/useKeywords';
-import { ArrowLeft, CheckCircle2 } from 'lucide-react';
+import { AlertCircle, ArrowLeft, CheckCircle2 } from 'lucide-react';
 import Link from 'next/link';
 
 export default function KeywordImportPage() {
-  const [parsedData, setParsedData] = useState<any[]>([]);
-  const [importResult, setImportResult] = useState<any>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [parsedData, setParsedData] = useState<KeywordImportPreviewRow[]>([]);
+  const [importResult, setImportResult] = useState<KeywordImportResult | null>(null);
+  const [importError, setImportError] = useState('');
   
   const importMutation = useKeywordImport();
 
   const handleConfirm = () => {
-    importMutation.mutate({ keywords: parsedData, tenant_id: 1 }, {
+    if (!selectedFile) return;
+
+    importMutation.mutate(selectedFile, {
       onSuccess: (data) => {
+        setImportError('');
         setImportResult(data);
+      },
+      onError: (error) => {
+        setImportError(error instanceof Error ? error.message : 'Import thất bại. Vui lòng thử lại.');
       }
     });
+  };
+
+  const handleFileParsed = (file: File, rows: KeywordImportPreviewRow[]) => {
+    setSelectedFile(file);
+    setParsedData(rows);
   };
 
   if (importResult) {
@@ -35,15 +48,15 @@ export default function KeywordImportPage() {
           
           <div className="bg-slate-50 rounded-2xl p-8 text-left grid grid-cols-3 gap-6 border border-slate-100 shadow-sm">
             <div className="text-center">
-              <div className="text-4xl font-black text-emerald-600">{importResult.imported_count || parsedData.length}</div>
+              <div className="text-4xl font-black text-emerald-600">{importResult.imported}</div>
               <div className="text-sm font-bold text-slate-500 mt-2 uppercase tracking-wide">Đã thêm mới</div>
             </div>
             <div className="text-center border-l border-r border-slate-200">
-              <div className="text-4xl font-black text-orange-500">{importResult.skipped_count || 0}</div>
+              <div className="text-4xl font-black text-orange-500">{importResult.skipped}</div>
               <div className="text-sm font-bold text-slate-500 mt-2 uppercase tracking-wide">Bỏ qua (Trùng)</div>
             </div>
             <div className="text-center">
-              <div className="text-4xl font-black text-red-500">{importResult.error_count || 0}</div>
+              <div className="text-4xl font-black text-red-500">{importResult.errors.length}</div>
               <div className="text-sm font-bold text-slate-500 mt-2 uppercase tracking-wide">Lỗi</div>
             </div>
           </div>
@@ -70,7 +83,7 @@ export default function KeywordImportPage() {
 
       {!parsedData.length ? (
         <div className="bg-white p-10 rounded-3xl shadow-sm border border-slate-200">
-          <KeywordImportDropzone onFileParsed={setParsedData} />
+          <KeywordImportDropzone onFileParsed={handleFileParsed} />
           
           <div className="mt-10 bg-blue-50/50 border border-blue-100 rounded-2xl p-6">
             <h3 className="font-bold text-blue-900 mb-3 flex items-center gap-2">
@@ -93,7 +106,10 @@ export default function KeywordImportPage() {
             </div>
             <div className="flex gap-3 w-full sm:w-auto">
               <button 
-                onClick={() => setParsedData([])}
+                onClick={() => {
+                  setSelectedFile(null);
+                  setParsedData([]);
+                }}
                 className="flex-1 sm:flex-none px-6 py-3 bg-white border border-slate-300 rounded-xl font-bold text-slate-700 hover:bg-slate-50 transition-all active:scale-95"
                 disabled={importMutation.isPending}
               >
@@ -108,6 +124,13 @@ export default function KeywordImportPage() {
               </button>
             </div>
           </div>
+
+          {importError && (
+            <div className="mx-8 mt-6 flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 p-4 font-medium text-red-700">
+              <AlertCircle className="h-5 w-5 flex-shrink-0" />
+              {importError}
+            </div>
+          )}
           
           <table className="min-w-full divide-y divide-slate-200">
             <thead className="bg-white">

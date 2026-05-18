@@ -1,0 +1,25 @@
+# 1. Bảo mật tuyệt đối
+.env.backup
+.env.production
+*.json-ld
+auth.json
+
+# 2. Thư mục chứa thư viện và file build (Rất nặng, AI quét sẽ bị ngợp)
+vendor/
+node_modules/
+public/build/
+public/storage/
+public/mix-manifest.json
+
+# 3. File tạm và Cache của Laravel (Thay đổi liên tục, AI không cần đọc) 
+storage/framework/cache/
+storage/framework/sessions/
+storage/framework/views/
+storage/framework/testing/
+storage/logs/
+bootstrap/cache/
+
+# 4. File cấu hình môi trường local của IDE
+.idea/
+.vscode/
+.antigravity/

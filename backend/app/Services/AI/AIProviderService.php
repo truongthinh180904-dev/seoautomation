@@ -19,10 +19,7 @@ class AIProviderService
     /** @var AIProviderInterface[] */
     protected array $providers = [];
 
-    protected array $providerChain = [
-        AIProvider::OPENAI,
-        AIProvider::ANTHROPIC,
-    ];
+    protected array $providerChain = [];
 
     // Per-provider rate limit: max hits within window (in seconds)
     protected array $providerRateLimits = [
@@ -37,6 +34,8 @@ class AIProviderService
         foreach ($providers as $provider) {
             $this->providers[$provider->getProvider()->value] = $provider;
         }
+
+        $this->providerChain = $this->buildProviderChain();
     }
 
     public function complete(AIRequestDTO $request): AIResponseDTO
@@ -98,6 +97,26 @@ class AIProviderService
         $this->alertAdminViaZalo($errorMsg, $lastException);
 
         throw new AllProvidersFailedException($errorMsg);
+    }
+
+    protected function buildProviderChain(): array
+    {
+        $configured = array_filter(array_merge(
+            [config('ai.default_provider', 'openai')],
+            config('ai.fallback_chain', [])
+        ));
+
+        $chain = [];
+
+        foreach ($configured as $provider) {
+            $providerEnum = AIProvider::tryFrom((string) $provider);
+
+            if ($providerEnum && !in_array($providerEnum, $chain, true)) {
+                $chain[] = $providerEnum;
+            }
+        }
+
+        return $chain ?: [AIProvider::OPENAI];
     }
 
     /**

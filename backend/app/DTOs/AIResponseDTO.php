@@ -5,7 +5,7 @@ namespace App\DTOs;
 use App\Enums\AIProvider;
 use Spatie\LaravelData\Data;
 
-readonly class AIResponseDTO extends Data
+class AIResponseDTO extends Data
 {
     public function __construct(
         public string $content,
@@ -31,6 +31,12 @@ readonly class AIResponseDTO extends Data
         } elseif (str_contains($model, 'claude-3-5-sonnet')) {
             $inputPricePerM = 3.0;
             $outputPricePerM = 15.0;
+        } elseif (str_contains($model, 'gemini-2.5-flash')) {
+            $inputPricePerM = 0.30;
+            $outputPricePerM = 2.50;
+        } elseif (str_contains($model, 'gemini-1.5-flash')) {
+            $inputPricePerM = 0.075;
+            $outputPricePerM = 0.30;
         } elseif (str_contains($model, 'gemini-1.5-pro')) {
             $inputPricePerM = 1.25;
             $outputPricePerM = 5.0;
