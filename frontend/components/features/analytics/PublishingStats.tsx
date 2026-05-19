@@ -23,6 +23,11 @@ interface PublishingStatsProps {
   days: number;
 }
 
+interface FailingAgentRow {
+  agent_type?: string;
+  count?: number;
+}
+
 export default function PublishingStats({ days }: PublishingStatsProps) {
   const summary = useAnalyticsSummary(days);
   const agents = useFailingAgents(days);
@@ -33,9 +38,9 @@ export default function PublishingStats({ days }: PublishingStatsProps) {
     color: STATUS_COLORS[status] ?? '#cbd5e1',
   })).filter(d => d.value > 0);
 
-  const agentData = (agents.data?.data ?? []).map((row: any) => ({
+  const agentData = ((agents.data?.data ?? []) as FailingAgentRow[]).map((row) => ({
     agent: row.agent_type?.replace(/_/g, ' '),
-    lỗi: row.count,
+    lỗi: row.count ?? 0,
   }));
 
   const kpiCards = [
@@ -72,7 +77,7 @@ export default function PublishingStats({ days }: PublishingStatsProps) {
                     <Cell key={i} fill={entry.color} />
                   ))}
                 </Pie>
-                <Tooltip formatter={(v: any) => [`${v} bài`, '']} />
+                <Tooltip formatter={(v: unknown) => [`${v} bài`, '']} />
                 <Legend iconType="circle" iconSize={10} />
               </PieChart>
             </ResponsiveContainer>

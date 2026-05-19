@@ -10,7 +10,7 @@ export default function ReviewPage() {
   const params = useParams();
   const token = params.token as string;
 
-  const [article, setArticle] = useState<any>(null);
+  const [article, setArticle] = useState<Article | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [actionSuccess, setActionSuccess] = useState('');
@@ -48,7 +48,6 @@ export default function ReviewPage() {
             <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 sticky bottom-4">
               <ApprovalButtons 
                 token={token} 
-                articleId={article.id} 
                 onSuccess={(msg) => setActionSuccess(msg)} 
               />
             </div>

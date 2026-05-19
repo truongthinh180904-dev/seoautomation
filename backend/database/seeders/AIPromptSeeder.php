@@ -36,15 +36,15 @@ class AIPromptSeeder extends Seeder
                 'agent_type' => AgentType::OUTLINE->value,
                 'name' => 'Outline Generation Default',
                 'system_prompt' => 'You are a master copywriter creating highly engaging outlines.',
-                'user_prompt_template' => "Create an outline for the keyword: {{keyword}}\nSearch Intent: {{search_intent}}\nCompetitor insights: {{insights}}",
-                'variables' => ['keyword', 'search_intent', 'insights'],
+                'user_prompt_template' => "Create a Vietnamese SEO article outline for keyword: {{keyword}}\nSearch Intent: {{search_intent}}\nTarget word count: {{word_count_target}}\nCompetitor insights:\n{{competitors_summary}}\n\nReturn ONLY valid JSON with this exact structure: {\"h1\":\"string containing the keyword\",\"sections\":[{\"heading\":\"string\",\"points\":[\"string\"]}],\"faqs\":[{\"question\":\"string\",\"answer\":\"string\"}]}. Include at least 4 sections.",
+                'variables' => ['keyword', 'search_intent', 'word_count_target', 'competitors_summary'],
             ],
             [
                 'agent_type' => AgentType::WRITING->value,
                 'name' => 'Article Writing Default',
                 'system_prompt' => 'You are a top-tier SEO copywriter writing in Vietnamese.',
-                'user_prompt_template' => "Write an article based on this outline:\n{{outline}}\nKeyword: {{keyword}}",
-                'variables' => ['outline', 'keyword'],
+                'user_prompt_template' => "Write a human, helpful Vietnamese SEO article for keyword: {{keyword}}\nOutline JSON:\n{{outline_json}}\nSemantic keywords: {{semantic_keywords}}\nEntities: {{entities}}\nFAQs to answer: {{faqs_to_answer}}\n\nReturn ONLY valid JSON with this exact structure: {\"title\":\"string containing the keyword\",\"content\":\"HTML article content longer than 1200 words\",\"excerpt\":\"short summary\"}.",
+                'variables' => ['keyword', 'outline_json', 'semantic_keywords', 'entities', 'faqs_to_answer'],
             ],
             [
                 'agent_type' => AgentType::SEO_OPTIMIZATION->value,
@@ -79,7 +79,7 @@ class AIPromptSeeder extends Seeder
         $admin = \App\Models\User::first();
 
         foreach ($prompts as $prompt) {
-            AIPromptVersion::firstOrCreate(
+            AIPromptVersion::updateOrCreate(
                 [
                     'agent_type' => $prompt['agent_type'],
                     'is_default' => true,

@@ -15,6 +15,13 @@ class ArticleRepository implements ArticleRepositoryInterface
         return Article::find($id);
     }
 
+    public function findByIdForTenant(int $id, int $tenantId): ?Article
+    {
+        return Article::with(['keyword', 'wordpressSite', 'user'])
+            ->where('tenant_id', $tenantId)
+            ->find($id);
+    }
+
     public function findByReviewToken(string $token): ?Article
     {
         return Article::where('review_token', $token)
@@ -22,10 +29,26 @@ class ArticleRepository implements ArticleRepositoryInterface
             ->first();
     }
 
+    public function findReviewableByToken(string $token): ?Article
+    {
+        return Article::with(['keyword:id,keyword', 'wordpressSite:id,name,url'])
+            ->where('review_token', $token)
+            ->whereIn('status', [ArticleStatus::REVIEW, ArticleStatus::APPROVED, ArticleStatus::REJECTED])
+            ->first();
+    }
+
+    public function findPendingReviewByToken(string $token): ?Article
+    {
+        return Article::with(['keyword:id,keyword', 'wordpressSite:id,name,url'])
+            ->where('review_token', $token)
+            ->where('status', ArticleStatus::REVIEW)
+            ->first();
+    }
+
     public function paginateForTenant(int $tenantId, array $filters, int $perPage = 20): LengthAwarePaginator
     {
         $query = Article::where('tenant_id', $tenantId)
-            ->with(['keyword:id,keyword', 'wordpressSite:id,name', 'user:id,name']);
+            ->with(['keyword:id,keyword', 'campaign:id,name,status', 'wordpressSite:id,name', 'user:id,name']);
 
         if (!empty($filters['status'])) {
             $query->where('status', $filters['status']);
@@ -35,20 +58,39 @@ class ArticleRepository implements ArticleRepositoryInterface
             $query->where('keyword_id', $filters['keyword_id']);
         }
 
+        if (!empty($filters['campaign_id'])) {
+            $query->where('campaign_id', $filters['campaign_id']);
+        }
+
         if (!empty($filters['wordpress_site_id'])) {
             $query->where('wordpress_site_id', $filters['wordpress_site_id']);
         }
 
-        if (!empty($filters['search'])) {
-            $query->where('title', 'like', '%' . $filters['search'] . '%');
+        if (!empty($filters['wp_site_id'])) {
+            $query->where('wordpress_site_id', $filters['wp_site_id']);
         }
 
-        return $query->paginate($perPage);
+        if (!empty($filters['search'])) {
+            $search = $filters['search'];
+            $query->where(function ($q) use ($search) {
+                $q->where('title', 'like', '%' . $search . '%')
+                    ->orWhereHas('keyword', fn ($keywordQuery) => $keywordQuery->where('keyword', 'like', '%' . $search . '%'));
+            });
+        }
+
+        return $query->latest()->paginate($perPage);
     }
 
     public function findByKeywordId(int $keywordId): ?Article
     {
         return Article::where('keyword_id', $keywordId)->first();
+    }
+
+    public function findByKeywordIdForTenant(int $keywordId, int $tenantId): ?Article
+    {
+        return Article::where('tenant_id', $tenantId)
+            ->where('keyword_id', $keywordId)
+            ->first();
     }
 
     public function create(array $data): Article
@@ -64,6 +106,13 @@ class ArticleRepository implements ArticleRepositoryInterface
     public function updateStatus(int $id, ArticleStatus $status): bool
     {
         return Article::where('id', $id)->update(['status' => $status]) > 0;
+    }
+
+    public function deleteForTenant(int $id, int $tenantId): bool
+    {
+        return Article::where('tenant_id', $tenantId)
+            ->where('id', $id)
+            ->delete() > 0;
     }
 
     public function checkDuplicate(string $contentHash, int $tenantId): bool

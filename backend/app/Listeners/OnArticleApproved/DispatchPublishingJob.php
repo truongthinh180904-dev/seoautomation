@@ -25,7 +25,7 @@ class DispatchPublishingJob implements ShouldQueue
             return;
         }
 
-        PublishToWordPressJob::dispatch($article->id);
+        PublishToWordPressJob::dispatch($article->id, $article->wordpress_site_id);
         Log::info("PublishToWordPressJob dispatched for article #{$article->id}");
     }
 }

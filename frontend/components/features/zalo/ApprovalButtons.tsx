@@ -5,11 +5,19 @@ import apiClient from '@/lib/api/client';
 
 interface ApprovalButtonsProps {
   token: string;
-  articleId: number;
   onSuccess: (message: string) => void;
 }
 
-export default function ApprovalButtons({ token, articleId, onSuccess }: ApprovalButtonsProps) {
+function getErrorMessage(error: unknown): string {
+  if (typeof error === 'object' && error !== null && 'response' in error) {
+    const response = (error as { response?: { data?: Partial<ApiError> } }).response;
+    return response?.data?.message || 'An error occurred while processing your request.';
+  }
+
+  return error instanceof Error ? error.message : 'An error occurred while processing your request.';
+}
+
+export default function ApprovalButtons({ token, onSuccess }: ApprovalButtonsProps) {
   const [isRejecting, setIsRejecting] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
   const [loading, setLoading] = useState(false);
@@ -44,8 +52,8 @@ export default function ApprovalButtons({ token, articleId, onSuccess }: Approva
           ? 'Article approved successfully! It is now queued for publishing.' 
           : 'Article rejected. The system has recorded your feedback.'
       );
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'An error occurred while processing your request.');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err));
     } finally {
       setLoading(false);
     }

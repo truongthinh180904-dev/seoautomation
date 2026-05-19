@@ -4,7 +4,7 @@ namespace App\DTOs;
 
 use Spatie\LaravelData\Data;
 
-readonly class SerpResultDTO extends Data
+class SerpResultDTO extends Data
 {
     public function __construct(
         public int $position,

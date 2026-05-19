@@ -3,83 +3,78 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
-use App\Models\Keyword;
-use App\Enums\KeywordStatus;
+use App\Http\Requests\StoreScheduleRequest;
+use App\Http\Requests\UpdateScheduleRequest;
+use App\Http\Resources\ScheduleResource;
+use App\Repositories\Contracts\ScheduleRepositoryInterface;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 
 class ScheduleController extends Controller
 {
+    public function __construct(
+        protected ScheduleRepositoryInterface $schedules
+    ) {}
+
     /**
      * List all keywords with a scheduled_at date (upcoming schedules).
      */
     public function index(Request $request): JsonResponse
     {
-        $tenantId = $request->user()->tenant_id;
+        $schedules = $this->schedules->paginateForTenant(
+            $request->user()->tenant_id,
+            $request->only(['type', 'status']),
+            $request->integer('per_page', 20)
+        );
 
-        $schedules = Keyword::where('tenant_id', $tenantId)
-            ->whereNotNull('scheduled_at')
-            ->orderBy('scheduled_at')
-            ->paginate(20);
-
-        return response()->json($schedules);
+        return response()->json(ScheduleResource::collection($schedules));
     }
 
     /**
      * Schedule a keyword for future processing (one-time or update).
      */
-    public function store(Request $request): JsonResponse
+    public function store(StoreScheduleRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'keyword_id'   => 'required|integer|exists:keywords,id',
-            'scheduled_at' => 'required|date|after:now',
-            'recurring'    => 'boolean',
-            'interval_days' => 'nullable|integer|min:1|max:365',
-        ]);
-
-        $keyword = Keyword::where('tenant_id', $request->user()->tenant_id)
-            ->findOrFail($validated['keyword_id']);
-
-        $keyword->update([
-            'scheduled_at' => $validated['scheduled_at'],
-            'status'       => KeywordStatus::NEW,
-        ]);
+        $schedule = $this->schedules->create(array_merge($request->validated(), [
+            'tenant_id' => $request->user()->tenant_id,
+            'created_by' => $request->user()->id,
+        ]));
 
         return response()->json([
-            'message'  => 'Keyword scheduled successfully.',
-            'keyword'  => $keyword->fresh(),
+            'message' => 'Schedule created successfully.',
+            'schedule' => new ScheduleResource($schedule),
         ], 201);
     }
 
     /**
-     * Update schedule date for a keyword.
+     * Update a schedule.
      */
-    public function update(Request $request, int $keywordId): JsonResponse
+    public function update(UpdateScheduleRequest $request, int $id): JsonResponse
     {
-        $validated = $request->validate([
-            'scheduled_at'  => 'required|date',
-            'recurring'     => 'boolean',
-            'interval_days' => 'nullable|integer|min:1',
-        ]);
+        $schedule = $this->schedules->findByIdForTenant($id, $request->user()->tenant_id);
 
-        $keyword = Keyword::where('tenant_id', $request->user()->tenant_id)
-            ->findOrFail($keywordId);
+        if (!$schedule) {
+            abort(404);
+        }
 
-        $keyword->update(['scheduled_at' => $validated['scheduled_at']]);
+        $schedule = $this->schedules->update($schedule, $request->validated());
 
-        return response()->json(['message' => 'Schedule updated.', 'keyword' => $keyword]);
+        return response()->json(['message' => 'Schedule updated.', 'schedule' => new ScheduleResource($schedule)]);
     }
 
     /**
-     * Remove schedule from a keyword (set scheduled_at to null).
+     * Delete a schedule.
      */
-    public function destroy(int $keywordId, Request $request): JsonResponse
+    public function destroy(int $id, Request $request): JsonResponse
     {
-        $keyword = Keyword::where('tenant_id', $request->user()->tenant_id)
-            ->findOrFail($keywordId);
+        $schedule = $this->schedules->findByIdForTenant($id, $request->user()->tenant_id);
 
-        $keyword->update(['scheduled_at' => null]);
+        if (!$schedule) {
+            abort(404);
+        }
 
-        return response()->json(['message' => 'Schedule removed.']);
+        $this->schedules->delete($schedule);
+
+        return response()->json(null, 204);
     }
 }

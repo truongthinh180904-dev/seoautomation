@@ -1,5 +1,4 @@
 import React from 'react';
-import { CheckCircle2, Loader2, Clock, AlertCircle } from 'lucide-react';
 
 const PIPELINE_STEPS = [
   { key: 'serp_research',        label: 'SERP Research',        icon: '🔍', queue: 'ai-research' },

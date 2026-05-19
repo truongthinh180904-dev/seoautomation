@@ -16,7 +16,7 @@ class JobDispatcherService
     public function dispatchScheduledKeywords(): int
     {
         $keywords = Keyword::query()
-            ->where('status', KeywordStatus::NEW)
+            ->where('status', KeywordStatus::PENDING)
             ->where(function ($q) {
                 $q->whereNull('scheduled_at')
                   ->orWhere('scheduled_at', '<=', now());
@@ -57,7 +57,7 @@ class JobDispatcherService
         }
 
         foreach ($stalled as $keyword) {
-            $keyword->update(['status' => KeywordStatus::NEW]);
+            $keyword->update(['status' => KeywordStatus::PENDING]);
             Log::warning("JobDispatcherService: reset stalled keyword #{$keyword->id} ({$keyword->keyword})");
         }
 

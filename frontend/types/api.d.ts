@@ -17,3 +17,7 @@ interface ApiError {
   message: string;
   errors?: Record<string, string[]>;
 }
+
+interface ApiValidationError extends ApiError {
+  errors: Record<string, string[]>;
+}

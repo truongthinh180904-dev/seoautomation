@@ -3,89 +3,97 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Enums\ArticleStatus;
+use App\Enums\KeywordStatus;
 use App\Events\ArticleApproved;
-use App\Events\ArticleGenerated;
 use App\Http\Controllers\Controller;
-use App\Models\Article;
+use App\Http\Requests\GenerateArticleRequest;
+use App\Http\Requests\ReviewArticleActionRequest;
+use App\Http\Requests\UpdateArticleRequest;
+use App\Http\Resources\ArticleResource;
+use App\Jobs\AI\GenerateOutlineJob;
 use App\Jobs\Publishing\PublishToWordPressJob;
+use App\Repositories\Contracts\ArticleRepositoryInterface;
+use App\Repositories\Contracts\KeywordRepositoryInterface;
+use App\Services\Cost\CostTrackingService;
+use App\Models\MediaAsset;
+use App\Services\SEO\SEOAutoFixService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Str;
 
 class ArticleController extends Controller
 {
-    public function index(Request $request): JsonResponse
+    public function __construct(
+        protected ArticleRepositoryInterface $repository,
+        protected KeywordRepositoryInterface $keywords,
+        protected CostTrackingService $costTracking,
+        protected SEOAutoFixService $autoFixService
+    ) {}
+
+    public function index(Request $request)
     {
         $tenantId = $request->user()->tenant_id;
-
-        $query = Article::with(['keyword:id,keyword', 'wordpressSite:id,name'])
-            ->where('tenant_id', $tenantId)
-            ->orderBy('created_at', 'desc');
-
-        if ($request->filled('status')) {
-            $query->where('status', $request->status);
-        }
-
-        if ($request->filled('search')) {
-            $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->where('title', 'ilike', "%{$search}%")
-                  ->orWhereHas('keyword', fn($kq) => $kq->where('keyword', 'ilike', "%{$search}%"));
-            });
-        }
-
-        if ($request->filled('wp_site_id')) {
-            $query->where('wordpress_site_id', $request->wp_site_id);
-        }
-
+        $filters = $request->only(['status', 'keyword_id', 'campaign_id', 'wordpress_site_id', 'wp_site_id', 'search']);
         $perPage = min($request->integer('per_page', 20), 100);
-        $articles = $query->paginate($perPage);
+        $articles = $this->repository->paginateForTenant($tenantId, $filters, $perPage);
 
-        return response()->json($articles);
+        return ArticleResource::collection($articles);
     }
 
-    public function show(int $id, Request $request): JsonResponse
+    public function show(int $id, Request $request)
     {
-        $article = Article::with(['keyword', 'wordpressSite'])
-            ->where('tenant_id', $request->user()->tenant_id)
-            ->findOrFail($id);
+        $article = $this->repository->findByIdForTenant($id, $request->user()->tenant_id);
+        if (!$article) abort(404);
 
-        return response()->json(['data' => $article]);
+        return new ArticleResource($article);
     }
 
-    public function update(int $id, Request $request): JsonResponse
+    public function update(int $id, UpdateArticleRequest $request)
     {
-        $request->validate([
-            'title' => 'sometimes|string|max:255',
-            'content' => 'sometimes|string',
-            'seo_title' => 'sometimes|string|max:255',
-            'seo_description' => 'sometimes|string|max:255',
-            'status' => 'sometimes|in:draft,review,approved,rejected',
+        $article = $this->repository->findByIdForTenant($id, $request->user()->tenant_id);
+        if (!$article) abort(404);
+
+        $this->repository->update($id, $request->validated());
+        $article = $this->repository->findByIdForTenant($id, $request->user()->tenant_id);
+
+        return (new ArticleResource($article))->additional([
+            'message' => 'Article updated successfully.',
         ]);
-
-        $article = Article::where('tenant_id', $request->user()->tenant_id)->findOrFail($id);
-        $article->update($request->only(['title', 'content', 'seo_title', 'seo_description', 'status']));
-
-        return response()->json(['message' => 'Article updated successfully.', 'data' => $article]);
     }
 
     public function destroy(int $id, Request $request): JsonResponse
     {
-        $article = Article::where('tenant_id', $request->user()->tenant_id)->findOrFail($id);
-        $article->delete();
+        if (!$this->repository->deleteForTenant($id, $request->user()->tenant_id)) {
+            abort(404);
+        }
 
         return response()->json(null, 204);
     }
 
     public function retry(int $id, Request $request): JsonResponse
     {
-        $article = Article::where('tenant_id', $request->user()->tenant_id)
-            ->where('status', ArticleStatus::FAILED)
-            ->findOrFail($id);
+        $article = $this->repository->findByIdForTenant($id, $request->user()->tenant_id);
+        if (!$article || $article->status !== ArticleStatus::FAILED) {
+            abort(404);
+        }
 
-        $article->update(['status' => ArticleStatus::APPROVED]);
-        PublishToWordPressJob::dispatch($article->id);
+        $this->repository->updateStatus($article->id, ArticleStatus::APPROVED);
+
+        if ($article->wordpress_site_id) {
+            PublishToWordPressJob::dispatch($article->id, $article->wordpress_site_id);
+        }
 
         return response()->json(['message' => 'Article queued for retry.']);
+    }
+
+    public function autoFix(int $id, Request $request)
+    {
+        $article = $this->repository->findByIdForTenant($id, $request->user()->tenant_id);
+        if (!$article) abort(404);
+
+        return (new ArticleResource($this->autoFixService->autoFix($article)))->additional([
+            'message' => 'SEO auto-fix applied.',
+        ]);
     }
 
     /**
@@ -93,34 +101,26 @@ class ArticleController extends Controller
      */
     public function reviewByToken(string $token): JsonResponse
     {
-        $article = Article::with(['keyword:id,keyword'])
-            ->where('review_token', $token)
-            ->whereIn('status', [ArticleStatus::REVIEW, ArticleStatus::APPROVED, ArticleStatus::REJECTED])
-            ->firstOrFail();
+        $article = $this->repository->findReviewableByToken($token);
+        if (!$article) abort(404);
 
-        return response()->json(['data' => $article]);
+        return new ArticleResource($article);
     }
 
     /**
      * Approve or reject an article via review token (no auth required).
      */
-    public function reviewAction(string $token, Request $request): JsonResponse
+    public function reviewAction(string $token, ReviewArticleActionRequest $request): JsonResponse
     {
-        $request->validate([
-            'action' => 'required|in:approve,reject',
-            'reason' => 'required_if:action,reject|nullable|string|max:2000',
-        ]);
-
-        $article = Article::where('review_token', $token)
-            ->where('status', ArticleStatus::REVIEW)
-            ->firstOrFail();
+        $article = $this->repository->findPendingReviewByToken($token);
+        if (!$article) abort(404);
 
         if ($request->action === 'approve') {
-            $article->update(['status' => ArticleStatus::APPROVED]);
-            // Fire event — DispatchPublishingJob listener handles queuing
+            $this->repository->updateStatus($article->id, ArticleStatus::APPROVED);
+            $article->refresh();
             ArticleApproved::dispatch($article);
         } else {
-            $article->update([
+            $this->repository->update($article->id, [
                 'status' => ArticleStatus::REJECTED,
                 'rejection_reason' => $request->reason,
             ]);
@@ -129,12 +129,69 @@ class ArticleController extends Controller
         return response()->json(['message' => 'Review action recorded.']);
     }
 
-    /**
+     /**
      * Generate a new article from a keyword (triggers full AI pipeline).
      */
-    public function generate(Request $request): JsonResponse
+    public function generate(GenerateArticleRequest $request): JsonResponse
     {
-        // Placeholder: wire up to pipeline dispatch in a future task
-        return response()->json(['message' => 'AI pipeline queued.'], 202);
+        $tenantId = $request->user()->tenant_id;
+        $validated = $request->validated();
+        $quota = $this->costTracking->checkQuota($tenantId);
+
+        if (!$quota->canProceed) {
+            return response()->json([
+                'message' => $quota->message ?? 'AI quota exceeded.',
+                'quota' => $quota->toArray(),
+            ], 402);
+        }
+
+        $keyword = $this->keywords->findByIdForTenant($validated['keyword_id'], $tenantId);
+
+        if (!$keyword) {
+            abort(404);
+        }
+
+        $article = $this->repository->findByKeywordIdForTenant($keyword->id, $tenantId);
+
+        if (!$article) {
+            $keywordMeta = $keyword->meta ?? [];
+            $article = $this->repository->create([
+                'tenant_id' => $tenantId,
+                'keyword_id' => $keyword->id,
+                'campaign_id' => $validated['campaign_id'] ?? $keyword->campaign_id,
+                'wordpress_site_id' => $validated['wordpress_site_id'] ?? $keyword->wordpress_site_id,
+                'user_id' => $request->user()->id,
+                'title' => 'Bài viết: ' . $keyword->keyword,
+                'slug' => Str::slug($keyword->keyword),
+                'focus_keyword' => $keyword->keyword,
+                'featured_image_url' => $keywordMeta['featured_image_url'] ?? null,
+                'media_plan' => array_filter([
+                    'featured_image_url' => $keywordMeta['featured_image_url'] ?? null,
+                    'image_urls' => $keywordMeta['image_urls'] ?? null,
+                    'internal_links' => $keywordMeta['internal_links'] ?? null,
+                ]),
+                'wp_tag_names' => !empty($keywordMeta['wp_tag_names'])
+                    ? array_values(array_filter(array_map('trim', explode(',', str_replace('|', ',', (string) $keywordMeta['wp_tag_names'])))))
+                    : null,
+                'wp_slug' => $keywordMeta['wp_slug'] ?? null,
+                'excerpt' => $keywordMeta['wp_excerpt'] ?? null,
+                'status' => ArticleStatus::DRAFT,
+            ]);
+        }
+
+        MediaAsset::query()
+            ->where('tenant_id', $tenantId)
+            ->whereNull('article_id')
+            ->where('campaign_id', $article->campaign_id)
+            ->where('metadata->keyword', $keyword->keyword)
+            ->update(['article_id' => $article->id]);
+
+        GenerateOutlineJob::dispatch($keyword->id, $article->id)->onQueue('ai-writing');
+        $keyword->update(['status' => KeywordStatus::PROCESSING]);
+
+        return response()->json([
+            'message' => 'AI article generation queued.',
+            'article' => new ArticleResource($article->fresh(['keyword', 'wordpressSite', 'user'])),
+        ], 202);
     }
 }

@@ -4,6 +4,7 @@ namespace App\Jobs\AI;
 
 use App\Agents\QAValidationAgent;
 use App\Models\Article;
+use App\Services\SEO\ArticleQualityReportService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -23,7 +24,7 @@ class QAValidationJob implements ShouldQueue
         $this->onQueue('ai-writing');
     }
 
-    public function handle(QAValidationAgent $agent): void
+    public function handle(QAValidationAgent $agent, ArticleQualityReportService $qualityReportService): void
     {
         $article = Article::with('keyword')->find($this->articleId);
 
@@ -72,6 +73,8 @@ class QAValidationJob implements ShouldQueue
                 $article->seo_score = $data['score'];
                 $article->save();
             }
+
+            $qualityReportService->generate($article->fresh(['keyword', 'wordpressSite']));
 
             Log::info("QA Validation Report for Article {$article->id}: " . json_encode($report));
         } else {

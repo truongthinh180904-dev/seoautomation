@@ -42,8 +42,7 @@ class PromptBuilderService
     {
         $cacheKey = "ai_prompt_active:{$agentType->value}:" . ($tenantId ?? 'default');
 
-        return Cache::remember($cacheKey, 3600, function () use ($agentType, $tenantId) {
-            // 1. Try tenant-specific active prompts (for A/B testing per-tenant)
+        $promptId = Cache::remember($cacheKey, 3600, function () use ($agentType, $tenantId) {
             if ($tenantId) {
                 $tenantPrompts = AIPromptVersion::where('agent_type', $agentType->value)
                     ->where('is_active', true)
@@ -52,23 +51,57 @@ class PromptBuilderService
                     ->get();
 
                 if ($tenantPrompts->count() > 1) {
-                    // A/B split: deterministic bucket by tenant_id
                     $bucket = $tenantId % $tenantPrompts->count();
-                    return $tenantPrompts[$bucket];
+
+                    return $tenantPrompts[$bucket]->id;
                 }
 
                 if ($tenantPrompts->count() === 1) {
-                    return $tenantPrompts->first();
+                    return $tenantPrompts->first()->id;
                 }
             }
 
-            // 2. Fall back to global (tenant_id = null) default prompt
             return AIPromptVersion::where('agent_type', $agentType->value)
                 ->where('is_active', true)
                 ->whereNull('tenant_id')
                 ->orderBy('version', 'desc')
-                ->first();
+                ->value('id');
         });
+
+        if (!is_numeric($promptId)) {
+            Cache::forget($cacheKey);
+            $promptId = $this->resolveActivePromptId($agentType, $tenantId);
+            if ($promptId) {
+                Cache::put($cacheKey, $promptId, 3600);
+            }
+        }
+
+        return $promptId ? AIPromptVersion::find((int) $promptId) : null;
+    }
+
+    protected function resolveActivePromptId(AgentType $agentType, ?int $tenantId): ?int
+    {
+        if ($tenantId) {
+            $tenantPrompts = AIPromptVersion::where('agent_type', $agentType->value)
+                ->where('is_active', true)
+                ->where('tenant_id', $tenantId)
+                ->orderBy('version', 'desc')
+                ->get(['id']);
+
+            if ($tenantPrompts->count() > 1) {
+                return $tenantPrompts[$tenantId % $tenantPrompts->count()]->id;
+            }
+
+            if ($tenantPrompts->count() === 1) {
+                return $tenantPrompts->first()->id;
+            }
+        }
+
+        return AIPromptVersion::where('agent_type', $agentType->value)
+            ->where('is_active', true)
+            ->whereNull('tenant_id')
+            ->orderBy('version', 'desc')
+            ->value('id');
     }
 
     /**

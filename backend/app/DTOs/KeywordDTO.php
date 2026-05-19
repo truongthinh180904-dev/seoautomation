@@ -5,7 +5,7 @@ namespace App\DTOs;
 use App\Models\Keyword;
 use Spatie\LaravelData\Data;
 
-readonly class KeywordDTO extends Data
+class KeywordDTO extends Data
 {
     public function __construct(
         public int $tenantId,

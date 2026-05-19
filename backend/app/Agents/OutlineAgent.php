@@ -5,6 +5,8 @@ namespace App\Agents;
 use App\DTOs\AgentResultDTO;
 use App\DTOs\AIRequestDTO;
 use App\Enums\AgentType;
+use App\Services\AI\JsonResponseParser;
+use Illuminate\Support\Facades\Log;
 
 class OutlineAgent extends BaseAgent
 {
@@ -44,7 +46,7 @@ class OutlineAgent extends BaseAgent
         $request = new AIRequestDTO(
             systemPrompt: $promptData['system_prompt'],
             userPrompt: $promptData['user_prompt'],
-            model: 'gpt-4o-mini',
+            model: '',
             agentType: $this->getType(),
             tenantId: $tenantId,
             articleId: $context['article_id'] ?? null,
@@ -53,15 +55,14 @@ class OutlineAgent extends BaseAgent
         );
 
         $response = $this->callAI($request);
-        $content = $this->cleanJsonResponse($response->content);
-        $parsed = json_decode($content, true);
+        $parser = app(JsonResponseParser::class);
+        $parsed = $parser->parse($response->content);
 
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            // Retry once
+        if (!$parsed) {
             $retryRequest = new AIRequestDTO(
                 systemPrompt: $promptData['system_prompt'],
-                userPrompt: $promptData['user_prompt'] . "\n\nReturn ONLY valid JSON, no markdown code blocks.",
-                model: 'gpt-4o-mini',
+                userPrompt: $promptData['user_prompt'] . "\n\nReturn ONLY one valid JSON object. Do not include markdown, comments, prose, or trailing commas.",
+                model: '',
                 agentType: $this->getType(),
                 tenantId: $tenantId,
                 articleId: $context['article_id'] ?? null,
@@ -69,13 +70,27 @@ class OutlineAgent extends BaseAgent
                 promptVersion: $promptData['version'],
             );
             $response = $this->callAI($retryRequest);
-            $content = $this->cleanJsonResponse($response->content);
-            $parsed = json_decode($content, true);
+            $parsed = $parser->parse($response->content);
 
-            if (json_last_error() !== JSON_ERROR_NONE) {
-                return AgentResultDTO::failure($this->getType(), "Failed to parse JSON outline: " . json_last_error_msg());
+            if (!$parsed) {
+                Log::warning('OutlineAgent JSON parse failed', [
+                    'keyword_id' => $context['keyword_id'] ?? null,
+                    'article_id' => $context['article_id'] ?? null,
+                    'model' => $response->model,
+                    'response_preview' => $parser->preview($response->content),
+                ]);
+
+                $fallbackOutline = $this->buildFallbackOutline($keyword);
+                return AgentResultDTO::success(
+                    agent: $this->getType(),
+                    data: ['outline' => $fallbackOutline],
+                    tokens: $response->totalTokens,
+                    latency: $response->latencyMs
+                );
             }
         }
+
+        $parsed = $this->normalizeOutline($parsed, $keyword);
 
         if (empty($parsed['h1'])) {
             return AgentResultDTO::failure($this->getType(), "Outline validation failed: Missing h1");
@@ -92,17 +107,65 @@ class OutlineAgent extends BaseAgent
         );
     }
 
-    protected function cleanJsonResponse(string $content): string
+    protected function normalizeOutline(array $outline, string $keyword): array
     {
-        $content = trim($content);
-        if (str_starts_with($content, '```json')) {
-            $content = substr($content, 7);
-        } elseif (str_starts_with($content, '```')) {
-            $content = substr($content, 3);
+        if (array_is_list($outline)) {
+            $outline = ['sections' => $outline];
         }
-        if (str_ends_with($content, '```')) {
-            $content = substr($content, 0, -3);
+
+        $sections = $outline['sections'] ?? [];
+
+        if (is_array($sections)) {
+            $outline['sections'] = array_values(array_map(function ($section) {
+                if (is_string($section)) {
+                    return ['heading' => $section, 'points' => []];
+                }
+
+                if (is_array($section)) {
+                    return [
+                        'heading' => (string) ($section['heading'] ?? $section['title'] ?? $section['h2'] ?? 'Mục nội dung'),
+                        'points' => array_values((array) ($section['points'] ?? $section['bullets'] ?? [])),
+                    ];
+                }
+
+                return ['heading' => 'Mục nội dung', 'points' => []];
+            }, $sections));
         }
-        return trim($content);
+
+        $outline['h1'] = $outline['h1'] ?? $outline['title'] ?? $keyword;
+        $outline['faqs'] = is_array($outline['faqs'] ?? null) ? $outline['faqs'] : [];
+
+        return $outline;
+    }
+
+    protected function buildFallbackOutline(string $keyword): array
+    {
+        return [
+            'h1' => $keyword,
+            'sections' => [
+                [
+                    'heading' => "Tổng quan về {$keyword}",
+                    'points' => ['Nhu cầu tìm kiếm', 'Lợi ích chính', 'Khi nào nên áp dụng'],
+                ],
+                [
+                    'heading' => "Chuẩn bị trước khi {$keyword}",
+                    'points' => ['Thông tin cần có', 'Công cụ phù hợp', 'Lưu ý quan trọng'],
+                ],
+                [
+                    'heading' => "Các bước thực hiện {$keyword}",
+                    'points' => ['Quy trình từng bước', 'Cách tối ưu trải nghiệm', 'Lỗi thường gặp'],
+                ],
+                [
+                    'heading' => "Mẹo tối ưu và câu hỏi thường gặp",
+                    'points' => ['Mẹo tăng hiệu quả', 'Cách kiểm tra kết quả', 'FAQ'],
+                ],
+            ],
+            'faqs' => [
+                [
+                    'question' => "{$keyword} có khó không?",
+                    'answer' => 'Không khó nếu chuẩn bị đúng thông tin và làm theo từng bước.',
+                ],
+            ],
+        ];
     }
 }

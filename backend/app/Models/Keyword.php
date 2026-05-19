@@ -16,6 +16,7 @@ class Keyword extends Model
     protected $fillable = [
         'tenant_id',
         'user_id',
+        'campaign_id',
         'keyword',
         'language',
         'search_volume',
@@ -27,6 +28,19 @@ class Keyword extends Model
         'scheduled_at',
         'processed_at',
         'wordpress_site_id',
+        'pillar_topic',
+        'content_cluster',
+        'funnel_stage',
+        'target_word_count',
+        'target_url',
+        'canonical_url',
+        'brief_notes',
+        'must_include_points',
+        'avoid_topics',
+        'reference_urls',
+        'competitor_urls_override',
+        'raw_import_row',
+        'template_version',
         'batch_id',
         'meta',
     ];
@@ -35,9 +49,15 @@ class Keyword extends Model
         'status' => KeywordStatus::class,
         'search_intent' => 'string',
         'meta' => 'array',
+        'must_include_points' => 'array',
+        'avoid_topics' => 'array',
+        'reference_urls' => 'array',
+        'competitor_urls_override' => 'array',
+        'raw_import_row' => 'array',
         'scheduled_at' => 'datetime',
         'processed_at' => 'datetime',
         'priority' => 'integer',
+        'target_word_count' => 'integer',
     ];
 
     public function tenant(): BelongsTo
@@ -53,6 +73,11 @@ class Keyword extends Model
     public function wordpressSite(): BelongsTo
     {
         return $this->belongsTo(WordPressSite::class);
+    }
+
+    public function campaign(): BelongsTo
+    {
+        return $this->belongsTo(Campaign::class);
     }
 
     public function serpResults(): HasMany

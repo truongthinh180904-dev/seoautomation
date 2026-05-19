@@ -4,6 +4,7 @@ namespace App\Jobs\AI;
 
 use App\Agents\WritingAgent;
 use App\Enums\ArticleStatus;
+use App\Enums\KeywordStatus;
 use App\Models\Article;
 use App\Models\CompetitorAnalysis;
 use App\Models\Keyword;
@@ -13,6 +14,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
+use App\Services\Cost\CostTrackingService;
 use Throwable;
 
 class GenerateArticleJob implements ShouldQueue
@@ -29,7 +31,7 @@ class GenerateArticleJob implements ShouldQueue
         $this->onQueue('ai-writing');
     }
 
-    public function handle(WritingAgent $agent): void
+    public function handle(WritingAgent $agent, CostTrackingService $costTracking): void
     {
         $article = Article::find($this->articleId);
         $keyword = Keyword::find($this->keywordId);
@@ -85,10 +87,13 @@ class GenerateArticleJob implements ShouldQueue
             'excerpt' => $data['excerpt'],
             'word_count' => $data['word_count'],
             'ai_provider' => $data['ai_provider'] ?? 'openai',
-            'ai_model' => $data['ai_model'] ?? 'gpt-4o',
+            'ai_model' => $data['ai_model'] ?? null,
             'ai_tokens_used' => $result->tokensUsed,
             'ai_cost_usd' => $data['ai_cost_usd'] ?? 0,
+            'duplicate_check_hash' => $data['duplicate_check_hash'] ?? null,
         ]);
+
+        $costTracking->incrementGeneratedArticle($article->tenant_id);
 
         // Dispatch GenerateSeoMetadataJob
         if (class_exists('App\Jobs\AI\GenerateSeoMetadataJob')) {
@@ -106,6 +111,8 @@ class GenerateArticleJob implements ShouldQueue
                 'status' => ArticleStatus::FAILED,
                 'review_notes' => "Writing generation failed: " . $exception->getMessage()
             ]);
+
+            $article->keyword?->update(['status' => KeywordStatus::FAILED]);
         }
     }
 }

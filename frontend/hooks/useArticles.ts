@@ -5,6 +5,7 @@ export interface ArticleFilter {
   page: number;
   status?: string;
   search?: string;
+  campaign_id?: number;
   wp_site_id?: number;
   per_page?: number;
 }
@@ -34,7 +35,7 @@ export function useArticleActions() {
   const queryClient = useQueryClient();
 
   const updateArticle = useMutation({
-    mutationFn: async ({ id, data }: { id: number, data: any }) => {
+    mutationFn: async ({ id, data }: { id: number, data: ArticleUpdatePayload }) => {
       await apiClient.put(`/articles/${id}`, data);
     },
     onSuccess: (_, { id }) => {
@@ -61,6 +62,25 @@ export function useArticleActions() {
     },
   });
 
-  return { updateArticle, deleteArticle, retryArticle };
-}
+  const autoFixArticle = useMutation({
+    mutationFn: async (id: number) => {
+      await apiClient.post(`/articles/${id}/auto-fix`);
+    },
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: ['article', id] });
+      queryClient.invalidateQueries({ queryKey: ['articles'] });
+    },
+  });
 
+  const generateArticle = useMutation({
+    mutationFn: async (keywordId: number) => {
+      await apiClient.post('/articles/generate', { keyword_id: keywordId });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['articles'] });
+      queryClient.invalidateQueries({ queryKey: ['keywords'] });
+    },
+  });
+
+  return { updateArticle, deleteArticle, retryArticle, autoFixArticle, generateArticle };
+}

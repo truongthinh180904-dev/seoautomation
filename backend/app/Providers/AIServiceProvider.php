@@ -14,11 +14,19 @@ class AIServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->singleton(AIProviderService::class, function ($app) {
-            $providers = [
-                $app->make(OpenAIProvider::class),
-                $app->make(AnthropicProvider::class),
-                $app->make(GeminiProvider::class),
-            ];
+            $providers = [];
+
+            if (config('openai.api_key') || config('ai.providers.openai.api_key')) {
+                $providers[] = $app->make(OpenAIProvider::class);
+            }
+
+            if (config('ai.providers.anthropic.api_key')) {
+                $providers[] = $app->make(AnthropicProvider::class);
+            }
+
+            if (config('ai.providers.gemini.api_key')) {
+                $providers[] = $app->make(GeminiProvider::class);
+            }
 
             return new AIProviderService(
                 $providers,

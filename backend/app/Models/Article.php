@@ -17,6 +17,7 @@ class Article extends Model
     protected $fillable = [
         'tenant_id',
         'keyword_id',
+        'campaign_id',
         'wordpress_site_id',
         'user_id',
         'reviewed_by',
@@ -47,6 +48,21 @@ class Article extends Model
         'published_at',
         'wordpress_post_id',
         'wordpress_post_url',
+        'wp_post_type',
+        'wp_status',
+        'wp_category_ids',
+        'wp_tag_ids',
+        'wp_tag_names',
+        'wp_author_id',
+        'wp_slug',
+        'canonical_url',
+        'primary_cta',
+        'secondary_cta',
+        'media_plan',
+        'image_assets',
+        'quality_report',
+        'approval_required',
+        'approved_at',
         'duplicate_check_hash',
     ];
 
@@ -55,8 +71,16 @@ class Article extends Model
         'outline' => 'array',
         'faqs' => 'array',
         'internal_links' => 'array',
+        'wp_category_ids' => 'array',
+        'wp_tag_ids' => 'array',
+        'wp_tag_names' => 'array',
+        'media_plan' => 'array',
+        'image_assets' => 'array',
+        'quality_report' => 'array',
         'scheduled_publish_at' => 'datetime',
         'published_at' => 'datetime',
+        'approved_at' => 'datetime',
+        'approval_required' => 'boolean',
         'word_count' => 'integer',
         'seo_score' => 'integer',
         'readability_score' => 'integer',
@@ -77,6 +101,11 @@ class Article extends Model
     public function wordpressSite(): BelongsTo
     {
         return $this->belongsTo(WordPressSite::class);
+    }
+
+    public function campaign(): BelongsTo
+    {
+        return $this->belongsTo(Campaign::class);
     }
 
     public function user(): BelongsTo
@@ -112,6 +141,16 @@ class Article extends Model
     public function publishingLogs(): HasMany
     {
         return $this->hasMany(PublishingLog::class);
+    }
+
+    public function mediaAssets(): HasMany
+    {
+        return $this->hasMany(MediaAsset::class);
+    }
+
+    public function qualityReports(): HasMany
+    {
+        return $this->hasMany(QualityReport::class);
     }
 
     public function generateReviewToken(): string

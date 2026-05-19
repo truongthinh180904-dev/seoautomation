@@ -3,15 +3,18 @@
 import React, { useState } from 'react';
 import KeywordBulkActions from './KeywordBulkActions';
 import { useKeywordActions } from '@/hooks/useKeywords';
+import { useArticleActions } from '@/hooks/useArticles';
+import { Sparkles } from 'lucide-react';
 
 interface KeywordTableProps {
-  keywords: any[];
+  keywords: Keyword[];
   isLoading: boolean;
 }
 
 export default function KeywordTable({ keywords, isLoading }: KeywordTableProps) {
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const { bulkDelete } = useKeywordActions();
+  const { generateArticle } = useArticleActions();
 
   if (isLoading) {
     return <div className="text-center py-16 text-slate-500 animate-pulse font-medium">Đang tải dữ liệu từ khoá...</div>;
@@ -47,16 +50,20 @@ export default function KeywordTable({ keywords, isLoading }: KeywordTableProps)
     }
   };
 
+  const handleGenerateArticle = (keywordId: number) => {
+    generateArticle.mutate(keywordId);
+  };
+
   const getStatusBadge = (status: string) => {
     const config: Record<string, string> = {
-      new: 'bg-slate-100 text-slate-700',
+      pending: 'bg-slate-100 text-slate-700',
       processing: 'bg-blue-100 text-blue-700 animate-pulse',
       completed: 'bg-emerald-100 text-emerald-700',
       failed: 'bg-red-100 text-red-700'
     };
-    const c = config[status] || config.new;
+    const c = config[status] || config.pending;
     const label = {
-      new: 'Mới',
+      pending: 'Mới',
       processing: 'Đang AI xử lý',
       completed: 'Hoàn thành',
       failed: 'Lỗi'
@@ -84,6 +91,7 @@ export default function KeywordTable({ keywords, isLoading }: KeywordTableProps)
                 <th className="px-6 py-4 text-left text-xs font-extrabold text-slate-500 uppercase tracking-wider">Lượt tìm kiếm (Vol)</th>
                 <th className="px-6 py-4 text-left text-xs font-extrabold text-slate-500 uppercase tracking-wider">Trạng thái</th>
                 <th className="px-6 py-4 text-left text-xs font-extrabold text-slate-500 uppercase tracking-wider">Bài viết AI</th>
+                <th className="px-6 py-4 text-right text-xs font-extrabold text-slate-500 uppercase tracking-wider">Thao tác</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-slate-100">
@@ -111,6 +119,17 @@ export default function KeywordTable({ keywords, isLoading }: KeywordTableProps)
                     ) : (
                       <span className="text-slate-400">-</span>
                     )}
+                  </td>
+                  <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      type="button"
+                      onClick={() => handleGenerateArticle(kw.id)}
+                      disabled={generateArticle.isPending || kw.status === 'processing'}
+                      className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-xs font-bold text-white shadow-sm transition-all hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <Sparkles className="h-3.5 w-3.5" />
+                      {kw.article_id ? 'Viết lại' : 'AI viết bài'}
+                    </button>
                   </td>
                 </tr>
               ))}

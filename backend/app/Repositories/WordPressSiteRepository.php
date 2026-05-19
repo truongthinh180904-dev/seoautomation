@@ -4,6 +4,7 @@ namespace App\Repositories;
 
 use App\Models\WordPressSite;
 use App\Repositories\Contracts\WordPressSiteRepositoryInterface;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 
 class WordPressSiteRepository implements WordPressSiteRepositoryInterface
@@ -11,6 +12,13 @@ class WordPressSiteRepository implements WordPressSiteRepositoryInterface
     public function findById(int $id): ?WordPressSite
     {
         return WordPressSite::find($id);
+    }
+
+    public function paginateForTenant(int $tenantId, int $perPage = 20): LengthAwarePaginator
+    {
+        return WordPressSite::where('tenant_id', $tenantId)
+            ->latest()
+            ->paginate($perPage);
     }
 
     public function findActiveForTenant(int $tenantId): Collection

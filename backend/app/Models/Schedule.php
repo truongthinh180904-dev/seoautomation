@@ -15,20 +15,23 @@ class Schedule extends Model
         'name',
         'type',
         'cron_expression',
+        'scheduled_at',
         'is_recurring',
+        'status',
         'config',
         'last_run_at',
         'next_run_at',
+        'run_count',
         'created_by',
     ];
 
-    public $timestamps = false;
-
     protected $casts = [
+        'scheduled_at' => 'datetime',
         'is_recurring' => 'boolean',
         'config' => 'array',
         'last_run_at' => 'datetime',
         'next_run_at' => 'datetime',
+        'run_count' => 'integer',
     ];
 
     public function tenant(): BelongsTo

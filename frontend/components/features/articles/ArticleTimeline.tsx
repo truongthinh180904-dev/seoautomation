@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import { Clock, CheckCircle2, XCircle, Send } from 'lucide-react';
+import { Clock, CheckCircle2, XCircle, Send, type LucideIcon } from 'lucide-react';
 
 interface TimelineEvent {
   id: string;
@@ -15,7 +15,7 @@ interface ArticleTimelineProps {
   events: TimelineEvent[];
 }
 
-const STATUS_ICONS: Record<string, any> = {
+const STATUS_ICONS: Record<string, LucideIcon> = {
   draft: Clock,
   review: Clock,
   approved: CheckCircle2,
@@ -39,7 +39,7 @@ export default function ArticleTimeline({ events }: ArticleTimelineProps) {
       <h3 className="font-extrabold text-slate-900 mb-6">Activity Timeline</h3>
       
       <div className="space-y-6 relative before:absolute before:left-4 before:top-2 before:bottom-2 before:w-px before:bg-slate-100">
-        {events.map((event, i) => {
+        {events.map((event) => {
           const Icon = STATUS_ICONS[event.status] || Clock;
           const colorClass = STATUS_COLORS[event.status] || 'text-slate-400 bg-slate-100';
           
@@ -65,7 +65,7 @@ export default function ArticleTimeline({ events }: ArticleTimelineProps) {
                 
                 {event.note && (
                   <div className="mt-2 text-xs text-slate-600 bg-slate-50 rounded-lg p-2 border border-slate-100 italic">
-                    "{event.note}"
+                    &quot;{event.note}&quot;
                   </div>
                 )}
               </div>

@@ -12,4 +12,7 @@ export const analyticsApi = {
 
   failingAgents: (params?: { days?: number }) =>
     apiClient.get('/analytics/failing-agents', { params }).then(r => r.data),
+
+  usage: () =>
+    apiClient.get('/analytics/usage').then(r => r.data),
 };
