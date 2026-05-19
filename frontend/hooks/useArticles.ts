@@ -5,6 +5,7 @@ export interface ArticleFilter {
   page: number;
   status?: string;
   search?: string;
+  campaign_id?: number;
   wp_site_id?: number;
   per_page?: number;
 }
@@ -61,6 +62,16 @@ export function useArticleActions() {
     },
   });
 
+  const autoFixArticle = useMutation({
+    mutationFn: async (id: number) => {
+      await apiClient.post(`/articles/${id}/auto-fix`);
+    },
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: ['article', id] });
+      queryClient.invalidateQueries({ queryKey: ['articles'] });
+    },
+  });
+
   const generateArticle = useMutation({
     mutationFn: async (keywordId: number) => {
       await apiClient.post('/articles/generate', { keyword_id: keywordId });
@@ -71,5 +82,5 @@ export function useArticleActions() {
     },
   });
 
-  return { updateArticle, deleteArticle, retryArticle, generateArticle };
+  return { updateArticle, deleteArticle, retryArticle, autoFixArticle, generateArticle };
 }

@@ -10,7 +10,9 @@ use App\Exceptions\AI\ProviderException;
 use App\Exceptions\AI\RateLimitException;
 use App\Models\AILog;
 use App\Providers\AI\Contracts\AIProviderInterface;
-use Illuminate\Support\Facades\Http;
+use App\Services\Cost\CostTrackingService;
+use App\Services\Notifications\NotificationService;
+use App\Enums\NotificationType;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redis;
 
@@ -29,7 +31,9 @@ class AIProviderService
 
     public function __construct(
         iterable $providers,
-        protected TokenUsageService $tokenUsageService
+        protected TokenUsageService $tokenUsageService,
+        protected CostTrackingService $costTrackingService,
+        protected NotificationService $notificationService
     ) {
         foreach ($providers as $provider) {
             $this->providers[$provider->getProvider()->value] = $provider;
@@ -75,6 +79,7 @@ class AIProviderService
                 );
 
                 $this->logRequest($request, $response, 'success', $costUsd);
+                $this->logUsage($request, $response, 'success', $costUsd);
 
                 return $response;
 
@@ -83,18 +88,19 @@ class AIProviderService
                 // Mark provider as rate-limited in Redis for the window duration
                 $this->markProviderRateLimitedInRedis($providerKey);
                 $this->logError($request, $providerEnum, 'rate_limited', $e->getMessage());
+                $this->logUsageError($request, $providerEnum, 'rate_limited', $e->getMessage());
                 continue;
             } catch (ProviderException $e) {
                 $lastException = $e;
                 $this->logError($request, $providerEnum, 'failed', $e->getMessage());
+                $this->logUsageError($request, $providerEnum, 'failed', $e->getMessage());
                 continue;
             }
         }
 
         $errorMsg = "All AI providers failed. Last error: " . ($lastException ? $lastException->getMessage() : 'No available providers.');
 
-        // Zalo alert to admin when ALL providers fail
-        $this->alertAdminViaZalo($errorMsg, $lastException);
+        $this->alertAdmin($request, $errorMsg, $lastException);
 
         throw new AllProvidersFailedException($errorMsg);
     }
@@ -160,31 +166,26 @@ class AIProviderService
         Log::warning("AIProviderService: {$providerKey} marked as rate-limited in Redis for {$ttl}s.");
     }
 
-    /**
-     * Send Zalo alert to admin when all providers fail.
-     */
-    protected function alertAdminViaZalo(string $errorMsg, ?\Throwable $lastException): void
+    protected function alertAdmin(AIRequestDTO $request, string $errorMsg, ?\Throwable $lastException): void
     {
-        $zaloUserId = config('services.zalo.admin_user_id');
-        $zaloOaToken = config('services.zalo.oa_token');
-
-        if (!$zaloUserId || !$zaloOaToken) {
+        if (!$request->tenantId) {
             return;
         }
 
         try {
-            Http::withHeaders([
-                'access_token' => $zaloOaToken,
-            ])->post('https://openapi.zalo.me/v3.0/oa/message/cs', [
-                'recipient' => ['user_id' => $zaloUserId],
-                'message' => [
-                    'text' => "⚠️ CẢNH BÁO KHẨN CẤP: Toàn bộ hệ thống AI Providers đều thất bại!\n"
-                        . "Lỗi: " . ($lastException ? $lastException->getMessage() : 'N/A') . "\n"
-                        . "Thời điểm: " . now()->toDateTimeString()
+            $this->notificationService->send(
+                tenantId: $request->tenantId,
+                type: NotificationType::ARTICLE_QA_FAILED,
+                subject: 'AI providers failed',
+                message: $errorMsg . "\n\nLast error: " . ($lastException?->getMessage() ?? 'N/A'),
+                data: [
+                    'article_id' => $request->articleId,
+                    'keyword_id' => $request->keywordId,
+                    'agent_type' => $request->agentType->value,
                 ]
-            ]);
+            );
         } catch (\Throwable $e) {
-            Log::error("Failed to send Zalo admin alert: " . $e->getMessage());
+            Log::error("Failed to queue AI provider failure notification: " . $e->getMessage());
         }
     }
 
@@ -227,6 +228,46 @@ class AIProviderService
             'status'           => $status,
             'error_message'    => $errorMessage,
             'request_hash'     => $request->toHash(),
+        ]);
+    }
+
+    protected function logUsage(AIRequestDTO $request, AIResponseDTO $response, string $status, float $costUsd): void
+    {
+        if (!$request->tenantId) {
+            return;
+        }
+
+        $this->costTrackingService->logUsage([
+            'tenant_id' => $request->tenantId,
+            'article_id' => $request->articleId,
+            'keyword_id' => $request->keywordId,
+            'job_type' => $request->agentType->value,
+            'provider' => $response->provider->value,
+            'model' => $response->model,
+            'prompt_tokens' => $response->promptTokens,
+            'completion_tokens' => $response->completionTokens,
+            'total_tokens' => $response->totalTokens,
+            'cost_usd' => $costUsd,
+            'duration_ms' => $response->latencyMs,
+            'status' => $status,
+        ]);
+    }
+
+    protected function logUsageError(AIRequestDTO $request, AIProvider $provider, string $status, string $errorMessage): void
+    {
+        if (!$request->tenantId) {
+            return;
+        }
+
+        $this->costTrackingService->logUsage([
+            'tenant_id' => $request->tenantId,
+            'article_id' => $request->articleId,
+            'keyword_id' => $request->keywordId,
+            'job_type' => $request->agentType->value,
+            'provider' => $provider->value,
+            'model' => $request->model,
+            'status' => $status,
+            'error_message' => $errorMessage,
         ]);
     }
 }

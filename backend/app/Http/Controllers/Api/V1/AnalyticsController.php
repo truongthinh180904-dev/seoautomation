@@ -4,13 +4,15 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Services\Analytics\AnalyticsService;
+use App\Services\Cost\CostTrackingService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class AnalyticsController extends Controller
 {
     public function __construct(
-        protected AnalyticsService $analytics
+        protected AnalyticsService $analytics,
+        protected CostTrackingService $costTracking
     ) {}
 
     /**
@@ -56,6 +58,13 @@ class AnalyticsController extends Controller
 
         return response()->json(
             $this->analytics->failingAgents($request->user()->tenant_id, $days)
+        );
+    }
+
+    public function usage(Request $request): JsonResponse
+    {
+        return response()->json(
+            $this->costTracking->getMonthlyUsage($request->user()->tenant_id)
         );
     }
 }

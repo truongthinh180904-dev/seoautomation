@@ -1,11 +1,14 @@
 "use client";
 
 import { useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import ArticleTable from '@/components/features/articles/ArticleTable';
 import { useArticles } from '@/hooks/useArticles';
 import { Search, Filter, Plus } from 'lucide-react';
 
 export default function ArticlesPage() {
+  const searchParams = useSearchParams();
+  const campaignId = Number(searchParams.get('campaign_id'));
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState('');
   const [search, setSearch] = useState('');
@@ -15,6 +18,7 @@ export default function ArticlesPage() {
     page,
     status,
     search: debouncedSearch,
+    campaign_id: Number.isFinite(campaignId) && campaignId > 0 ? campaignId : undefined,
   });
 
   return (

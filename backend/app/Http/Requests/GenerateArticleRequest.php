@@ -18,6 +18,7 @@ class GenerateArticleRequest extends FormRequest
         return [
             'keyword_id' => ['required', 'integer', 'exists:keywords,id'],
             'wordpress_site_id' => ['nullable', 'integer', 'exists:wordpress_sites,id'],
+            'campaign_id' => ['nullable', 'integer', 'exists:campaigns,id'],
         ];
     }
 }

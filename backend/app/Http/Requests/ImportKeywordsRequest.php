@@ -19,6 +19,7 @@ class ImportKeywordsRequest extends FormRequest
     {
         return [
             'file' => ['required', 'file', 'mimes:xlsx,xls,csv', 'max:10240'],
+            'campaign_id' => ['sometimes', 'nullable', 'integer', 'exists:campaigns,id'],
         ];
     }
 }

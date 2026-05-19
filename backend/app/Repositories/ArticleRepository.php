@@ -48,7 +48,7 @@ class ArticleRepository implements ArticleRepositoryInterface
     public function paginateForTenant(int $tenantId, array $filters, int $perPage = 20): LengthAwarePaginator
     {
         $query = Article::where('tenant_id', $tenantId)
-            ->with(['keyword:id,keyword', 'wordpressSite:id,name', 'user:id,name']);
+            ->with(['keyword:id,keyword', 'campaign:id,name,status', 'wordpressSite:id,name', 'user:id,name']);
 
         if (!empty($filters['status'])) {
             $query->where('status', $filters['status']);
@@ -56,6 +56,10 @@ class ArticleRepository implements ArticleRepositoryInterface
 
         if (!empty($filters['keyword_id'])) {
             $query->where('keyword_id', $filters['keyword_id']);
+        }
+
+        if (!empty($filters['campaign_id'])) {
+            $query->where('campaign_id', $filters['campaign_id']);
         }
 
         if (!empty($filters['wordpress_site_id'])) {

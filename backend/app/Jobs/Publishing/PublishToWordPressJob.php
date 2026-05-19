@@ -6,7 +6,10 @@ use App\DTOs\PublishingDTO;
 use App\Enums\ArticleStatus;
 use App\Jobs\Notification\SendZaloNotificationJob;
 use App\Models\Article;
+use App\Models\MediaAsset;
 use App\Models\PublishingLog;
+use App\Jobs\Media\UploadToWordPressMediaJob;
+use App\Services\WordPress\WordPressPreflightCheckService;
 use App\Services\WordPress\WordPressPublishService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -31,7 +34,7 @@ class PublishToWordPressJob implements ShouldQueue
         $this->onQueue('publishing');
     }
 
-    public function handle(WordPressPublishService $publishService): void
+    public function handle(WordPressPublishService $publishService, WordPressPreflightCheckService $preflight): void
     {
         $startTime = microtime(true);
         $article = Article::with('wordpressSite')->find($this->articleId);
@@ -54,15 +57,58 @@ class PublishToWordPressJob implements ShouldQueue
 
         $article->update(['status' => ArticleStatus::PUBLISHING]);
 
+        $featuredAsset = MediaAsset::query()
+            ->where('article_id', $article->id)
+            ->where('metadata->role', 'featured')
+            ->first();
+
+        if ($featuredAsset && $featuredAsset->status->value === 'downloaded' && !$featuredAsset->wordpress_media_id) {
+            UploadToWordPressMediaJob::dispatch($featuredAsset->id, $site->id)->onQueue('publishing');
+
+            $article->update([
+                'status' => ArticleStatus::APPROVED,
+                'review_notes' => 'Featured image upload queued before publishing.',
+            ]);
+            return;
+        }
+
+        if ($featuredAsset?->wordpress_media_id) {
+            $article->image_assets = array_merge($article->image_assets ?? [], [
+                'featured' => [
+                    'media_asset_id' => $featuredAsset->id,
+                    'wordpress_media_id' => $featuredAsset->wordpress_media_id,
+                    'wordpress_media_url' => $featuredAsset->wordpress_media_url,
+                ],
+            ]);
+            $article->save();
+        }
+
+        $preflightResult = $preflight->runAll($article, $site);
+        if (!$preflightResult['passed']) {
+            $article->update([
+                'status' => ArticleStatus::FAILED,
+                'quality_report' => array_merge($article->quality_report ?? [], ['wordpress_preflight' => $preflightResult]),
+                'review_notes' => 'WordPress preflight failed.',
+            ]);
+            return;
+        }
+
         $dto = new PublishingDTO(
             title: $article->title,
             content: $article->content,
-            publishStatus: $article->scheduled_publish_at ? 'future' : 'publish',
-            categoryIds: [], // Depending on implementation, you can map categories
-            tagIds: [],
+            publishStatus: $article->wp_status ?: ($article->scheduled_publish_at ? 'future' : 'publish'),
+            excerpt: $article->excerpt,
+            slug: $article->wp_slug ?: $article->slug,
+            authorId: $article->wp_author_id ?: $site->default_author_id,
+            categoryIds: $article->wp_category_ids ?: array_filter([$site->default_category_id]),
+            tagIds: $article->wp_tag_ids ?: [],
+            tagNames: $article->wp_tag_names ?: [],
+            featuredMediaId: data_get($article->image_assets, 'featured.wordpress_media_id'),
             seoTitle: $article->seo_title,
             seoDescription: $article->seo_description,
-            scheduledAt: $article->scheduled_publish_at ? $article->scheduled_publish_at->toIso8601String() : null
+            scheduledAt: $article->scheduled_publish_at ? $article->scheduled_publish_at->toIso8601String() : null,
+            postType: $article->wp_post_type ?: 'post',
+            canonicalUrl: $article->canonical_url
         );
 
         try {
@@ -84,6 +130,7 @@ class PublishToWordPressJob implements ShouldQueue
                 'status' => 'success',
                 'http_status_code' => 200, // or 201
                 'published_url' => $result['url'],
+                'wordpress_edit_url' => $result['edit_url'] ?? null,
                 'duration_ms' => (int) round((microtime(true) - $startTime) * 1000),
             ]);
 

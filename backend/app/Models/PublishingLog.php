@@ -18,6 +18,7 @@ class PublishingLog extends Model
         'response_body',
         'error_message',
         'published_url',
+        'wordpress_edit_url',
         'duration_ms',
     ];
 

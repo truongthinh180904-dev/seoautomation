@@ -29,6 +29,7 @@ class DatabaseSeeder extends Seeder
         ]);
 
         $this->call([
+            SubscriptionPlanSeeder::class,
             AIPromptSeeder::class,
         ]);
     }

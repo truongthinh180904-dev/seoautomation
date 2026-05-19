@@ -5,12 +5,13 @@ import Link from 'next/link';
 import { ArrowLeft, Edit, ExternalLink, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import ArticlePreview from '@/components/features/articles/ArticlePreview';
-import { useArticle } from '@/hooks/useArticles';
+import { useArticle, useArticleActions } from '@/hooks/useArticles';
 
 export default function ArticleDetailPage() {
   const { id } = useParams();
   const articleId = Number(id);
   const { data: articleResponse, isLoading, error } = useArticle(articleId);
+  const { autoFixArticle } = useArticleActions();
   const article = articleResponse?.data;
 
   if (isLoading) {
@@ -62,6 +63,14 @@ export default function ArticleDetailPage() {
               Sửa bài
             </Button>
           </Link>
+          <Button
+            variant="outline"
+            className="rounded-xl"
+            onClick={() => autoFixArticle.mutate(article.id)}
+            disabled={autoFixArticle.isPending}
+          >
+            Auto-fix SEO
+          </Button>
         </div>
       </div>
 

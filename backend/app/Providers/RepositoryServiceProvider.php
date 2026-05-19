@@ -13,6 +13,8 @@ use App\Repositories\Contracts\AIPromptVersionRepositoryInterface;
 use App\Repositories\AIPromptVersionRepository;
 use App\Repositories\Contracts\ScheduleRepositoryInterface;
 use App\Repositories\ScheduleRepository;
+use App\Repositories\Contracts\CampaignRepositoryInterface;
+use App\Repositories\CampaignRepository;
 
 class RepositoryServiceProvider extends ServiceProvider
 {
@@ -23,6 +25,7 @@ class RepositoryServiceProvider extends ServiceProvider
         $this->app->bind(WordPressSiteRepositoryInterface::class, WordPressSiteRepository::class);
         $this->app->bind(AIPromptVersionRepositoryInterface::class, AIPromptVersionRepository::class);
         $this->app->bind(ScheduleRepositoryInterface::class, ScheduleRepository::class);
+        $this->app->bind(CampaignRepositoryInterface::class, CampaignRepository::class);
     }
 
     public function boot(): void

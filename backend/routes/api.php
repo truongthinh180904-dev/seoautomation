@@ -18,7 +18,24 @@ Route::prefix('v1')->group(function () {
         Route::apiResource('wordpress-sites', \App\Http\Controllers\Api\V1\WordPressSiteController::class);
         Route::post('wordpress-sites/{id}/test', [\App\Http\Controllers\Api\V1\WordPressSiteController::class, 'test']);
 
+        // Campaigns — SEO campaign management
+        Route::get('campaigns/{id}/stats', [\App\Http\Controllers\Api\V1\CampaignController::class, 'stats']);
+        Route::post('campaigns/{id}/start', [\App\Http\Controllers\Api\V1\CampaignController::class, 'start']);
+        Route::post('campaigns/{id}/pause', [\App\Http\Controllers\Api\V1\CampaignController::class, 'pause']);
+        Route::post('campaigns/{id}/resume', [\App\Http\Controllers\Api\V1\CampaignController::class, 'resume']);
+        Route::apiResource('campaigns', \App\Http\Controllers\Api\V1\CampaignController::class);
+
+        // Media assets — campaign image pipeline
+        Route::get('media-assets', [\App\Http\Controllers\Api\V1\MediaAssetController::class, 'index']);
+        Route::post('media-assets/{id}/retry-download', [\App\Http\Controllers\Api\V1\MediaAssetController::class, 'retryDownload']);
+        Route::post('media-assets/{id}/upload-wordpress', [\App\Http\Controllers\Api\V1\MediaAssetController::class, 'uploadToWordPress']);
+
+        // Notifications — generic email/telegram/dashboard flow
+        Route::get('notifications', [\App\Http\Controllers\Api\V1\NotificationController::class, 'index']);
+        Route::post('notifications/{id}/read', [\App\Http\Controllers\Api\V1\NotificationController::class, 'markRead']);
+
         // Keywords — standard API rate limit
+        Route::post('keywords/import/preview', [\App\Http\Controllers\Api\V1\KeywordController::class, 'importPreview']);
         Route::post('keywords/import', [\App\Http\Controllers\Api\V1\KeywordController::class, 'import']);
         Route::post('keywords/bulk-destroy', [\App\Http\Controllers\Api\V1\KeywordController::class, 'bulkDestroy']);
         Route::apiResource('keywords', \App\Http\Controllers\Api\V1\KeywordController::class);
@@ -30,6 +47,7 @@ Route::prefix('v1')->group(function () {
         Route::delete('articles/{id}', [\App\Http\Controllers\Api\V1\ArticleController::class, 'destroy']);
 
         Route::post('articles/{id}/retry', [\App\Http\Controllers\Api\V1\ArticleController::class, 'retry']);
+        Route::post('articles/{id}/auto-fix', [\App\Http\Controllers\Api\V1\ArticleController::class, 'autoFix']);
 
         // AI Generation endpoints — 50 req/hour per tenant
         Route::middleware('throttle:ai_generation')->group(function () {
@@ -57,6 +75,7 @@ Route::prefix('v1')->group(function () {
         Route::get('analytics/ai-costs', [\App\Http\Controllers\Api\V1\AnalyticsController::class, 'aiCosts']);
         Route::get('analytics/keywords-daily', [\App\Http\Controllers\Api\V1\AnalyticsController::class, 'keywordsDaily']);
         Route::get('analytics/failing-agents', [\App\Http\Controllers\Api\V1\AnalyticsController::class, 'failingAgents']);
+        Route::get('analytics/usage', [\App\Http\Controllers\Api\V1\AnalyticsController::class, 'usage']);
 
         // AI Prompts (Admin/A/B Testing)
         Route::apiResource('ai-prompts', \App\Http\Controllers\Api\V1\AIPromptController::class);

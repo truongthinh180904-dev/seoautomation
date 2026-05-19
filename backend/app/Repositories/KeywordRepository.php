@@ -24,7 +24,7 @@ class KeywordRepository implements KeywordRepositoryInterface
     public function paginateForTenant(int $tenantId, array $filters, int $perPage = 20): LengthAwarePaginator
     {
         $query = Keyword::where('tenant_id', $tenantId)
-            ->with(['wordpressSite:id,name', 'user:id,name', 'article:id,keyword_id']);
+            ->with(['wordpressSite:id,name', 'campaign:id,name,status', 'user:id,name', 'article:id,keyword_id']);
 
         if (!empty($filters['status'])) {
             $query->where('status', $filters['status']);
@@ -32,6 +32,10 @@ class KeywordRepository implements KeywordRepositoryInterface
 
         if (!empty($filters['wordpress_site_id'])) {
             $query->where('wordpress_site_id', $filters['wordpress_site_id']);
+        }
+
+        if (!empty($filters['campaign_id'])) {
+            $query->where('campaign_id', $filters['campaign_id']);
         }
 
         if (!empty($filters['search'])) {
@@ -127,8 +131,17 @@ class KeywordRepository implements KeywordRepositoryInterface
             if (isset($keyword['status']) && $keyword['status'] instanceof KeywordStatus) {
                 $keyword['status'] = $keyword['status']->value;
             }
-            if (isset($keyword['meta']) && is_array($keyword['meta'])) {
-                $keyword['meta'] = json_encode($keyword['meta']);
+            foreach ([
+                'meta',
+                'must_include_points',
+                'avoid_topics',
+                'reference_urls',
+                'competitor_urls_override',
+                'raw_import_row',
+            ] as $jsonColumn) {
+                if (isset($keyword[$jsonColumn]) && is_array($keyword[$jsonColumn])) {
+                    $keyword[$jsonColumn] = json_encode($keyword[$jsonColumn]);
+                }
             }
             return $keyword;
         }, $keywords);

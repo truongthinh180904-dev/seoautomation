@@ -4,17 +4,24 @@ namespace App\Services\SEO;
 
 use App\DTOs\SerpResultDTO;
 use App\Exceptions\SEO\SerpApiException;
-use Illuminate\Support\Facades\Cache;
+use App\Services\Cost\CostTrackingService;
 use Illuminate\Support\Facades\Http;
 
 class SerpResearchService
 {
+    public function __construct(
+        protected SerpCacheService $cache,
+        protected CostTrackingService $costTracking
+    ) {}
+
     public function search(string $keyword, ?int $tenantId = null, string $language = 'vi'): array
     {
-        $tenantKey = $tenantId ?? 'default';
-        $cacheKey = "serp:{$tenantKey}:" . md5($keyword);
+        $cached = $this->cache->get($keyword, $language);
+        if ($cached !== null) {
+            return $cached;
+        }
 
-        return Cache::remember($cacheKey, 86400, function () use ($keyword, $language) {
+        $results = (function () use ($keyword, $language, $tenantId) {
             $apiKey = config('seo.serp_api_key');
 
             // Optionally bypass if no API key is set for local development
@@ -48,6 +55,17 @@ class SerpResearchService
                 throw new SerpApiException("SerpAPI Error: " . $response->body());
             }
 
+            if ($tenantId) {
+                $this->costTracking->logUsage([
+                    'tenant_id' => $tenantId,
+                    'job_type' => 'serp_lookup',
+                    'provider' => 'serper',
+                    'model' => 'serpapi',
+                    'cost_usd' => $this->costTracking->calculateCost('serper', 'serpapi'),
+                    'status' => 'success',
+                ]);
+            }
+
             $data = $response->json();
             $organicResults = $data['organic_results'] ?? [];
 
@@ -66,6 +84,10 @@ class SerpResearchService
             }
 
             return $dtos;
-        });
+        })();
+
+        $this->cache->put($keyword, $results, $language);
+
+        return $results;
     }
 }

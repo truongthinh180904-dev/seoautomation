@@ -14,6 +14,9 @@ use App\Jobs\AI\GenerateOutlineJob;
 use App\Jobs\Publishing\PublishToWordPressJob;
 use App\Repositories\Contracts\ArticleRepositoryInterface;
 use App\Repositories\Contracts\KeywordRepositoryInterface;
+use App\Services\Cost\CostTrackingService;
+use App\Models\MediaAsset;
+use App\Services\SEO\SEOAutoFixService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Str;
@@ -22,13 +25,15 @@ class ArticleController extends Controller
 {
     public function __construct(
         protected ArticleRepositoryInterface $repository,
-        protected KeywordRepositoryInterface $keywords
+        protected KeywordRepositoryInterface $keywords,
+        protected CostTrackingService $costTracking,
+        protected SEOAutoFixService $autoFixService
     ) {}
 
     public function index(Request $request)
     {
         $tenantId = $request->user()->tenant_id;
-        $filters = $request->only(['status', 'keyword_id', 'wordpress_site_id', 'wp_site_id', 'search']);
+        $filters = $request->only(['status', 'keyword_id', 'campaign_id', 'wordpress_site_id', 'wp_site_id', 'search']);
         $perPage = min($request->integer('per_page', 20), 100);
         $articles = $this->repository->paginateForTenant($tenantId, $filters, $perPage);
 
@@ -81,6 +86,16 @@ class ArticleController extends Controller
         return response()->json(['message' => 'Article queued for retry.']);
     }
 
+    public function autoFix(int $id, Request $request)
+    {
+        $article = $this->repository->findByIdForTenant($id, $request->user()->tenant_id);
+        if (!$article) abort(404);
+
+        return (new ArticleResource($this->autoFixService->autoFix($article)))->additional([
+            'message' => 'SEO auto-fix applied.',
+        ]);
+    }
+
     /**
      * Public endpoint — accessible via review token (no auth required).
      */
@@ -121,6 +136,14 @@ class ArticleController extends Controller
     {
         $tenantId = $request->user()->tenant_id;
         $validated = $request->validated();
+        $quota = $this->costTracking->checkQuota($tenantId);
+
+        if (!$quota->canProceed) {
+            return response()->json([
+                'message' => $quota->message ?? 'AI quota exceeded.',
+                'quota' => $quota->toArray(),
+            ], 402);
+        }
 
         $keyword = $this->keywords->findByIdForTenant($validated['keyword_id'], $tenantId);
 
@@ -131,17 +154,37 @@ class ArticleController extends Controller
         $article = $this->repository->findByKeywordIdForTenant($keyword->id, $tenantId);
 
         if (!$article) {
+            $keywordMeta = $keyword->meta ?? [];
             $article = $this->repository->create([
                 'tenant_id' => $tenantId,
                 'keyword_id' => $keyword->id,
+                'campaign_id' => $validated['campaign_id'] ?? $keyword->campaign_id,
                 'wordpress_site_id' => $validated['wordpress_site_id'] ?? $keyword->wordpress_site_id,
                 'user_id' => $request->user()->id,
                 'title' => 'Bài viết: ' . $keyword->keyword,
                 'slug' => Str::slug($keyword->keyword),
                 'focus_keyword' => $keyword->keyword,
+                'featured_image_url' => $keywordMeta['featured_image_url'] ?? null,
+                'media_plan' => array_filter([
+                    'featured_image_url' => $keywordMeta['featured_image_url'] ?? null,
+                    'image_urls' => $keywordMeta['image_urls'] ?? null,
+                    'internal_links' => $keywordMeta['internal_links'] ?? null,
+                ]),
+                'wp_tag_names' => !empty($keywordMeta['wp_tag_names'])
+                    ? array_values(array_filter(array_map('trim', explode(',', str_replace('|', ',', (string) $keywordMeta['wp_tag_names'])))))
+                    : null,
+                'wp_slug' => $keywordMeta['wp_slug'] ?? null,
+                'excerpt' => $keywordMeta['wp_excerpt'] ?? null,
                 'status' => ArticleStatus::DRAFT,
             ]);
         }
+
+        MediaAsset::query()
+            ->where('tenant_id', $tenantId)
+            ->whereNull('article_id')
+            ->where('campaign_id', $article->campaign_id)
+            ->where('metadata->keyword', $keyword->keyword)
+            ->update(['article_id' => $article->id]);
 
         GenerateOutlineJob::dispatch($keyword->id, $article->id)->onQueue('ai-writing');
         $keyword->update(['status' => KeywordStatus::PROCESSING]);

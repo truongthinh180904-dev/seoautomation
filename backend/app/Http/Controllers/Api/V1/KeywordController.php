@@ -11,6 +11,7 @@ use App\Http\Requests\UpdateKeywordRequest;
 use App\Http\Resources\KeywordResource;
 use App\Repositories\Contracts\KeywordRepositoryInterface;
 use App\Services\Keyword\KeywordImportService;
+use App\Services\Keyword\KeywordImportPreviewService;
 use App\Services\Keyword\KeywordParserService;
 use Illuminate\Http\Request;
 use Exception;
@@ -20,13 +21,14 @@ class KeywordController extends Controller
     public function __construct(
         protected KeywordRepositoryInterface $repository,
         protected KeywordParserService $parserService,
-        protected KeywordImportService $importService
+        protected KeywordImportService $importService,
+        protected KeywordImportPreviewService $previewService
     ) {}
 
     public function index(Request $request)
     {
         $tenantId = $request->user()->tenant_id;
-        $filters = $request->only(['status', 'wordpress_site_id', 'search', 'batch_id']);
+        $filters = $request->only(['status', 'wordpress_site_id', 'campaign_id', 'search', 'batch_id']);
         $perPage = $request->input('per_page', 20);
 
         $keywords = $this->repository->paginateForTenant($tenantId, $filters, $perPage);
@@ -51,13 +53,32 @@ class KeywordController extends Controller
             $summary = $this->importService->import(
                 $rows,
                 $request->user()->tenant_id, 
-                $request->user()->id
+                $request->user()->id,
+                $request->integer('campaign_id') ?: null
             );
             
             return response()->json($summary);
         } catch (Exception $e) {
             return response()->json([
                 'message' => 'Import keywords failed.',
+                'error' => $e->getMessage(),
+            ], 400);
+        }
+    }
+
+    public function importPreview(ImportKeywordsRequest $request)
+    {
+        try {
+            $rows = $this->parserService->parseUploadedFile($request->file('file'));
+
+            return response()->json($this->previewService->preview(
+                $rows,
+                $request->user()->tenant_id,
+                $request->integer('campaign_id') ?: null
+            ));
+        } catch (Exception $e) {
+            return response()->json([
+                'message' => 'Preview import failed.',
                 'error' => $e->getMessage(),
             ], 400);
         }

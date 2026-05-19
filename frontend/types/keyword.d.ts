@@ -8,6 +8,18 @@ interface Keyword {
   search_intent: string | null;
   priority: number;
   status: 'pending' | 'processing' | 'completed' | 'failed' | 'skipped';
+  campaign?: {
+    id: number;
+    name: string;
+    status: Campaign['status'];
+  } | null;
+  pillar_topic?: string | null;
+  content_cluster?: string | null;
+  funnel_stage?: string | null;
+  target_word_count?: number | null;
+  target_url?: string | null;
+  canonical_url?: string | null;
+  brief_notes?: string | null;
   scheduled_at: string | null;
   processed_at: string | null;
   batch_id: string | null;
@@ -24,9 +36,43 @@ interface KeywordImportResult {
   total: number;
   imported: number;
   skipped: number;
+  media_assets_created?: number;
   errors: string[];
 }
 
 interface KeywordImportPreviewRow {
   keyword: string;
+  search_intent?: string | null;
+  target_word_count?: number | null;
+  campaign_id?: number | null;
+}
+
+interface KeywordImportPreviewResult {
+  template_version: string;
+  total_rows: number;
+  valid_rows: number;
+  invalid_rows: number;
+  sample_rows: KeywordImportPreviewRow[];
+  errors: Array<{
+    row: number;
+    column?: string;
+    message: string;
+  }>;
+  warnings: Array<{
+    row: number;
+    message: string;
+  }>;
+  estimated_cost: {
+    serper_calls: number;
+    serper_cost_usd: number;
+    gemini_tokens_estimated: number;
+    gemini_cost_estimated_usd: number;
+    total_estimated_usd: number;
+  };
+  quota_check: {
+    articles_remaining: number | null;
+    budget_remaining_usd: number | null;
+    can_proceed: boolean;
+    warning: string | null;
+  };
 }

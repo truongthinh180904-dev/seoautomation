@@ -33,6 +33,11 @@ class Tenant extends Model
         return $this->hasMany(Keyword::class);
     }
 
+    public function campaigns(): HasMany
+    {
+        return $this->hasMany(Campaign::class);
+    }
+
     public function wordpressSites(): HasMany
     {
         return $this->hasMany(WordPressSite::class);
@@ -41,5 +46,20 @@ class Tenant extends Model
     public function articles(): HasMany
     {
         return $this->hasMany(Article::class);
+    }
+
+    public function subscription()
+    {
+        return $this->hasOne(TenantSubscription::class);
+    }
+
+    public function aiUsageLogs(): HasMany
+    {
+        return $this->hasMany(AiUsageLog::class);
+    }
+
+    public function notifications(): HasMany
+    {
+        return $this->hasMany(Notification::class);
     }
 }

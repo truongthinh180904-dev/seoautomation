@@ -5,7 +5,9 @@ namespace App\Jobs\AI;
 use App\Agents\SEOOptimizationAgent;
 use App\Enums\ArticleStatus;
 use App\Enums\KeywordStatus;
+use App\Events\ArticleGenerated;
 use App\Models\Article;
+use App\Services\SEO\ArticleQualityReportService;
 use App\Services\SEO\SEOScoreService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -26,7 +28,7 @@ class GenerateSeoMetadataJob implements ShouldQueue
         $this->onQueue('ai-writing');
     }
 
-    public function handle(SEOOptimizationAgent $agent, SEOScoreService $seoScoreService): void
+    public function handle(SEOOptimizationAgent $agent, SEOScoreService $seoScoreService, ArticleQualityReportService $qualityReportService): void
     {
         $article = Article::with('keyword')->find($this->articleId);
 
@@ -68,8 +70,7 @@ class GenerateSeoMetadataJob implements ShouldQueue
             'processed_at' => now(),
         ]);
 
-        if (class_exists('App\Jobs\Notification\SendZaloNotificationJob')) {
-            \App\Jobs\Notification\SendZaloNotificationJob::dispatch($article->id)->onQueue('default');
-        }
+        $qualityReportService->generate($article->fresh(['keyword', 'wordpressSite']));
+        ArticleGenerated::dispatch($article->fresh(['keyword']));
     }
 }

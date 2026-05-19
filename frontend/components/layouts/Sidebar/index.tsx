@@ -6,12 +6,14 @@ import { cn } from '@/lib/utils';
 import { ROUTES } from '@/lib/constants/routes';
 import { 
   LayoutDashboard, 
+  Target,
   Key, 
+  FileSpreadsheet,
   FileText, 
   ListOrdered, 
   BarChart, 
   Globe, 
-  MessageCircle, 
+  Bell,
   Calendar, 
   History, 
   Users, 
@@ -20,12 +22,14 @@ import {
 
 const navItems = [
   { title: 'Dashboard', href: ROUTES.DASHBOARD.HOME, icon: LayoutDashboard },
+  { title: 'Campaigns', href: ROUTES.DASHBOARD.CAMPAIGNS, icon: Target },
   { title: 'Keywords', href: ROUTES.DASHBOARD.KEYWORDS, icon: Key },
+  { title: 'Import Wizard', href: ROUTES.DASHBOARD.IMPORT_WIZARD, icon: FileSpreadsheet },
   { title: 'Articles', href: ROUTES.DASHBOARD.ARTICLES, icon: FileText },
   { title: 'Queue', href: ROUTES.DASHBOARD.QUEUE, icon: ListOrdered },
   { title: 'Analytics', href: ROUTES.DASHBOARD.ANALYTICS, icon: BarChart },
   { title: 'WordPress', href: ROUTES.DASHBOARD.WORDPRESS, icon: Globe },
-  { title: 'Zalo OA', href: ROUTES.DASHBOARD.ZALO, icon: MessageCircle },
+  { title: 'Notifications', href: ROUTES.DASHBOARD.NOTIFICATIONS, icon: Bell },
   { title: 'Schedules', href: ROUTES.DASHBOARD.SCHEDULES, icon: Calendar },
   { title: 'Logs', href: ROUTES.DASHBOARD.LOGS, icon: History },
   { title: 'Users', href: ROUTES.DASHBOARD.USERS, icon: Users },

@@ -28,3 +28,10 @@ export function useFailingAgents(days = 30) {
     queryFn: () => analyticsApi.failingAgents({ days }),
   });
 }
+
+export function useUsageAnalytics() {
+  return useQuery({
+    queryKey: ['analytics', 'usage'],
+    queryFn: () => analyticsApi.usage(),
+  });
+}

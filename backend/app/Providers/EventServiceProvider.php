@@ -6,7 +6,7 @@ use App\Events\ArticleApproved;
 use App\Events\ArticleGenerated;
 use App\Events\ArticlePublished;
 use App\Listeners\OnArticleApproved\DispatchPublishingJob;
-use App\Listeners\OnArticleGenerated\SendZaloNotification;
+use App\Listeners\OnArticleGenerated\SendArticleReviewNotification;
 use App\Listeners\OnArticlePublished\UpdatePublishingLog;
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
 
@@ -19,7 +19,7 @@ class EventServiceProvider extends ServiceProvider
      */
     protected $listen = [
         ArticleGenerated::class => [
-            SendZaloNotification::class,
+            SendArticleReviewNotification::class,
         ],
 
         ArticleApproved::class => [

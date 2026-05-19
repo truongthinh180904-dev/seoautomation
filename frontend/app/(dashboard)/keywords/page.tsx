@@ -1,17 +1,24 @@
 "use client";
 
 import { useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import KeywordTable from '@/components/features/keywords/KeywordTable';
 import { useKeywords } from '@/hooks/useKeywords';
 import { Search, Plus, FileSpreadsheet } from 'lucide-react';
 import Link from 'next/link';
 
 export default function KeywordsPage() {
+  const searchParams = useSearchParams();
+  const campaignId = Number(searchParams.get('campaign_id'));
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
 
-  const { data, isLoading } = useKeywords(page, debouncedSearch);
+  const { data, isLoading } = useKeywords(
+    page,
+    debouncedSearch,
+    Number.isFinite(campaignId) && campaignId > 0 ? campaignId : undefined
+  );
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
