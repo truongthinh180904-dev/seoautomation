@@ -5,11 +5,13 @@ namespace App\Services\WordPress;
 use App\Exceptions\WordPress\WordPressPublishException;
 use App\Models\MediaAsset;
 use App\Models\WordPressSite;
-use Illuminate\Support\Facades\Http;
+use App\Services\WordPress\Concerns\ConfiguresWordPressHttp;
 use Illuminate\Support\Facades\Storage;
 
 class WordPressMediaService
 {
+    use ConfiguresWordPressHttp;
+
     public function upload(MediaAsset $asset, WordPressSite $site): MediaAsset
     {
         if (!$asset->local_path || !Storage::exists($asset->local_path)) {
@@ -20,7 +22,7 @@ class WordPressMediaService
         $fileName = basename($asset->local_path);
         $apiUrl = rtrim($site->api_url, '/');
 
-        $response = Http::withHeaders([
+        $response = $this->wordpressHttp()->withHeaders([
             'Authorization' => 'Basic ' . base64_encode($site->username . ':' . $site->app_password),
             'Content-Disposition' => 'attachment; filename="' . $fileName . '"',
             'Content-Type' => $this->guessMimeType($fileName),
@@ -53,7 +55,7 @@ class WordPressMediaService
             return;
         }
 
-        Http::withHeaders([
+        $this->wordpressHttp()->withHeaders([
             'Authorization' => 'Basic ' . base64_encode($site->username . ':' . $site->app_password),
             'Content-Type' => 'application/json',
         ])->post(rtrim($site->api_url, '/') . '/wp/v2/media/' . $asset->wordpress_media_id, array_filter([

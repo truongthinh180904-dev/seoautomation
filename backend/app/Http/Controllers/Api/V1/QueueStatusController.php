@@ -6,21 +6,21 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class QueueStatusController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        // Horizon stores job metrics in Redis; we query the failed_jobs table for DB-backed failures
-        $queues = ['ai-research', 'ai-writing', 'publishing', 'notifications'];
+        $queues = ['ai-research', 'ai-writing', 'imports', 'publishing', 'notifications', 'default'];
 
         $stats = array_map(function (string $queue) {
             return [
                 'name'       => $queue,
                 'label'      => $this->label($queue),
-                'pending'    => 0, // Horizon-only: extend via Laravel\Horizon\Contracts\MetricsRepository
-                'processing' => 0,
-                'failed'     => DB::table('failed_jobs')->where('queue', $queue)->count(),
+                'pending'    => $this->pendingCount($queue),
+                'processing' => $this->processingCount($queue),
+                'failed'     => $this->failedCount($queue),
             ];
         }, $queues);
 
@@ -53,9 +53,44 @@ class QueueStatusController extends Controller
         return match($queue) {
             'ai-research'   => 'AI Research',
             'ai-writing'    => 'AI Writing',
+            'imports'       => 'Imports & Media',
             'publishing'    => 'Publishing',
             'notifications' => 'Notifications',
+            'default'       => 'Default',
             default         => $queue,
         };
+    }
+
+    private function pendingCount(string $queue): int
+    {
+        if (!Schema::hasTable('jobs')) {
+            return 0;
+        }
+
+        return DB::table('jobs')
+            ->where('queue', $queue)
+            ->whereNull('reserved_at')
+            ->count();
+    }
+
+    private function processingCount(string $queue): int
+    {
+        if (!Schema::hasTable('jobs')) {
+            return 0;
+        }
+
+        return DB::table('jobs')
+            ->where('queue', $queue)
+            ->whereNotNull('reserved_at')
+            ->count();
+    }
+
+    private function failedCount(string $queue): int
+    {
+        if (!Schema::hasTable('failed_jobs')) {
+            return 0;
+        }
+
+        return DB::table('failed_jobs')->where('queue', $queue)->count();
     }
 }

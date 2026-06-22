@@ -33,6 +33,14 @@ class UpdateKeywordRequest extends FormRequest
             'avoid_topics' => ['sometimes', 'nullable', 'array'],
             'reference_urls' => ['sometimes', 'nullable', 'array'],
             'competitor_urls_override' => ['sometimes', 'nullable', 'array'],
+            'meta' => ['sometimes', 'nullable', 'array'],
+            'meta.featured_image_url' => ['sometimes', 'nullable', 'url', 'max:2000'],
+            'meta.image_urls' => ['sometimes', 'nullable'],
+            'meta.image_generation_prompt' => ['sometimes', 'nullable', 'string'],
+            'meta.image_search_query' => ['sometimes', 'nullable', 'string'],
+            'meta.image_source' => ['sometimes', 'nullable', 'in:stock,ai,hybrid'],
+            'meta.internal_links' => ['sometimes', 'nullable'],
+            'meta.inline_image_count' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:10'],
         ];
     }
 }

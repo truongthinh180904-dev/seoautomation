@@ -63,8 +63,8 @@ class CostTrackingService
         $plan = $subscription->plan;
         $articlesLimit = $plan->articles_per_month;
         $costLimit = $plan->ai_cost_budget_usd;
-        $articlesUsed = $subscription->articles_used_this_month;
-        $costUsed = (float) $subscription->ai_cost_used_this_month_usd;
+        $articlesUsed = (int) ($subscription->articles_used_this_month ?? 0);
+        $costUsed = (float) ($subscription->ai_cost_used_this_month_usd ?? 0);
 
         $articlesExceeded = $articlesLimit !== null && $articlesUsed >= $articlesLimit;
         $costExceeded = $costLimit !== null && $costUsed >= $costLimit;
@@ -116,6 +116,32 @@ class CostTrackingService
         $subscription = TenantSubscription::query()->with('plan')->where('tenant_id', $tenantId)->first();
 
         if ($subscription) {
+            $dirty = false;
+
+            if ($subscription->articles_used_this_month === null) {
+                $subscription->articles_used_this_month = 0;
+                $dirty = true;
+            }
+
+            if ($subscription->ai_cost_used_this_month_usd === null) {
+                $subscription->ai_cost_used_this_month_usd = 0;
+                $dirty = true;
+            }
+
+            if (!$subscription->billing_cycle_start) {
+                $subscription->billing_cycle_start = now()->startOfMonth();
+                $dirty = true;
+            }
+
+            if (!$subscription->billing_cycle_end) {
+                $subscription->billing_cycle_end = now()->endOfMonth();
+                $dirty = true;
+            }
+
+            if ($dirty) {
+                $subscription->save();
+            }
+
             return $subscription;
         }
 

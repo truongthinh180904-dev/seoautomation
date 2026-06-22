@@ -27,6 +27,8 @@ Route::prefix('v1')->group(function () {
 
         // Media assets — campaign image pipeline
         Route::get('media-assets', [\App\Http\Controllers\Api\V1\MediaAssetController::class, 'index']);
+        Route::post('media-assets', [\App\Http\Controllers\Api\V1\MediaAssetController::class, 'store']);
+        Route::put('media-assets/{id}', [\App\Http\Controllers\Api\V1\MediaAssetController::class, 'update']);
         Route::post('media-assets/{id}/retry-download', [\App\Http\Controllers\Api\V1\MediaAssetController::class, 'retryDownload']);
         Route::post('media-assets/{id}/upload-wordpress', [\App\Http\Controllers\Api\V1\MediaAssetController::class, 'uploadToWordPress']);
 
@@ -48,6 +50,8 @@ Route::prefix('v1')->group(function () {
 
         Route::post('articles/{id}/retry', [\App\Http\Controllers\Api\V1\ArticleController::class, 'retry']);
         Route::post('articles/{id}/auto-fix', [\App\Http\Controllers\Api\V1\ArticleController::class, 'autoFix']);
+        Route::post('articles/{id}/generate-images', [\App\Http\Controllers\Api\V1\ArticleController::class, 'generateImages']);
+        Route::post('articles/{id}/approve-publish', [\App\Http\Controllers\Api\V1\ArticleController::class, 'approveAndPublish']);
 
         // AI Generation endpoints — 50 req/hour per tenant
         Route::middleware('throttle:ai_generation')->group(function () {

@@ -4,10 +4,12 @@ namespace App\Services\WordPress;
 
 use App\Exceptions\WordPress\WordPressPublishException;
 use App\Models\WordPressSite;
-use Illuminate\Support\Facades\Http;
+use App\Services\WordPress\Concerns\ConfiguresWordPressHttp;
 
 class WordPressTagService
 {
+    use ConfiguresWordPressHttp;
+
     public function resolveTagNames(array $tagNames, WordPressSite $site): array
     {
         $tagIds = [];
@@ -27,7 +29,7 @@ class WordPressTagService
         $apiUrl = rtrim($site->api_url, '/');
         $auth = $this->authHeader($site);
 
-        $search = Http::withHeaders($auth)->get($apiUrl . '/wp/v2/tags', [
+        $search = $this->wordpressHttp()->withHeaders($auth)->get($apiUrl . '/wp/v2/tags', [
             'search' => $tagName,
             'per_page' => 20,
         ]);
@@ -40,7 +42,7 @@ class WordPressTagService
             }
         }
 
-        $create = Http::withHeaders($auth)->post($apiUrl . '/wp/v2/tags', [
+        $create = $this->wordpressHttp()->withHeaders($auth)->post($apiUrl . '/wp/v2/tags', [
             'name' => $tagName,
         ]);
 

@@ -24,7 +24,7 @@ class KeywordRepository implements KeywordRepositoryInterface
     public function paginateForTenant(int $tenantId, array $filters, int $perPage = 20): LengthAwarePaginator
     {
         $query = Keyword::where('tenant_id', $tenantId)
-            ->with(['wordpressSite:id,name', 'campaign:id,name,status', 'user:id,name', 'article:id,keyword_id']);
+            ->with(['wordpressSite:id,name', 'campaign:id,name,status', 'user:id,name', 'article:id,keyword_id,status,review_notes,pipeline_status']);
 
         if (!empty($filters['status'])) {
             $query->where('status', $filters['status']);

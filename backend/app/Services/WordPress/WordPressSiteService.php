@@ -4,11 +4,13 @@ namespace App\Services\WordPress;
 
 use App\Models\WordPressSite;
 use App\Repositories\Contracts\WordPressSiteRepositoryInterface;
-use Illuminate\Support\Facades\Http;
+use App\Services\WordPress\Concerns\ConfiguresWordPressHttp;
 use Exception;
 
 class WordPressSiteService
 {
+    use ConfiguresWordPressHttp;
+
     public function __construct(
         protected WordPressSiteRepositoryInterface $repository
     ) {}
@@ -21,7 +23,8 @@ class WordPressSiteService
         }
 
         try {
-            $response = Http::withBasicAuth($site->username, $site->app_password)
+            $response = $this->wordpressHttp()
+                ->withBasicAuth($site->username, $site->app_password)
                 ->timeout(10)
                 ->get($this->usersMeEndpoint($site));
 

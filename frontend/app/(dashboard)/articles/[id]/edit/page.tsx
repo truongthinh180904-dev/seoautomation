@@ -4,6 +4,7 @@ import React from 'react';
 import { useParams } from 'next/navigation';
 import { useArticle, useArticleActions } from '@/hooks/useArticles';
 import ArticleEditor from '@/components/features/articles/ArticleEditor';
+import ArticleImportSettings from '@/components/features/articles/ArticleImportSettings';
 import ArticleTimeline from '@/components/features/articles/ArticleTimeline';
 import { ArrowLeft, Loader2, CheckCircle, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -13,7 +14,7 @@ import { toast } from 'sonner';
 export default function ArticleEditPage() {
   const { id } = useParams();
   const { data: articleResponse, isLoading, error } = useArticle(Number(id));
-  const { updateArticle } = useArticleActions();
+  const { updateArticle, publishArticle } = useArticleActions();
 
   const article = articleResponse?.data;
 
@@ -42,6 +43,19 @@ export default function ArticleEditPage() {
       toast.success(`Article ${newStatus}`);
     } catch {
       toast.error("Failed to update status");
+    }
+  };
+
+  const handlePublish = async () => {
+    if (!window.confirm('Duyệt bài và gửi lên WordPress site đã kết nối?')) {
+      return;
+    }
+
+    try {
+      await publishArticle.mutateAsync(Number(id));
+      toast.success('Đã đưa bài vào queue đăng WordPress.');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Không thể gửi bài lên WordPress.');
     }
   };
 
@@ -105,10 +119,12 @@ export default function ArticleEditPage() {
           <Button 
             variant="default" 
             className="bg-emerald-600 hover:bg-emerald-700 rounded-xl"
-            onClick={() => handleStatusChange('approved')}
+            onClick={handlePublish}
+            disabled={publishArticle.isPending || !article.wordpress_site}
+            title={article.wordpress_site ? 'Duyệt và gửi WordPress' : 'Bài viết chưa gắn WordPress site'}
           >
             <CheckCircle className="w-4 h-4 mr-2" />
-            Approve
+            Approve & Publish
           </Button>
         </div>
       </div>
@@ -124,7 +140,15 @@ export default function ArticleEditPage() {
           />
         </div>
 
-        <div className="xl:col-span-3">
+        <div className="xl:col-span-3 space-y-6">
+          <ArticleImportSettings
+            article={article}
+            onSave={async (payload) => {
+              await updateArticle.mutateAsync({ id: Number(id), data: payload });
+              toast.success('Đã lưu biến import/media cho bài viết');
+            }}
+            isSaving={updateArticle.isPending}
+          />
           <ArticleTimeline events={timelineEvents} />
         </div>
       </div>

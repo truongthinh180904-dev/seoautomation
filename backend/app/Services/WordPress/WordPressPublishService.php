@@ -7,10 +7,12 @@ use App\Exceptions\WordPress\WordPressAuthException;
 use App\Exceptions\WordPress\WordPressPublishException;
 use App\Exceptions\WordPress\WordPressValidationException;
 use App\Models\WordPressSite;
-use Illuminate\Support\Facades\Http;
+use App\Services\WordPress\Concerns\ConfiguresWordPressHttp;
 
 class WordPressPublishService
 {
+    use ConfiguresWordPressHttp;
+
     public function __construct(
         protected WordPressTagService $tagService
     ) {}
@@ -60,7 +62,7 @@ class WordPressPublishService
         $apiUrl = rtrim($site->api_url, '/');
         $postType = trim($dto->postType ?: 'post', '/');
         
-        $response = Http::withHeaders([
+        $response = $this->wordpressHttp()->withHeaders([
             'Authorization' => 'Basic ' . $auth,
             'Content-Type' => 'application/json',
         ])->post($apiUrl . "/wp/v2/{$postType}s", $body);
@@ -92,7 +94,7 @@ class WordPressPublishService
 
             $apiUrl = rtrim($site->api_url, '/');
             
-            $response = Http::withHeaders([
+            $response = $this->wordpressHttp()->withHeaders([
                 'Authorization' => 'Basic ' . $auth,
             ])->get($apiUrl . '/wp/v2/users/me');
 

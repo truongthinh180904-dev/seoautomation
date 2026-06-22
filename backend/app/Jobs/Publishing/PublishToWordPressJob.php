@@ -4,11 +4,12 @@ namespace App\Jobs\Publishing;
 
 use App\DTOs\PublishingDTO;
 use App\Enums\ArticleStatus;
-use App\Jobs\Notification\SendZaloNotificationJob;
 use App\Models\Article;
 use App\Models\MediaAsset;
 use App\Models\PublishingLog;
+use App\Jobs\Media\DownloadImageJob;
 use App\Jobs\Media\UploadToWordPressMediaJob;
+use App\Services\Article\ArticlePipelineService;
 use App\Services\WordPress\WordPressPreflightCheckService;
 use App\Services\WordPress\WordPressPublishService;
 use Illuminate\Bus\Queueable;
@@ -34,7 +35,11 @@ class PublishToWordPressJob implements ShouldQueue
         $this->onQueue('publishing');
     }
 
-    public function handle(WordPressPublishService $publishService, WordPressPreflightCheckService $preflight): void
+    public function handle(
+        WordPressPublishService $publishService,
+        WordPressPreflightCheckService $preflight,
+        ArticlePipelineService $pipeline
+    ): void
     {
         $startTime = microtime(true);
         $article = Article::with('wordpressSite')->find($this->articleId);
@@ -43,7 +48,14 @@ class PublishToWordPressJob implements ShouldQueue
             return;
         }
 
+        $pipeline->start($article, 'publishing', 'Đang chuẩn bị đăng WordPress.');
+
+        if (in_array($article->status, [ArticleStatus::PUBLISHING, ArticleStatus::PUBLISHED], true)) {
+            return;
+        }
+
         if ($article->status !== ArticleStatus::APPROVED) {
+            $pipeline->fail($article, 'publishing', 'Article is not approved for publishing.');
             Log::warning("PublishToWordPressJob aborted: Article {$article->id} is not APPROVED (status: {$article->status->value})");
             return;
         }
@@ -51,23 +63,39 @@ class PublishToWordPressJob implements ShouldQueue
         $site = $article->wordpressSite ?? \App\Models\WordPressSite::find($this->wordpressSiteId);
         
         if (!$site) {
+            $pipeline->fail($article, 'publishing', 'No WordPress site configured.');
             Log::warning("PublishToWordPressJob aborted: No WordPress site configured for article {$article->id}");
             return;
         }
 
         $article->update(['status' => ArticleStatus::PUBLISHING]);
 
-        $featuredAsset = MediaAsset::query()
+        $mediaAssets = MediaAsset::query()
             ->where('article_id', $article->id)
-            ->where('metadata->role', 'featured')
-            ->first();
+            ->whereIn('metadata->role', ['featured', 'inline'])
+            ->get();
+        $featuredAsset = $mediaAssets->first(fn (MediaAsset $asset) => ($asset->metadata['role'] ?? null) === 'featured');
 
-        if ($featuredAsset && $featuredAsset->status->value === 'downloaded' && !$featuredAsset->wordpress_media_id) {
-            UploadToWordPressMediaJob::dispatch($featuredAsset->id, $site->id)->onQueue('publishing');
+        $pendingAssets = $mediaAssets->filter(fn (MediaAsset $asset) => $asset->status->value === 'pending');
+        if ($pendingAssets->isNotEmpty()) {
+            $pipeline->start($article, 'media_download', 'Đang tải ảnh từ Excel trước khi đăng.');
+            $pendingAssets->each(fn (MediaAsset $asset) => DownloadImageJob::dispatch($asset->id)->onQueue('imports'));
 
             $article->update([
                 'status' => ArticleStatus::APPROVED,
-                'review_notes' => 'Featured image upload queued before publishing.',
+                'review_notes' => 'Image download queued before publishing.',
+            ]);
+            return;
+        }
+
+        $downloadedAssets = $mediaAssets->filter(fn (MediaAsset $asset) => $asset->status->value === 'downloaded' && !$asset->wordpress_media_id);
+        if ($downloadedAssets->isNotEmpty()) {
+            $pipeline->start($article, 'media_upload', 'Đang đưa ảnh lên WordPress trước khi đăng.');
+            $downloadedAssets->each(fn (MediaAsset $asset) => UploadToWordPressMediaJob::dispatch($asset->id, $site->id)->onQueue('publishing'));
+
+            $article->update([
+                'status' => ArticleStatus::APPROVED,
+                'review_notes' => 'Image upload queued before publishing.',
             ]);
             return;
         }
@@ -85,6 +113,7 @@ class PublishToWordPressJob implements ShouldQueue
 
         $preflightResult = $preflight->runAll($article, $site);
         if (!$preflightResult['passed']) {
+            $pipeline->fail($article, 'publishing', 'WordPress preflight failed.');
             $article->update([
                 'status' => ArticleStatus::FAILED,
                 'quality_report' => array_merge($article->quality_report ?? [], ['wordpress_preflight' => $preflightResult]),
@@ -95,7 +124,7 @@ class PublishToWordPressJob implements ShouldQueue
 
         $dto = new PublishingDTO(
             title: $article->title,
-            content: $article->content,
+            content: $this->contentWithInlineImages($article),
             publishStatus: $article->wp_status ?: ($article->scheduled_publish_at ? 'future' : 'publish'),
             excerpt: $article->excerpt,
             slug: $article->wp_slug ?: $article->slug,
@@ -120,6 +149,12 @@ class PublishToWordPressJob implements ShouldQueue
                 'wordpress_post_url' => $result['url'],
                 'published_at' => now(),
             ]);
+            $article->keyword?->update([
+                'status' => \App\Enums\KeywordStatus::COMPLETED,
+                'processed_at' => now(),
+            ]);
+            $pipeline->complete($article->fresh(), 'publishing', 'Đăng WordPress thành công.');
+            $pipeline->complete($article->fresh(), 'done', 'Bài viết đã được đăng.');
 
             PublishingLog::create([
                 'tenant_id' => $article->tenant_id,
@@ -134,9 +169,6 @@ class PublishToWordPressJob implements ShouldQueue
                 'duration_ms' => (int) round((microtime(true) - $startTime) * 1000),
             ]);
 
-            if (class_exists(SendZaloNotificationJob::class)) {
-                // SendZaloNotificationJob::dispatch($article->id)->onQueue('default');
-            }
 
         } catch (Throwable $e) {
             $this->fail($e);
@@ -147,6 +179,8 @@ class PublishToWordPressJob implements ShouldQueue
     {
         $article = Article::find($this->articleId);
         if ($article) {
+            app(ArticlePipelineService::class)->fail($article, 'publishing', $exception->getMessage());
+
             $article->update(['status' => ArticleStatus::FAILED, 'review_notes' => 'Publishing failed: ' . $exception->getMessage()]);
             
             PublishingLog::create([
@@ -159,10 +193,50 @@ class PublishToWordPressJob implements ShouldQueue
                 'duration_ms' => 0,
             ]);
 
-            if (class_exists(SendZaloNotificationJob::class)) {
-                // Could dispatch failure notification here
-                // SendZaloNotificationJob::dispatch($article->id)->onQueue('default');
-            }
         }
+    }
+
+    private function contentWithInlineImages(Article $article): string
+    {
+        $content = (string) $article->content;
+        $inlineAssets = MediaAsset::query()
+            ->where('article_id', $article->id)
+            ->where('metadata->role', 'inline')
+            ->whereNotNull('wordpress_media_url')
+            ->get();
+
+        foreach ($inlineAssets as $index => $asset) {
+            if (str_contains($content, (string) $asset->wordpress_media_url)) {
+                continue;
+            }
+
+            $alt = e($asset->alt_text ?: $article->focus_keyword ?: $article->title);
+            $caption = e($asset->caption ?: $asset->alt_text ?: '');
+            $figure = '<figure class="wp-block-image"><img src="' . e($asset->wordpress_media_url) . '" alt="' . $alt . '" />';
+
+            if ($caption !== '') {
+                $figure .= '<figcaption>' . $caption . '</figcaption>';
+            }
+
+            $figure .= '</figure>';
+            $content = $this->insertFigureAfterHeading($content, $figure, $index + 1);
+        }
+
+        return $content;
+    }
+
+    private function insertFigureAfterHeading(string $content, string $figure, int $position): string
+    {
+        $matches = [];
+        preg_match_all('/<\/h2>/i', $content, $matches, PREG_OFFSET_CAPTURE);
+
+        if (empty($matches[0])) {
+            return $content . "\n\n" . $figure;
+        }
+
+        $targetIndex = min($position - 1, count($matches[0]) - 1);
+        $offset = $matches[0][$targetIndex][1] + strlen($matches[0][$targetIndex][0]);
+
+        return substr($content, 0, $offset) . "\n\n" . $figure . substr($content, $offset);
     }
 }

@@ -12,6 +12,17 @@ export function useKeywords(page = 1, search = '', campaignId?: number) {
   });
 }
 
+export function useKeyword(id: number) {
+  return useQuery({
+    queryKey: ['keyword', id],
+    queryFn: async () => {
+      const { data } = await apiClient.get(`/keywords/${id}`);
+      return data as { data: Keyword };
+    },
+    enabled: !!id,
+  });
+}
+
 export function useKeywordImport() {
   const queryClient = useQueryClient();
 
@@ -57,5 +68,15 @@ export function useKeywordActions() {
     }
   });
 
-  return { bulkDelete };
+  const updateKeyword = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: Partial<Keyword> }) => {
+      await apiClient.put(`/keywords/${id}`, data);
+    },
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ['keyword', id] });
+      queryClient.invalidateQueries({ queryKey: ['keywords'] });
+    }
+  });
+
+  return { bulkDelete, updateKeyword };
 }

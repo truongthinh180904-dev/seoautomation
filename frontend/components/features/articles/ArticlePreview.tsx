@@ -1,4 +1,5 @@
 import React from 'react';
+import ArticlePipelineStatus from './ArticlePipelineStatus';
 
 interface ArticlePreviewProps {
   article: Article;
@@ -35,12 +36,14 @@ export default function ArticlePreview({ article }: ArticlePreviewProps) {
       </div>
       
         <div 
-          className="p-8 prose prose-slate max-w-none prose-headings:font-bold prose-a:text-blue-600" 
+          className="p-8 font-sans prose prose-slate max-w-none prose-headings:font-bold prose-a:text-blue-600 prose-p:leading-8" 
           dangerouslySetInnerHTML={{ __html: article.content || '<p>No content generated yet.</p>' }} 
         />
       </div>
 
       <aside className="space-y-4">
+        <ArticlePipelineStatus pipeline={article.pipeline_status} />
+
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <h2 className="text-lg font-black text-slate-900">SEO QA</h2>
           {quality ? (

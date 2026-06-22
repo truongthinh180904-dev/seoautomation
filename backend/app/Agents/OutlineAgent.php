@@ -19,6 +19,7 @@ class OutlineAgent extends BaseAgent
     {
         $keyword = $context['keyword'] ?? null;
         $searchIntent = $context['search_intent'] ?? '';
+        $targetWordCount = (int) ($context['target_word_count'] ?? 3000);
         $competitorData = $context['competitor_data'] ?? [];
         $tenantId = $context['tenant_id'] ?? null;
         
@@ -39,7 +40,7 @@ class OutlineAgent extends BaseAgent
         $promptData = $this->promptBuilderService->build($this->getType(), [
             'keyword' => $keyword,
             'search_intent' => $searchIntent,
-            'word_count_target' => 1800,
+            'word_count_target' => max(1200, min(5000, $targetWordCount)),
             'competitors_summary' => $competitorsSummary,
         ], $tenantId);
 

@@ -7,6 +7,7 @@ use App\DTOs\AIRequestDTO;
 use App\Enums\AgentType;
 use App\Exceptions\Article\DuplicateContentException;
 use App\Services\Article\DuplicateDetectionService;
+use App\Services\Article\ArticleContentFormatter;
 use App\Services\AI\JsonResponseParser;
 use Illuminate\Support\Facades\Log;
 
@@ -29,6 +30,9 @@ class WritingAgent extends BaseAgent
 
         $semanticKeywords = implode(', ', $context['semantic_keywords'] ?? []);
         $entities = implode(', ', $context['entities'] ?? []);
+        $targetWordCount = max(1200, min(5000, (int) ($context['target_word_count'] ?? 3000)));
+        $minWordCount = max(900, (int) round($targetWordCount * 0.75));
+        $maxWordCount = (int) round($targetWordCount * 1.15);
         
         $faqsToAnswer = '';
         if (!empty($context['faqs']) && is_array($context['faqs'])) {
@@ -41,11 +45,15 @@ class WritingAgent extends BaseAgent
             'semantic_keywords' => $semanticKeywords,
             'entities' => $entities,
             'faqs_to_answer' => $faqsToAnswer,
+            'target_word_count' => $targetWordCount,
+            'brief_notes' => $context['brief_notes'] ?? '',
+            'must_include_points' => implode("\n", $context['must_include_points'] ?? []),
+            'avoid_topics' => implode("\n", $context['avoid_topics'] ?? []),
         ], $tenantId);
 
         $request = new AIRequestDTO(
             systemPrompt: $promptData['system_prompt'],
-            userPrompt: $promptData['user_prompt'] . "\n\nBạn có thể trả về JSON đúng schema hoặc trả về trực tiếp HTML bài viết. Nếu trả HTML, bắt đầu bằng một thẻ <h1> chứa từ khóa chính.",
+            userPrompt: $promptData['user_prompt'] . "\n\nYêu cầu định dạng bắt buộc:\n- Return ONLY valid JSON, không bọc markdown/code fence.\n- Độ dài mục tiêu: khoảng {$targetWordCount} từ, tối thiểu {$minWordCount}, tối đa {$maxWordCount}; không viết lan man vượt giới hạn.\n- content phải là HTML sạch cho WordPress, chỉ dùng <p>, <h2>, <h3>, <ul>, <ol>, <li>, <strong>, <em>, <a>, <table>.\n- Không dùng <h1> trong content vì title đã được lưu riêng.\n- Không lặp lại title ở đầu content.\n- Mỗi heading có 1-3 đoạn nội dung hữu ích, tự nhiên, không keyword stuffing.\n- Ưu tiên thông tin thực tế, câu ngắn, đoạn ngắn, không lỗi font/ký tự lạ.\n- Không trả chuỗi JSON bên trong content.",
             model: '',
             agentType: $this->getType(),
             tenantId: $tenantId,
@@ -71,7 +79,7 @@ class WritingAgent extends BaseAgent
         }
 
         $title = trim((string) ($parsed['title'] ?? ''));
-        $htmlContent = trim((string) ($parsed['content'] ?? ''));
+        $htmlContent = app(ArticleContentFormatter::class)->normalize((string) ($parsed['content'] ?? ''), $title);
         $excerpt = trim((string) ($parsed['excerpt'] ?? ''));
 
         if (empty($title) || empty($htmlContent)) {
@@ -82,7 +90,8 @@ class WritingAgent extends BaseAgent
             $title = "{$keyword}: {$title}";
         }
 
-        $wordCount = str_word_count(strip_tags($htmlContent));
+        $formatter = app(ArticleContentFormatter::class);
+        $wordCount = $formatter->wordCount($htmlContent);
         if ($wordCount <= 500) {
             return AgentResultDTO::failure($this->getType(), "Article validation failed: Word count too low ({$wordCount})");
         }

@@ -61,6 +61,7 @@ class Article extends Model
         'media_plan',
         'image_assets',
         'quality_report',
+        'pipeline_status',
         'approval_required',
         'approved_at',
         'duplicate_check_hash',
@@ -77,6 +78,7 @@ class Article extends Model
         'media_plan' => 'array',
         'image_assets' => 'array',
         'quality_report' => 'array',
+        'pipeline_status' => 'array',
         'scheduled_publish_at' => 'datetime',
         'published_at' => 'datetime',
         'approved_at' => 'datetime',
@@ -131,11 +133,6 @@ class Article extends Model
     public function internalLinks(): HasMany
     {
         return $this->hasMany(InternalLink::class, 'source_article_id');
-    }
-
-    public function zaloNotifications(): HasMany
-    {
-        return $this->hasMany(ZaloNotification::class);
     }
 
     public function publishingLogs(): HasMany

@@ -5,6 +5,8 @@ import KeywordBulkActions from './KeywordBulkActions';
 import { useKeywordActions } from '@/hooks/useKeywords';
 import { useArticleActions } from '@/hooks/useArticles';
 import { Sparkles } from 'lucide-react';
+import ArticlePipelineStatus from '@/components/features/articles/ArticlePipelineStatus';
+import Link from 'next/link';
 
 interface KeywordTableProps {
   keywords: Keyword[];
@@ -72,6 +74,13 @@ export default function KeywordTable({ keywords, isLoading }: KeywordTableProps)
     return <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${c}`}>{label}</span>;
   };
 
+  const getPipelineError = (kw: Keyword) => {
+    const steps = Object.values(kw.article?.pipeline_status?.steps ?? {});
+    const failedStep = steps.find((step) => step.status === 'failed');
+
+    return failedStep?.error || kw.article?.review_notes || kw.article?.pipeline_status?.last_error;
+  };
+
   return (
     <>
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden relative">
@@ -108,7 +117,17 @@ export default function KeywordTable({ keywords, isLoading }: KeywordTableProps)
                   <td className="px-6 py-4 text-sm font-bold text-slate-900">{kw.keyword}</td>
                   <td className="px-6 py-4 text-sm font-medium text-slate-500">{kw.search_volume ? kw.search_volume.toLocaleString() : '-'}</td>
                   <td className="px-6 py-4">
-                    {getStatusBadge(kw.status)}
+                    <div>
+                      {getStatusBadge(kw.status)}
+                      {kw.article?.pipeline_status && (
+                        <ArticlePipelineStatus pipeline={kw.article.pipeline_status} compact />
+                      )}
+                      {kw.status === 'failed' && getPipelineError(kw) && (
+                        <div className="mt-2 max-w-[280px] truncate text-xs font-semibold text-red-600" title={getPipelineError(kw) || undefined}>
+                          {getPipelineError(kw)}
+                        </div>
+                      )}
+                    </div>
                   </td>
                   <td className="px-6 py-4 text-sm font-medium">
                     {kw.article_id ? (
@@ -121,6 +140,12 @@ export default function KeywordTable({ keywords, isLoading }: KeywordTableProps)
                     )}
                   </td>
                   <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
+                    <Link
+                      href={`/keywords/${kw.id}`}
+                      className="mr-2 inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-600 shadow-sm transition-all hover:bg-slate-50"
+                    >
+                      Chi tiết
+                    </Link>
                     <button
                       type="button"
                       onClick={() => handleGenerateArticle(kw.id)}

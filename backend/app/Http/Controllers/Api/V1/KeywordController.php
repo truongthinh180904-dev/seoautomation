@@ -45,6 +45,18 @@ class KeywordController extends Controller
         return new KeywordResource($keyword);
     }
 
+    public function show(Request $request, int $id)
+    {
+        $keyword = $this->repository->findByIdForTenant($id, $request->user()->tenant_id);
+        if (!$keyword) abort(404);
+
+        return new KeywordResource($keyword->load([
+            'campaign:id,name,status',
+            'wordpressSite:id,name',
+            'article:id,keyword_id,status,review_notes,pipeline_status',
+        ]));
+    }
+
     public function import(ImportKeywordsRequest $request)
     {
         try {
@@ -88,8 +100,19 @@ class KeywordController extends Controller
     {
         $keyword = $this->repository->findByIdForTenant($id, $request->user()->tenant_id);
         if (!$keyword) abort(404);
-        $keyword->update($request->validated());
-        return new KeywordResource($keyword);
+        $payload = $request->validated();
+
+        if (array_key_exists('meta', $payload)) {
+            $payload['meta'] = array_merge($keyword->meta ?? [], $payload['meta'] ?? []);
+        }
+
+        $keyword->update($payload);
+
+        return new KeywordResource($keyword->fresh()->load([
+            'campaign:id,name,status',
+            'wordpressSite:id,name',
+            'article:id,keyword_id,status,review_notes,pipeline_status',
+        ]));
     }
 
     public function destroy(Request $request, int $id)

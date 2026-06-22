@@ -35,6 +35,13 @@ class KeywordResource extends JsonResource
             'target_url' => $this->target_url,
             'canonical_url' => $this->canonical_url,
             'brief_notes' => $this->brief_notes,
+            'must_include_points' => $this->must_include_points,
+            'avoid_topics' => $this->avoid_topics,
+            'reference_urls' => $this->reference_urls,
+            'competitor_urls_override' => $this->competitor_urls_override,
+            'raw_import_row' => $this->raw_import_row,
+            'template_version' => $this->template_version,
+            'meta' => $this->meta,
             'batch_id' => $this->batch_id,
             'wordpress_site' => $this->whenLoaded('wordpressSite', function () {
                 return [
@@ -43,6 +50,12 @@ class KeywordResource extends JsonResource
                 ];
             }),
             'article_id' => $this->whenLoaded('article', fn () => $this->article?->id),
+            'article' => $this->whenLoaded('article', fn () => $this->article ? [
+                'id' => $this->article->id,
+                'status' => $this->article->status?->value,
+                'review_notes' => $this->article->review_notes,
+                'pipeline_status' => $this->article->pipeline_status,
+            ] : null),
             'created_at' => $this->created_at,
         ];
     }

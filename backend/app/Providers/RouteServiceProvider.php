@@ -28,9 +28,5 @@ class RouteServiceProvider extends ServiceProvider
         RateLimiter::for('serp', function (Request $request) {
             return Limit::perMinute(10); // 10 req/min globally
         });
-
-        RateLimiter::for('zalo_webhook', function (Request $request) {
-            return Limit::perMinute(100)->by($request->ip());
-        });
     }
 }

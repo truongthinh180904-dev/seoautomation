@@ -53,7 +53,7 @@ function StatCard({ stat }: { stat: QueueStat }) {
 export default function QueueStats({ stats, isLoading }: QueueStatsProps) {
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
         {[...Array(4)].map((_, i) => (
           <div key={i} className="bg-white rounded-2xl border border-slate-200 h-44 animate-pulse" />
         ))}
@@ -62,7 +62,7 @@ export default function QueueStats({ stats, isLoading }: QueueStatsProps) {
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
       {stats.map((stat) => (
         <StatCard key={stat.name} stat={stat} />
       ))}

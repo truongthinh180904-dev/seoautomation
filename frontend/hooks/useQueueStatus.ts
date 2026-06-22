@@ -38,8 +38,10 @@ export function useQueueStatus() {
       stats: [
         { name: 'ai-research', label: 'AI Research', pending: 0, processing: 0, failed: 0 },
         { name: 'ai-writing', label: 'AI Writing', pending: 0, processing: 0, failed: 0 },
+        { name: 'imports', label: 'Imports & Media', pending: 0, processing: 0, failed: 0 },
         { name: 'publishing', label: 'Publishing', pending: 0, processing: 0, failed: 0 },
         { name: 'notifications', label: 'Notifications', pending: 0, processing: 0, failed: 0 },
+        { name: 'default', label: 'Default', pending: 0, processing: 0, failed: 0 },
       ],
       failed_jobs: [],
     },

@@ -11,11 +11,15 @@ use App\Http\Requests\ReviewArticleActionRequest;
 use App\Http\Requests\UpdateArticleRequest;
 use App\Http\Resources\ArticleResource;
 use App\Jobs\AI\GenerateOutlineJob;
+use App\Jobs\Media\GenerateArticleImagesJob;
 use App\Jobs\Publishing\PublishToWordPressJob;
 use App\Repositories\Contracts\ArticleRepositoryInterface;
 use App\Repositories\Contracts\KeywordRepositoryInterface;
 use App\Services\Cost\CostTrackingService;
 use App\Models\MediaAsset;
+use App\Services\Article\ArticlePipelineService;
+use App\Services\Article\ArticleContentFormatter;
+use App\Services\Media\MediaParserService;
 use App\Services\SEO\SEOAutoFixService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -27,6 +31,9 @@ class ArticleController extends Controller
         protected ArticleRepositoryInterface $repository,
         protected KeywordRepositoryInterface $keywords,
         protected CostTrackingService $costTracking,
+        protected ArticlePipelineService $pipeline,
+        protected MediaParserService $mediaParser,
+        protected ArticleContentFormatter $formatter,
         protected SEOAutoFixService $autoFixService
     ) {}
 
@@ -53,8 +60,27 @@ class ArticleController extends Controller
         $article = $this->repository->findByIdForTenant($id, $request->user()->tenant_id);
         if (!$article) abort(404);
 
-        $this->repository->update($id, $request->validated());
+        $wasApproved = $article->status === ArticleStatus::APPROVED;
+        $payload = $request->validated();
+
+        if (array_key_exists('content', $payload) && is_string($payload['content'])) {
+            $payload['content'] = $this->formatter->normalize($payload['content'], $payload['title'] ?? $article->title);
+        }
+
+        if (array_key_exists('media_plan', $payload)) {
+            $payload['media_plan'] = array_merge($article->media_plan ?? [], $payload['media_plan'] ?? []);
+        }
+
+        $this->repository->update($id, $payload);
         $article = $this->repository->findByIdForTenant($id, $request->user()->tenant_id);
+
+        if (($request->validated()['status'] ?? null) === ArticleStatus::APPROVED->value && !$wasApproved) {
+            $article->forceFill([
+                'approved_at' => now(),
+                'reviewed_by' => $request->user()->id,
+            ])->save();
+            ArticleApproved::dispatch($article->fresh(['keyword', 'wordpressSite', 'user']));
+        }
 
         return (new ArticleResource($article))->additional([
             'message' => 'Article updated successfully.',
@@ -94,6 +120,59 @@ class ArticleController extends Controller
         return (new ArticleResource($this->autoFixService->autoFix($article)))->additional([
             'message' => 'SEO auto-fix applied.',
         ]);
+    }
+
+    public function approveAndPublish(int $id, Request $request): JsonResponse
+    {
+        $article = $this->repository->findByIdForTenant($id, $request->user()->tenant_id);
+        if (!$article) abort(404);
+
+        if (!$article->wordpress_site_id) {
+            return response()->json([
+                'message' => 'Bài viết chưa gắn WordPress site. Hãy gắn site từ keyword/campaign hoặc cấu hình lại bài trước khi publish.',
+            ], 422);
+        }
+
+        if ($article->status === ArticleStatus::PUBLISHED || $article->status === ArticleStatus::PUBLISHING) {
+            return response()->json([
+                'message' => 'Bài viết đã hoặc đang được gửi lên WordPress.',
+                'article' => new ArticleResource($article),
+            ]);
+        }
+
+        if ($article->keyword) {
+            $this->attachKeywordMediaToArticle($article->keyword, $article);
+            $article->refresh();
+        }
+
+        $this->mediaParser->createAssetsForArticle($article);
+        $article->refresh();
+
+        $article->forceFill([
+            'status' => ArticleStatus::APPROVED,
+            'approved_at' => now(),
+            'reviewed_by' => $request->user()->id,
+        ])->save();
+
+        ArticleApproved::dispatch($article->fresh(['keyword', 'wordpressSite', 'user']));
+
+        return response()->json([
+            'message' => 'Bài viết đã được duyệt và đưa vào queue đăng WordPress.',
+            'article' => new ArticleResource($article->fresh(['keyword', 'wordpressSite', 'user'])),
+        ], 202);
+    }
+
+    public function generateImages(int $id, Request $request): JsonResponse
+    {
+        $article = $this->repository->findByIdForTenant($id, $request->user()->tenant_id);
+        if (!$article) abort(404);
+
+        GenerateArticleImagesJob::dispatch($article->id)->onQueue('imports');
+
+        return response()->json([
+            'message' => 'AI image generation queued.',
+            'article' => new ArticleResource($article->fresh(['keyword', 'wordpressSite', 'user'])),
+        ], 202);
     }
 
     /**
@@ -169,6 +248,10 @@ class ArticleController extends Controller
                     'featured_image_url' => $keywordMeta['featured_image_url'] ?? null,
                     'image_urls' => $keywordMeta['image_urls'] ?? null,
                     'internal_links' => $keywordMeta['internal_links'] ?? null,
+                    'image_generation_prompt' => $keywordMeta['image_generation_prompt'] ?? null,
+                    'image_search_query' => $keywordMeta['image_search_query'] ?? null,
+                    'image_source' => $keywordMeta['image_source'] ?? config('ai.image_generation.source_strategy', 'hybrid'),
+                    'inline_image_count' => $keywordMeta['inline_image_count'] ?? config('ai.image_generation.default_inline_count', 3),
                 ]),
                 'wp_tag_names' => !empty($keywordMeta['wp_tag_names'])
                     ? array_values(array_filter(array_map('trim', explode(',', str_replace('|', ',', (string) $keywordMeta['wp_tag_names'])))))
@@ -177,14 +260,29 @@ class ArticleController extends Controller
                 'excerpt' => $keywordMeta['wp_excerpt'] ?? null,
                 'status' => ArticleStatus::DRAFT,
             ]);
+        } else {
+            $keywordMeta = $keyword->meta ?? [];
+            $article->update([
+                'status' => ArticleStatus::DRAFT,
+                'review_notes' => null,
+                'rejection_reason' => null,
+                'media_plan' => array_merge($article->media_plan ?? [], array_filter([
+                    'featured_image_url' => $keywordMeta['featured_image_url'] ?? null,
+                    'image_urls' => $keywordMeta['image_urls'] ?? null,
+                    'internal_links' => $keywordMeta['internal_links'] ?? null,
+                    'image_generation_prompt' => $keywordMeta['image_generation_prompt'] ?? null,
+                    'image_search_query' => $keywordMeta['image_search_query'] ?? null,
+                    'image_source' => $keywordMeta['image_source'] ?? null,
+                    'inline_image_count' => $keywordMeta['inline_image_count'] ?? null,
+                ])),
+            ]);
+            $article->refresh();
         }
 
-        MediaAsset::query()
-            ->where('tenant_id', $tenantId)
-            ->whereNull('article_id')
-            ->where('campaign_id', $article->campaign_id)
-            ->where('metadata->keyword', $keyword->keyword)
-            ->update(['article_id' => $article->id]);
+        $this->pipeline->reset($article);
+        $this->pipeline->start($article, 'queued', 'Đang chờ queue worker nhận job.');
+
+        $this->attachKeywordMediaToArticle($keyword, $article);
 
         GenerateOutlineJob::dispatch($keyword->id, $article->id)->onQueue('ai-writing');
         $keyword->update(['status' => KeywordStatus::PROCESSING]);
@@ -193,5 +291,17 @@ class ArticleController extends Controller
             'message' => 'AI article generation queued.',
             'article' => new ArticleResource($article->fresh(['keyword', 'wordpressSite', 'user'])),
         ], 202);
+    }
+
+    protected function attachKeywordMediaToArticle($keyword, $article): void
+    {
+        $this->mediaParser->createAssetsForKeyword($keyword);
+
+        MediaAsset::query()
+            ->where('tenant_id', $article->tenant_id)
+            ->whereNull('article_id')
+            ->where('campaign_id', $article->campaign_id)
+            ->where('metadata->keyword', $keyword->keyword)
+            ->update(['article_id' => $article->id]);
     }
 }
