@@ -269,9 +269,9 @@ run_automated_tester() {
 - **Exit Code**: ${exit_code}
 - **OVERALL_TEST_RESULT**: ${overall_result}
 
-## Output Summary (Last 50 lines)
+## Output Summary (Last 120 lines)
 \`\`\`text
-$(tail -n 50 "${output_file}")
+$(tail -n 120 "${output_file}")
 \`\`\`
 EOF
     rm -f "${output_file}"
@@ -288,7 +288,7 @@ EOF
 # --- SLEEP & AWAKE PREVENTION + CLEANUP ---
 cleanup_on_exit() {
     if [ -f "${STATE_DIR}/caffeinate.pid" ]; then
-        kill -9 "$(cat "${STATE_DIR}/caffeinate.pid" 2>/dev/null)" 2>/dev/null || true
+        kill "$(cat "${STATE_DIR}/caffeinate.pid" 2>/dev/null)" 2>/dev/null || true
         rm -f "${STATE_DIR}/caffeinate.pid"
     fi
     rm -f "${LOCK_FILE}" "${PID_FILE}"
@@ -301,6 +301,39 @@ init_caffeinate() {
         local caff_pid=$!
         echo "${caff_pid}" > "${STATE_DIR}/caffeinate.pid"
     fi
+}
+
+# --- HEADLESS SNAPSHOT HELPERS (AVOIDS SHELL 'command' TOOL IN HEADLESS AGY) ---
+refresh_workspace_snapshot() {
+    local snapshot_file="${STATE_DIR}/workspace-files.txt"
+    (
+        cd "${PROJECT_ROOT}" || exit 0
+        echo "# Workspace File Inventory (Generated at $(date '+%Y-%m-%d %H:%M:%S'))"
+        echo "# Project Root: ${PROJECT_ROOT}"
+        find PHASE_1_AUDIT.md HANDOVER_CONTEXT.md AGENTS.md qlpk-autonomous-framework backend frontend \
+            -maxdepth 6 \
+            -not -path '*/vendor/*' \
+            -not -path '*/node_modules/*' \
+            -not -path '*/.next/*' \
+            -not -path '*/storage/*' \
+            -not -path '*/bootstrap/cache/*' \
+            -not -path 'qlpk-autonomous-framework/logs/*' \
+            -not -path 'qlpk-autonomous-framework/.agy-state/*' \
+            2>/dev/null | sort | sed "s|^|${PROJECT_ROOT}/|"
+    ) > "${snapshot_file}"
+}
+
+generate_review_diff_snapshot() {
+    local task_id="$1"
+    local diff_file="${STATE_DIR}/${task_id}-diff.patch"
+    (
+        cd "${PROJECT_ROOT}" || exit 0
+        echo "=== GIT STATUS (EXCLUDING LOGS/STATE) ==="
+        git status --porcelain 2>/dev/null | grep -vE "${ALLOW_UNTRACKED_REGEX}" || true
+        echo ""
+        echo "=== GIT DIFF HEAD ==="
+        git diff HEAD 2>/dev/null || true
+    ) > "${diff_file}"
 }
 
 # --- AGENT INVOCATION WRAPPERS (AGY CLI BINDINGS) ---
@@ -316,16 +349,32 @@ invoke_coder() {
     local task_id="${2:-TASK}"
     local model="${CODER_MODEL}"
     local coder_log="${LOGS_DIR}/${task_id}-coder.log"
+    refresh_workspace_snapshot
     log_info "Invoking CODER for ${task_id} (Model: ${model}, Mode: accept-edits)..."
 
     cd "${PROJECT_ROOT}" || return 1
     local exit_code=0
     agy --model "${model}" --mode accept-edits -p "${prompt}" > "${coder_log}" 2>&1 || exit_code=$?
 
+    # Self-heal if model accidentally tried calling run_command ('command' permission denied in headless -p)
+    if grep -Fq 'required the "command" permission' "${coder_log}" 2>/dev/null; then
+        log_warn "Coder triggered headless 'command' permission auto-denial on ${task_id}. Retrying immediately with strict FILE-TOOLS-ONLY enforcement..."
+        refresh_workspace_snapshot
+        local strict_retry_prompt="CẢNH BÁO KHẨN CẤP: Lượt chạy vừa rồi của bạn bị HỦY NGAY LẬP TỨC vì bạn đã gọi tool chạy lệnh shell (\`run_command\` / \`command\`) trong chế độ headless \`-p\`!
+TUYỆT ĐỐI KHÔNG ĐƯỢC GỌI \`run_command\`, \`ask_question\`, hay \`invoke_subagent\` DƯỚI BẤT KỲ HÌNH THỨC NÀO!
+Hãy CHỈ SỬ DỤNG 3 công cụ đã được cấp quyền sẵn là: \`read_file\`, \`write_file\`, \`edit_file\`.
+Để xem danh sách toàn bộ file/thư mục hiện có trong dự án (thay cho \`ls\`/\`find\`), hãy dùng \`read_file\` đọc \`${PROJECT_ROOT}/qlpk-autonomous-framework/.agy-state/workspace-files.txt\`.
+
+${prompt}"
+        exit_code=0
+        agy --model "${model}" --mode accept-edits -p "${strict_retry_prompt}" >> "${coder_log}" 2>&1 || exit_code=$?
+    fi
+
     # Fallback logic on Rate Limit (429) or quota message
     if [ "${exit_code}" -eq 429 ] || [ "${exit_code}" -eq 137 ] || grep -Eiq "(429|RESOURCE_EXHAUSTED|quota|rate limit)" "${coder_log}" 2>/dev/null; then
         log_warn "Coder quota/rate limit encountered (${exit_code}). Activating DEBUG_FALLBACK_MODEL: ${DEBUG_FALLBACK_MODEL} after ${QUOTA_BACKOFF_SECONDS}s backoff..."
         sleep "${QUOTA_BACKOFF_SECONDS}"
+        refresh_workspace_snapshot
         exit_code=0
         agy --model "${DEBUG_FALLBACK_MODEL}" --mode accept-edits -p "${prompt}" >> "${coder_log}" 2>&1 || exit_code=$?
     fi
@@ -338,11 +387,24 @@ invoke_reviewer() {
     local model="${REVIEWER_MODEL}"
     local review_report="${REPORTS_DIR}/${task_id}-review.md"
     local reviewer_err="${LOGS_DIR}/${task_id}-reviewer.err.log"
+    generate_review_diff_snapshot "${task_id}"
     log_info "Invoking REVIEWER for ${task_id} (Model: ${model}, Mode: plan)..."
 
     cd "${PROJECT_ROOT}" || return 1
     local exit_code=0
     agy --model "${model}" --mode plan -p "${prompt}" > "${review_report}" 2> "${reviewer_err}" || exit_code=$?
+
+    # Self-heal if Reviewer tried calling run_command ('command' permission denied in headless plan mode)
+    if grep -Fq 'required the "command" permission' "${reviewer_err}" 2>/dev/null || grep -Fq 'required the "command" permission' "${review_report}" 2>/dev/null; then
+        log_warn "Reviewer triggered headless 'command' permission auto-denial on ${task_id}. Retrying immediately with strict READ_FILE-ONLY enforcement..."
+        local strict_rev_prompt="CẢNH BÁO KHẨN CẤP: Lượt chạy vừa rồi bị HỦY vì bạn gọi \`run_command\` trong chế độ headless \`--mode plan\`!
+TUYỆT ĐỐI CẤM GỌI \`run_command\`, \`ask_question\`, hay \`invoke_subagent\`! CHỈ ĐƯỢC GỌI \`read_file\`!
+Bản \`git diff\` đầy đủ đã có sẵn tại \`${PROJECT_ROOT}/qlpk-autonomous-framework/.agy-state/${task_id}-diff.patch\` — hãy đọc bằng \`read_file\`!
+
+${prompt}"
+        exit_code=0
+        agy --model "${model}" --mode plan -p "${strict_rev_prompt}" > "${review_report}" 2>> "${reviewer_err}" || exit_code=$?
+    fi
 
     # Fallback logic on Rate Limit (429)
     if [ "${exit_code}" -eq 429 ] || grep -Eiq "(429|RESOURCE_EXHAUSTED|quota|rate limit)" "${reviewer_err}" 2>/dev/null; then
@@ -359,13 +421,13 @@ get_task_test_cmd() {
     local task_id="$1"
     case "${task_id}" in
         TASK-01) echo "test -s PHASE_1_AUDIT.md" ;;
-        TASK-02) echo "cd backend && (composer dump-autoload || php /usr/local/bin/composer dump-autoload || true) && ./vendor/bin/pint --test && php artisan test --filter=MigrationSchemaTest" ;;
-        TASK-03) echo "cd backend && ./vendor/bin/pint --test && php artisan test --filter='AuthTest|TenantIsolationTest'" ;;
-        TASK-04) echo "cd backend && ./vendor/bin/pint --test && php artisan test --filter=CreditTest" ;;
-        TASK-05) echo "cd backend && ./vendor/bin/pint --test && php artisan test --filter=PaymentOrderTest" ;;
-        TASK-06) echo "cd backend && ./vendor/bin/pint --test && php artisan test --filter=PipelineTest" ;;
+        TASK-02) echo "cd backend && (composer dump-autoload -q || php /usr/local/bin/composer dump-autoload -q || true) && ./vendor/bin/pint --test && php artisan test --filter=MigrationSchemaTest" ;;
+        TASK-03) echo "cd backend && (composer dump-autoload -q || true) && ./vendor/bin/pint --test && php artisan test --filter='AuthTest|TenantIsolationTest'" ;;
+        TASK-04) echo "cd backend && (composer dump-autoload -q || true) && ./vendor/bin/pint --test && php artisan test --filter=CreditTest" ;;
+        TASK-05) echo "cd backend && (composer dump-autoload -q || true) && ./vendor/bin/pint --test && php artisan test --filter=PaymentOrderTest" ;;
+        TASK-06) echo "cd backend && (composer dump-autoload -q || true) && ./vendor/bin/pint --test && php artisan test --filter=PipelineTest" ;;
         TASK-07) echo "cd frontend && npm install --no-audit --no-fund && npm run build" ;;
-        TASK-08) echo "cd backend && ./vendor/bin/pint --test && php artisan test && cd ../frontend && npm run build" ;;
+        TASK-08) echo "cd backend && (composer dump-autoload -q || true) && ./vendor/bin/pint --test && php artisan test && cd ../frontend && npm run build" ;;
         *)       echo "false" ;;
     esac
 }
@@ -449,14 +511,24 @@ execute_single_task() {
         update_progress_status "${task_id}" "IN_PROGRESS" "-" "-" "${review_round}"
 
         local coder_prompt="Bạn là CODER Agent (${CODER_MODEL}) vận hành trong QLPK Safe Autonomous Framework.
-Nhiệm vụ hiện tại: Triển khai trọn vẹn **${task_id}** theo đặc tả trong \`qlpk-autonomous-framework/ROADMAP.md\` và báo cáo kiểm toán \`PHASE_1_AUDIT.md\`.
+Thư mục gốc dự án (PROJECT_ROOT): \`${PROJECT_ROOT}\`
+Nhiệm vụ hiện tại: Triển khai trọn vẹn **${task_id}** theo đặc tả trong \`${PROJECT_ROOT}/qlpk-autonomous-framework/ROADMAP.md\` và báo cáo kiểm toán \`${PROJECT_ROOT}/PHASE_1_AUDIT.md\`.
 
-QUY TẮC BẮT BUỘC:
-1. Đọc kỹ phần đặc tả của **${task_id}** trong \`qlpk-autonomous-framework/ROADMAP.md\`, các cẩm nang trong \`qlpk-autonomous-framework/skills/\`, checklist 14 tiêu chí trong \`qlpk-autonomous-framework/REVIEWER.md\` và chi tiết lỗi/thiết kế trong \`PHASE_1_AUDIT.md\`.
+QUY TẮC SỐ 0 — CHẾ ĐỘ HEADLESS (\`-p --mode accept-edits\`) [QUAN TRỌNG SỐNG CÒN]:
+- **TUYỆT ĐỐI CẤM GỌI \`run_command\` (bash/shell/terminal), \`ask_question\`, hoặc \`invoke_subagent\`!** Trong chế độ headless \`-p\`, bất kỳ lệnh gọi \`run_command\` nào cũng bị từ chối quyền \`command\` (\`auto-denied\`) và hủy toàn bộ lượt chạy ngay lập tức!
+- **CHỈ SỬ DỤNG ĐÚNG 3 CÔNG CỤ FILE TRỰC TIẾP** (luôn truyền đường dẫn tuyệt đối bắt đầu bằng \`${PROJECT_ROOT}/...\`):
+  1. \`read_file\` — đọc file mã nguồn/tài liệu
+  2. \`write_file\` — tạo file mới (hoặc \`Overwrite: true\` khi cần ghi đè file trong \`allowed_files\`)
+  3. \`edit_file\` — chỉnh sửa chính xác file hiện có trong \`allowed_files\`
+- Để tra cứu cây thư mục & tên các file hiện có trong dự án (ví dụ danh sách các file migration hiện tại trong \`backend/database/migrations/\`) mà KHÔNG cần gọi \`ls\` hay \`find\`, hãy dùng \`read_file\` đọc file danh mục vừa được hệ thống xuất sẵn tại:
+  \`${PROJECT_ROOT}/qlpk-autonomous-framework/.agy-state/workspace-files.txt\`
+
+QUY TẮC NGHIỆP VỤ BẮT BUỘC:
+1. Dùng \`read_file\` đọc kỹ phần đặc tả của **${task_id}** trong \`${PROJECT_ROOT}/qlpk-autonomous-framework/ROADMAP.md\`, các cẩm nang trong \`${PROJECT_ROOT}/qlpk-autonomous-framework/skills/\`, checklist 14 tiêu chí trong \`${PROJECT_ROOT}/qlpk-autonomous-framework/REVIEWER.md\` và chi tiết lỗi/thiết kế trong \`${PROJECT_ROOT}/PHASE_1_AUDIT.md\`.
 2. **TUÂN THỦ TUYỆT ĐỐI \`allowed_files\`** của ${task_id} trong \`ROADMAP.md\`. Tuyệt đối KHÔNG sửa hoặc tạo bất kỳ file nào nằm ngoài \`allowed_files\` (cũng KHÔNG tự sửa \`PROGRESS.md\` hay \`reports/\`).
-3. CẤM TUYỆT ĐỐI các lệnh phá hủy dữ liệu (\`migrate:fresh\`, \`migrate:refresh\`, \`db:wipe\`, \`DROP TABLE\`, \`git reset --hard\`). Mọi migration phải tương thích cả MySQL/PostgreSQL lẫn SQLite \`:memory:\` của PHPUnit (\`phpunit.xml\`).
-4. Giữ code chuẩn \`./vendor/bin/pint --test\` (cho PHP) và TypeScript strict không có \`any\` (cho Next.js). Không để lại \`dd()\`, \`dump()\`, \`console.log()\`.
-5. Sau khi bạn hoàn tất sửa file, Automated Tester sẽ chạy lệnh thật: \`${test_cmd}\`.
+3. Mọi migration phải tương thích cả MySQL/PostgreSQL lẫn SQLite \`:memory:\` của PHPUnit (\`backend/phpunit.xml\`). Không xóa bảng hay phá vỡ logic đang chạy tốt.
+4. Giữ code chuẩn Laravel Pint (cho PHP) và TypeScript strict không có \`any\` (cho Next.js). Không để lại \`dd()\`, \`dump()\`, \`console.log()\`.
+5. KHÔNG tự chạy Pint/Composer/PHPUnit/NPM — ngay sau khi bạn hoàn tất sửa file, hệ thống Bash bên ngoài sẽ tự động chạy \`./vendor/bin/pint\` và lệnh kiểm thử thật: \`${test_cmd}\`.
 ${feedback_context}"
 
         invoke_coder "${coder_prompt}" "${task_id}" || log_warn "Coder exited non-zero on ${task_id} round ${review_round}; proceeding to Automated Tester check."
@@ -479,8 +551,13 @@ ${feedback_context}"
             log_warn "${task_id} failed Automated Tester (attempt ${test_try}/3). Invoking CODER to fix real test errors..."
             local test_tail
             test_tail="$(cat "${test_report}" 2>/dev/null || echo 'Test failed')"
-            local fix_prompt="Bạn là CODER Agent. Bản sửa vừa rồi cho **${task_id}** bị AUTOMATED TESTER đánh trượt khi chạy \`${test_cmd}\`.
-Hãy đọc kỹ log lỗi thực tế dưới đây, sửa triệt để nguyên nhân lỗi CHỈ TRONG PHẠM VI \`allowed_files\` của ${task_id} trong \`qlpk-autonomous-framework/ROADMAP.md\` (đồng thời chạy format chuẩn Pint nếu lỗi style):
+            local fix_prompt="Bạn là CODER Agent (Thư mục gốc: \`${PROJECT_ROOT}\`). Bản sửa vừa rồi cho **${task_id}** bị AUTOMATED TESTER đánh trượt khi chạy \`${test_cmd}\`.
+
+QUY TẮC HEADLESS BẮT BUỘC:
+- **TUYỆT ĐỐI CẤM GỌI \`run_command\`, \`ask_question\`, hoặc \`invoke_subagent\`!** Chỉ sử dụng 3 công cụ \`read_file\`, \`write_file\`, \`edit_file\` với đường dẫn tuyệt đối \`${PROJECT_ROOT}/...\`. (Có thể đọc danh sách file hiện có tại \`${PROJECT_ROOT}/qlpk-autonomous-framework/.agy-state/workspace-files.txt\`).
+- KHÔNG tự chạy Pint hay PHPUnit/NPM bằng lệnh shell — hệ thống Automated Tester sẽ tự chạy ngay sau khi bạn sửa file xong!
+
+Hãy đọc kỹ log lỗi thực tế dưới đây và sửa triệt để nguyên nhân lỗi CHỈ TRONG PHẠM VI \`allowed_files\` của ${task_id} trong \`${PROJECT_ROOT}/qlpk-autonomous-framework/ROADMAP.md\`:
 
 ${test_tail}"
             invoke_coder "${fix_prompt}" "${task_id}" || true
@@ -500,14 +577,21 @@ ${test_tail}"
         changed_files="$(cd "${PROJECT_ROOT}" && git status --porcelain | grep -vE "${ALLOW_UNTRACKED_REGEX}" || true)"
 
         local reviewer_prompt="Bạn là REVIEWER Agent độc lập (${REVIEWER_MODEL}, chế độ chỉ đọc \`plan\`).
+Thư mục gốc dự án (PROJECT_ROOT): \`${PROJECT_ROOT}\`
+
+QUY TẮC HEADLESS BẮT BUỘC:
+- **TUYỆT ĐỐI CẤM GỌI \`run_command\` (bash/shell/git), \`ask_question\`, hoặc \`invoke_subagent\`!** Gọi \`run_command\` trong chế độ headless sẽ bị hủy lượt ngay lập tức!
+- **CHỈ SỬ DỤNG DUY NHẤT CÔNG CỤ \`read_file\`** (với đường dẫn tuyệt đối \`${PROJECT_ROOT}/...\`).
+- Toàn bộ \`git status\` và \`git diff HEAD\` đã được hệ thống xuất sẵn vào file \`${PROJECT_ROOT}/qlpk-autonomous-framework/.agy-state/${task_id}-diff.patch\` — hãy dùng \`read_file\` đọc trực tiếp file đó!
+
 Hãy thẩm định **${task_id}** với mã phiên **RUN_ID: ${run_id}**:
-1. Đọc danh sách \`allowed_files\` và yêu cầu của **${task_id}** trong \`qlpk-autonomous-framework/ROADMAP.md\`.
-2. Đọc báo cáo kiểm thử thực tế tại \`qlpk-autonomous-framework/reports/tasks/${task_id}-test.md\` (kiểm tra khớp \`RUN_ID: ${run_id}\` và \`Exit Code: 0\`).
-3. Đối chiếu danh sách file thay đổi hiện tại trong git:
+1. Dùng \`read_file\` đọc danh sách \`allowed_files\` và yêu cầu của **${task_id}** trong \`${PROJECT_ROOT}/qlpk-autonomous-framework/ROADMAP.md\`.
+2. Dùng \`read_file\` đọc báo cáo kiểm thử thực tế tại \`${PROJECT_ROOT}/qlpk-autonomous-framework/reports/tasks/${task_id}-test.md\` (kiểm tra khớp \`RUN_ID: ${run_id}\` và \`Exit Code: 0\`).
+3. Đối chiếu danh sách file thay đổi hiện tại trong git (chi tiết diff xem tại \`${PROJECT_ROOT}/qlpk-autonomous-framework/.agy-state/${task_id}-diff.patch\`):
 \`\`\`
 ${changed_files}
 \`\`\`
-4. Đọc trực tiếp nội dung các file vừa được tạo/sửa của **${task_id}** và kiểm tra nghiêm ngặt toàn bộ **14 tiêu chí Anti-Fake-Done** trong \`qlpk-autonomous-framework/REVIEWER.md\`.
+4. Dùng \`read_file\` đọc trực tiếp nội dung các file vừa được tạo/sửa của **${task_id}** và kiểm tra nghiêm ngặt toàn bộ **14 tiêu chí Anti-Fake-Done** trong \`${PROJECT_ROOT}/qlpk-autonomous-framework/REVIEWER.md\`.
 
 ĐẦU RA BẮT BUỘC (In trực tiếp báo cáo Markdown ra stdout theo đúng định dạng dưới đây để hệ thống lưu vào \`${task_id}-review.md\`):
 # Task Review Report: ${task_id}
