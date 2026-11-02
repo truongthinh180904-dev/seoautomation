@@ -22,6 +22,7 @@ class GenerateOutlineJob implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public $tries = 2;
+
     public $backoff = [60, 180];
 
     public function __construct(
@@ -36,7 +37,7 @@ class GenerateOutlineJob implements ShouldQueue
         $article = Article::find($this->articleId);
         $keyword = Keyword::find($this->keywordId);
 
-        if (!$article || !$keyword) {
+        if (! $article || ! $keyword) {
             return;
         }
 
@@ -59,11 +60,12 @@ class GenerateOutlineJob implements ShouldQueue
 
         $result = $agent->execute($context);
 
-        if (!$result->success) {
+        if (! $result->success) {
             $pipeline->fail($article, 'outline', $result->error ?? 'Outline generation failed.');
-            $article->update(['status' => 'failed', 'review_notes' => 'Outline generation failed: ' . $result->error]);
+            $article->update(['status' => 'failed', 'review_notes' => 'Outline generation failed: '.$result->error]);
             $keyword->update(['status' => KeywordStatus::FAILED]);
-            Log::error("GenerateOutlineJob failed: " . $result->error);
+            Log::error('GenerateOutlineJob failed: '.$result->error);
+
             return;
         }
 
@@ -83,7 +85,7 @@ class GenerateOutlineJob implements ShouldQueue
 
         Article::whereKey($this->articleId)->update([
             'status' => ArticleStatus::FAILED,
-            'review_notes' => 'Outline generation failed: ' . $exception->getMessage(),
+            'review_notes' => 'Outline generation failed: '.$exception->getMessage(),
         ]);
 
         Keyword::whereKey($this->keywordId)->update([

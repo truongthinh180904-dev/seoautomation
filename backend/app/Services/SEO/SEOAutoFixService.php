@@ -44,13 +44,13 @@ class SEOAutoFixService
                 $result = $this->seoAgent->execute($context);
                 if ($result->success) {
                     $seoData = $result->data;
-                    if (!empty($seoData['seo_title'])) {
+                    if (! empty($seoData['seo_title'])) {
                         $updates['seo_title'] = $seoData['seo_title'];
                     }
-                    if (!empty($seoData['seo_description'])) {
+                    if (! empty($seoData['seo_description'])) {
                         $updates['seo_description'] = $seoData['seo_description'];
                     }
-                    if (!empty($seoData['faqs'])) {
+                    if (! empty($seoData['faqs'])) {
                         $updates['faqs'] = $seoData['faqs'];
                     }
                 }
@@ -92,7 +92,7 @@ class SEOAutoFixService
             ];
         }
 
-        if (!empty($updates)) {
+        if (! empty($updates)) {
             $article->update($updates);
         }
 

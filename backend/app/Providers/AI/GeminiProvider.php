@@ -42,9 +42,9 @@ class GeminiProvider implements AIProviderInterface
                 throw new RateLimitException('Gemini Rate Limit exceeded', 429);
             }
 
-            if (!$response->successful()) {
+            if (! $response->successful()) {
                 throw new ProviderException(
-                    'Gemini Error: ' . $response->body(),
+                    'Gemini Error: '.$response->body(),
                     $this->getProvider(),
                     $response->status()
                 );
@@ -70,7 +70,7 @@ class GeminiProvider implements AIProviderInterface
         } catch (RateLimitException|ProviderException $e) {
             throw $e;
         } catch (Throwable $e) {
-            throw new ProviderException('Gemini Error: ' . $this->sanitizeError($e->getMessage()), $this->getProvider(), (int) $e->getCode(), $e);
+            throw new ProviderException('Gemini Error: '.$this->sanitizeError($e->getMessage()), $this->getProvider(), (int) $e->getCode(), $e);
         }
     }
 
@@ -81,7 +81,7 @@ class GeminiProvider implements AIProviderInterface
 
     public function isAvailable(): bool
     {
-        return !empty(config('ai.providers.gemini.api_key'));
+        return ! empty(config('ai.providers.gemini.api_key'));
     }
 
     protected function sendGenerateRequest(string $model, AIRequestDTO $request, string $apiKey)

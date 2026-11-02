@@ -14,13 +14,13 @@ class PushToWordPressAction
     public function handle(Article $article): void
     {
         if ($article->status !== ArticleStatus::APPROVED) {
-            throw new \InvalidArgumentException("Article status must be approved before publishing.");
+            throw new \InvalidArgumentException('Article status must be approved before publishing.');
         }
 
         $wordpressSiteId = $article->wordpress_site_id;
-        
-        if (!$wordpressSiteId) {
-            throw new \RuntimeException("No WordPress site assigned to this article.");
+
+        if (! $wordpressSiteId) {
+            throw new \RuntimeException('No WordPress site assigned to this article.');
         }
 
         PublishToWordPressJob::dispatch($article->id, $wordpressSiteId)

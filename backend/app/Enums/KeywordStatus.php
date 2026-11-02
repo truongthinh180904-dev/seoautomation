@@ -12,7 +12,7 @@ enum KeywordStatus: string
 
     public function label(): string
     {
-        return match($this) {
+        return match ($this) {
             self::PENDING => 'Chờ xử lý',
             self::PROCESSING => 'Đang xử lý',
             self::COMPLETED => 'Hoàn thành',

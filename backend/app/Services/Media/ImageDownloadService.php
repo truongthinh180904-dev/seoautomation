@@ -15,20 +15,20 @@ class ImageDownloadService
 
     public function download(MediaAsset $asset): MediaAsset
     {
-        if (!$asset->source_url) {
+        if (! $asset->source_url) {
             throw new RuntimeException('Media asset source URL is empty.');
         }
 
         $response = Http::withOptions([
             'verify' => (bool) config('media.verify_ssl', true),
         ])->timeout(60)->get($asset->source_url);
-        if (!$response->successful()) {
-            throw new RuntimeException('Image download failed: HTTP ' . $response->status());
+        if (! $response->successful()) {
+            throw new RuntimeException('Image download failed: HTTP '.$response->status());
         }
 
         $mimeType = $response->header('Content-Type', 'image/jpeg');
         $mimeType = explode(';', $mimeType)[0];
-        if (!in_array($mimeType, $this->allowedMimeTypes, true)) {
+        if (! in_array($mimeType, $this->allowedMimeTypes, true)) {
             throw new RuntimeException("Unsupported image type: {$mimeType}");
         }
 

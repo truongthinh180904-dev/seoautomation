@@ -13,15 +13,18 @@ class DispatchPublishingJob implements ShouldQueue
     use InteractsWithQueue;
 
     public string $queue = 'publishing';
+
     public int $tries = 2;
+
     public array $backoff = [60, 300];
 
     public function handle(ArticleApproved $event): void
     {
         $article = $event->article;
 
-        if (!$article->wordpress_site_id) {
+        if (! $article->wordpress_site_id) {
             Log::warning("Article #{$article->id} approved but has no WordPress site. Skipping publish.");
+
             return;
         }
 

@@ -13,16 +13,16 @@ use App\Http\Resources\ArticleResource;
 use App\Jobs\AI\GenerateOutlineJob;
 use App\Jobs\Media\GenerateArticleImagesJob;
 use App\Jobs\Publishing\PublishToWordPressJob;
+use App\Models\MediaAsset;
 use App\Repositories\Contracts\ArticleRepositoryInterface;
 use App\Repositories\Contracts\KeywordRepositoryInterface;
-use App\Services\Cost\CostTrackingService;
-use App\Models\MediaAsset;
-use App\Services\Article\ArticlePipelineService;
 use App\Services\Article\ArticleContentFormatter;
+use App\Services\Article\ArticlePipelineService;
+use App\Services\Cost\CostTrackingService;
 use App\Services\Media\MediaParserService;
 use App\Services\SEO\SEOAutoFixService;
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
 class ArticleController extends Controller
@@ -50,7 +50,9 @@ class ArticleController extends Controller
     public function show(int $id, Request $request)
     {
         $article = $this->repository->findByIdForTenant($id, $request->user()->tenant_id);
-        if (!$article) abort(404);
+        if (! $article) {
+            abort(404);
+        }
 
         return new ArticleResource($article);
     }
@@ -58,7 +60,9 @@ class ArticleController extends Controller
     public function update(int $id, UpdateArticleRequest $request)
     {
         $article = $this->repository->findByIdForTenant($id, $request->user()->tenant_id);
-        if (!$article) abort(404);
+        if (! $article) {
+            abort(404);
+        }
 
         $wasApproved = $article->status === ArticleStatus::APPROVED;
         $payload = $request->validated();
@@ -74,7 +78,7 @@ class ArticleController extends Controller
         $this->repository->update($id, $payload);
         $article = $this->repository->findByIdForTenant($id, $request->user()->tenant_id);
 
-        if (($request->validated()['status'] ?? null) === ArticleStatus::APPROVED->value && !$wasApproved) {
+        if (($request->validated()['status'] ?? null) === ArticleStatus::APPROVED->value && ! $wasApproved) {
             $article->forceFill([
                 'approved_at' => now(),
                 'reviewed_by' => $request->user()->id,
@@ -89,7 +93,7 @@ class ArticleController extends Controller
 
     public function destroy(int $id, Request $request): JsonResponse
     {
-        if (!$this->repository->deleteForTenant($id, $request->user()->tenant_id)) {
+        if (! $this->repository->deleteForTenant($id, $request->user()->tenant_id)) {
             abort(404);
         }
 
@@ -99,7 +103,7 @@ class ArticleController extends Controller
     public function retry(int $id, Request $request): JsonResponse
     {
         $article = $this->repository->findByIdForTenant($id, $request->user()->tenant_id);
-        if (!$article || $article->status !== ArticleStatus::FAILED) {
+        if (! $article || $article->status !== ArticleStatus::FAILED) {
             abort(404);
         }
 
@@ -115,7 +119,9 @@ class ArticleController extends Controller
     public function autoFix(int $id, Request $request)
     {
         $article = $this->repository->findByIdForTenant($id, $request->user()->tenant_id);
-        if (!$article) abort(404);
+        if (! $article) {
+            abort(404);
+        }
 
         return (new ArticleResource($this->autoFixService->autoFix($article)))->additional([
             'message' => 'SEO auto-fix applied.',
@@ -125,9 +131,11 @@ class ArticleController extends Controller
     public function approveAndPublish(int $id, Request $request): JsonResponse
     {
         $article = $this->repository->findByIdForTenant($id, $request->user()->tenant_id);
-        if (!$article) abort(404);
+        if (! $article) {
+            abort(404);
+        }
 
-        if (!$article->wordpress_site_id) {
+        if (! $article->wordpress_site_id) {
             return response()->json([
                 'message' => 'Bài viết chưa gắn WordPress site. Hãy gắn site từ keyword/campaign hoặc cấu hình lại bài trước khi publish.',
             ], 422);
@@ -165,7 +173,9 @@ class ArticleController extends Controller
     public function generateImages(int $id, Request $request): JsonResponse
     {
         $article = $this->repository->findByIdForTenant($id, $request->user()->tenant_id);
-        if (!$article) abort(404);
+        if (! $article) {
+            abort(404);
+        }
 
         GenerateArticleImagesJob::dispatch($article->id)->onQueue('imports');
 
@@ -181,7 +191,9 @@ class ArticleController extends Controller
     public function reviewByToken(string $token): JsonResponse
     {
         $article = $this->repository->findReviewableByToken($token);
-        if (!$article) abort(404);
+        if (! $article) {
+            abort(404);
+        }
 
         return new ArticleResource($article);
     }
@@ -192,7 +204,9 @@ class ArticleController extends Controller
     public function reviewAction(string $token, ReviewArticleActionRequest $request): JsonResponse
     {
         $article = $this->repository->findPendingReviewByToken($token);
-        if (!$article) abort(404);
+        if (! $article) {
+            abort(404);
+        }
 
         if ($request->action === 'approve') {
             $this->repository->updateStatus($article->id, ArticleStatus::APPROVED);
@@ -208,7 +222,7 @@ class ArticleController extends Controller
         return response()->json(['message' => 'Review action recorded.']);
     }
 
-     /**
+    /**
      * Generate a new article from a keyword (triggers full AI pipeline).
      */
     public function generate(GenerateArticleRequest $request): JsonResponse
@@ -217,7 +231,7 @@ class ArticleController extends Controller
         $validated = $request->validated();
         $quota = $this->costTracking->checkQuota($tenantId);
 
-        if (!$quota->canProceed) {
+        if (! $quota->canProceed) {
             return response()->json([
                 'message' => $quota->message ?? 'AI quota exceeded.',
                 'quota' => $quota->toArray(),
@@ -226,13 +240,13 @@ class ArticleController extends Controller
 
         $keyword = $this->keywords->findByIdForTenant($validated['keyword_id'], $tenantId);
 
-        if (!$keyword) {
+        if (! $keyword) {
             abort(404);
         }
 
         $article = $this->repository->findByKeywordIdForTenant($keyword->id, $tenantId);
 
-        if (!$article) {
+        if (! $article) {
             $keywordMeta = $keyword->meta ?? [];
             $article = $this->repository->create([
                 'tenant_id' => $tenantId,
@@ -240,7 +254,7 @@ class ArticleController extends Controller
                 'campaign_id' => $validated['campaign_id'] ?? $keyword->campaign_id,
                 'wordpress_site_id' => $validated['wordpress_site_id'] ?? $keyword->wordpress_site_id,
                 'user_id' => $request->user()->id,
-                'title' => 'Bài viết: ' . $keyword->keyword,
+                'title' => 'Bài viết: '.$keyword->keyword,
                 'slug' => Str::slug($keyword->keyword),
                 'focus_keyword' => $keyword->keyword,
                 'featured_image_url' => $keywordMeta['featured_image_url'] ?? null,
@@ -253,7 +267,7 @@ class ArticleController extends Controller
                     'image_source' => $keywordMeta['image_source'] ?? config('ai.image_generation.source_strategy', 'hybrid'),
                     'inline_image_count' => $keywordMeta['inline_image_count'] ?? config('ai.image_generation.default_inline_count', 3),
                 ]),
-                'wp_tag_names' => !empty($keywordMeta['wp_tag_names'])
+                'wp_tag_names' => ! empty($keywordMeta['wp_tag_names'])
                     ? array_values(array_filter(array_map('trim', explode(',', str_replace('|', ',', (string) $keywordMeta['wp_tag_names'])))))
                     : null,
                 'wp_slug' => $keywordMeta['wp_slug'] ?? null,

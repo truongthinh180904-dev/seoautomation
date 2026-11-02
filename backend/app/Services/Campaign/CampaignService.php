@@ -38,7 +38,7 @@ class CampaignService
     {
         $data = ['status' => $status];
 
-        if ($status === CampaignStatus::PROCESSING && !$campaign->started_at) {
+        if ($status === CampaignStatus::PROCESSING && ! $campaign->started_at) {
             $data['started_at'] = now();
         }
 

@@ -30,9 +30,9 @@ class StoreWordPressSiteRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
-        if (!$this->filled('api_url') && $this->filled('url')) {
+        if (! $this->filled('api_url') && $this->filled('url')) {
             $this->merge([
-                'api_url' => rtrim((string) $this->input('url'), '/') . '/wp-json',
+                'api_url' => rtrim((string) $this->input('url'), '/').'/wp-json',
             ]);
         }
     }

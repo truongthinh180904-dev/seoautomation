@@ -21,7 +21,7 @@ class AIResponseDTO extends Data
     public function totalCostUsd(): float
     {
         $model = strtolower($this->model);
-        
+
         $inputPricePerM = 0;
         $outputPricePerM = 0;
 

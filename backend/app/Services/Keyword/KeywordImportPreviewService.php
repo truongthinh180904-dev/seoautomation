@@ -38,7 +38,7 @@ class KeywordImportPreviewService
                 ];
             }
 
-            if (!empty($row['target_word_count']) && ((int) $row['target_word_count'] < 300 || (int) $row['target_word_count'] > 10000)) {
+            if (! empty($row['target_word_count']) && ((int) $row['target_word_count'] < 300 || (int) $row['target_word_count'] > 10000)) {
                 $rowErrors[] = [
                     'row' => $rowNumber,
                     'column' => 'target_word_count',
@@ -47,7 +47,7 @@ class KeywordImportPreviewService
             }
 
             foreach (['target_url', 'canonical_url'] as $urlColumn) {
-                if (!empty($row[$urlColumn]) && !filter_var($row[$urlColumn], FILTER_VALIDATE_URL)) {
+                if (! empty($row[$urlColumn]) && ! filter_var($row[$urlColumn], FILTER_VALIDATE_URL)) {
                     $rowErrors[] = [
                         'row' => $rowNumber,
                         'column' => $urlColumn,
@@ -73,12 +73,13 @@ class KeywordImportPreviewService
 
             $seen[$keywordKey] = $rowNumber;
 
-            if (!empty($rowErrors)) {
+            if (! empty($rowErrors)) {
                 $errors = array_merge($errors, $rowErrors);
+
                 continue;
             }
 
-            if (!isset($existing[$keywordKey]) && !isset($validRows[$keywordKey])) {
+            if (! isset($existing[$keywordKey]) && ! isset($validRows[$keywordKey])) {
                 $row['campaign_id'] = $row['campaign_id'] ?? $campaignId;
                 $validRows[$keywordKey] = $row;
             }

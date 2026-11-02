@@ -18,6 +18,7 @@ class SerpResearchJob implements ShouldQueue
     use Batchable, Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public $tries = 3;
+
     public $backoff = [30, 120, 300];
 
     public function __construct(
@@ -40,15 +41,16 @@ class SerpResearchJob implements ShouldQueue
 
         $result = $agent->execute($context);
 
-        if (!$result->success) {
+        if (! $result->success) {
             $this->fail(new \Exception($result->error ?? 'SerpResearchAgent failed without specific error message.'));
+
             return;
         }
 
         // Successfully researched. The pipeline might dispatch next jobs here or via event.
         // For now, we update to completed if it's just this job.
-        // Assuming keyword becomes completed after serp if no further jobs in this epic, 
-        // but typically it moves to outline. We'll leave it in processing for now 
+        // Assuming keyword becomes completed after serp if no further jobs in this epic,
+        // but typically it moves to outline. We'll leave it in processing for now
         // or let subsequent epic handle dispatching.
     }
 

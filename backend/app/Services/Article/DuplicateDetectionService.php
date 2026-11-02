@@ -2,6 +2,7 @@
 
 namespace App\Services\Article;
 
+use App\Exceptions\Article\DuplicateContentException;
 use App\Models\Article;
 use Illuminate\Support\Facades\Log;
 
@@ -22,7 +23,7 @@ class DuplicateDetectionService
     /**
      * Check if a hash already exists in the articles table.
      *
-     * @throws \App\Exceptions\Article\DuplicateContentException
+     * @throws DuplicateContentException
      */
     public function checkDuplicate(string $hash, ?int $excludeArticleId = null): void
     {
@@ -36,7 +37,7 @@ class DuplicateDetectionService
 
         if ($existing) {
             Log::warning("DuplicateDetectionService: Duplicate content detected. Hash: {$hash}, existing article #{$existing->id}");
-            throw new \App\Exceptions\Article\DuplicateContentException(
+            throw new DuplicateContentException(
                 "Duplicate content detected. Matches article #{$existing->id}: \"{$existing->title}\""
             );
         }
@@ -45,12 +46,13 @@ class DuplicateDetectionService
     /**
      * Compute hash and check at once. Returns the hash for saving.
      *
-     * @throws \App\Exceptions\Article\DuplicateContentException
+     * @throws DuplicateContentException
      */
     public function validateAndHash(string $htmlContent, ?int $excludeArticleId = null): string
     {
         $hash = $this->computeHash($htmlContent);
         $this->checkDuplicate($hash, $excludeArticleId);
+
         return $hash;
     }
 }

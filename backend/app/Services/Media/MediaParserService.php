@@ -3,9 +3,9 @@
 namespace App\Services\Media;
 
 use App\Jobs\Media\DownloadImageJob;
+use App\Models\Article;
 use App\Models\Keyword;
 use App\Models\MediaAsset;
-use App\Models\Article;
 
 class MediaParserService
 {
@@ -17,7 +17,7 @@ class MediaParserService
             $rowCampaignId = $row['campaign_id'] ?? $campaignId;
             $meta = $row['meta'] ?? [];
 
-            if (!empty($meta['featured_image_url'])) {
+            if (! empty($meta['featured_image_url'])) {
                 $created += $this->createAsset(
                     tenantId: $tenantId,
                     campaignId: $rowCampaignId,
@@ -47,7 +47,7 @@ class MediaParserService
         $meta = $keyword->meta ?? [];
         $created = 0;
 
-        if (!empty($meta['featured_image_url'])) {
+        if (! empty($meta['featured_image_url'])) {
             $created += $this->createAsset(
                 tenantId: $keyword->tenant_id,
                 campaignId: $keyword->campaign_id,
@@ -76,7 +76,7 @@ class MediaParserService
         $plan = $article->media_plan ?? [];
         $created = 0;
 
-        if (!empty($plan['featured_image_url'])) {
+        if (! empty($plan['featured_image_url'])) {
             $created += $this->createAsset(
                 tenantId: $article->tenant_id,
                 campaignId: $article->campaign_id,
@@ -111,7 +111,7 @@ class MediaParserService
         array $metadata = [],
         ?int $articleId = null
     ): int {
-        if (!filter_var($sourceUrl, FILTER_VALIDATE_URL)) {
+        if (! filter_var($sourceUrl, FILTER_VALIDATE_URL)) {
             return 0;
         }
 
@@ -123,7 +123,7 @@ class MediaParserService
             ->where('metadata->keyword', $metadata['keyword'] ?? null)
             ->first();
 
-        if (!$asset) {
+        if (! $asset) {
             $asset = MediaAsset::create([
                 'tenant_id' => $tenantId,
                 'campaign_id' => $campaignId,
@@ -137,7 +137,7 @@ class MediaParserService
             ]);
         }
 
-        if ($articleId && !$asset->article_id) {
+        if ($articleId && ! $asset->article_id) {
             $asset->update(['article_id' => $articleId]);
         }
 
@@ -157,7 +157,7 @@ class MediaParserService
         $items = [];
         foreach (explode(';', $value) as $chunk) {
             $parts = array_map('trim', explode('|', $chunk));
-            if (!empty($parts[0])) {
+            if (! empty($parts[0])) {
                 $items[] = [
                     'url' => $parts[0],
                     'alt' => $parts[1] ?? null,

@@ -1,9 +1,13 @@
 <?php
+
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
-return new class extends Migration {
-    public function up(): void {
+
+return new class extends Migration
+{
+    public function up(): void
+    {
         Schema::create('ai_logs', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('tenant_id');
@@ -22,14 +26,16 @@ return new class extends Migration {
             $table->text('error_message')->nullable();
             $table->char('request_hash', 64)->nullable();
             $table->timestamp('created_at')->useCurrent();
-            
+
             $table->index(['tenant_id', 'created_at']);
             $table->index('article_id');
             $table->index('agent_type');
             $table->index('status');
         });
     }
-    public function down(): void {
+
+    public function down(): void
+    {
         Schema::dropIfExists('ai_logs');
     }
 };

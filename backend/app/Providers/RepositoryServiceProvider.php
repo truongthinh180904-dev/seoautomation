@@ -2,19 +2,19 @@
 
 namespace App\Providers;
 
-use Illuminate\Support\ServiceProvider;
-use App\Repositories\Contracts\KeywordRepositoryInterface;
-use App\Repositories\KeywordRepository;
-use App\Repositories\Contracts\ArticleRepositoryInterface;
-use App\Repositories\ArticleRepository;
-use App\Repositories\Contracts\WordPressSiteRepositoryInterface;
-use App\Repositories\WordPressSiteRepository;
-use App\Repositories\Contracts\AIPromptVersionRepositoryInterface;
 use App\Repositories\AIPromptVersionRepository;
-use App\Repositories\Contracts\ScheduleRepositoryInterface;
-use App\Repositories\ScheduleRepository;
-use App\Repositories\Contracts\CampaignRepositoryInterface;
+use App\Repositories\ArticleRepository;
 use App\Repositories\CampaignRepository;
+use App\Repositories\Contracts\AIPromptVersionRepositoryInterface;
+use App\Repositories\Contracts\ArticleRepositoryInterface;
+use App\Repositories\Contracts\CampaignRepositoryInterface;
+use App\Repositories\Contracts\KeywordRepositoryInterface;
+use App\Repositories\Contracts\ScheduleRepositoryInterface;
+use App\Repositories\Contracts\WordPressSiteRepositoryInterface;
+use App\Repositories\KeywordRepository;
+use App\Repositories\ScheduleRepository;
+use App\Repositories\WordPressSiteRepository;
+use Illuminate\Support\ServiceProvider;
 
 class RepositoryServiceProvider extends ServiceProvider
 {

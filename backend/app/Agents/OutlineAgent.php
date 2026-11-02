@@ -22,18 +22,18 @@ class OutlineAgent extends BaseAgent
         $targetWordCount = (int) ($context['target_word_count'] ?? 3000);
         $competitorData = $context['competitor_data'] ?? [];
         $tenantId = $context['tenant_id'] ?? null;
-        
-        if (!$keyword || !$tenantId) {
-            throw new \InvalidArgumentException("Missing required context fields.");
+
+        if (! $keyword || ! $tenantId) {
+            throw new \InvalidArgumentException('Missing required context fields.');
         }
 
         $competitorsSummary = '';
         foreach ($competitorData as $comp) {
             if (is_array($comp)) {
-                $competitorsSummary .= "URL: " . ($comp['url'] ?? '') . "\n";
-                $competitorsSummary .= "Headings: " . json_encode($comp['heading_structure'] ?? [], JSON_UNESCAPED_UNICODE) . "\n\n";
+                $competitorsSummary .= 'URL: '.($comp['url'] ?? '')."\n";
+                $competitorsSummary .= 'Headings: '.json_encode($comp['heading_structure'] ?? [], JSON_UNESCAPED_UNICODE)."\n\n";
             } elseif (is_object($comp) && method_exists($comp, 'toSummary')) {
-                $competitorsSummary .= $comp->toSummary() . "\n\n";
+                $competitorsSummary .= $comp->toSummary()."\n\n";
             }
         }
 
@@ -59,10 +59,10 @@ class OutlineAgent extends BaseAgent
         $parser = app(JsonResponseParser::class);
         $parsed = $parser->parse($response->content);
 
-        if (!$parsed) {
+        if (! $parsed) {
             $retryRequest = new AIRequestDTO(
                 systemPrompt: $promptData['system_prompt'],
-                userPrompt: $promptData['user_prompt'] . "\n\nReturn ONLY one valid JSON object. Do not include markdown, comments, prose, or trailing commas.",
+                userPrompt: $promptData['user_prompt']."\n\nReturn ONLY one valid JSON object. Do not include markdown, comments, prose, or trailing commas.",
                 model: '',
                 agentType: $this->getType(),
                 tenantId: $tenantId,
@@ -73,7 +73,7 @@ class OutlineAgent extends BaseAgent
             $response = $this->callAI($retryRequest);
             $parsed = $parser->parse($response->content);
 
-            if (!$parsed) {
+            if (! $parsed) {
                 Log::warning('OutlineAgent JSON parse failed', [
                     'keyword_id' => $context['keyword_id'] ?? null,
                     'article_id' => $context['article_id'] ?? null,
@@ -82,6 +82,7 @@ class OutlineAgent extends BaseAgent
                 ]);
 
                 $fallbackOutline = $this->buildFallbackOutline($keyword);
+
                 return AgentResultDTO::success(
                     agent: $this->getType(),
                     data: ['outline' => $fallbackOutline],
@@ -94,10 +95,10 @@ class OutlineAgent extends BaseAgent
         $parsed = $this->normalizeOutline($parsed, $keyword);
 
         if (empty($parsed['h1'])) {
-            return AgentResultDTO::failure($this->getType(), "Outline validation failed: Missing h1");
+            return AgentResultDTO::failure($this->getType(), 'Outline validation failed: Missing h1');
         }
         if (empty($parsed['sections']) || count($parsed['sections']) < 4) {
-            return AgentResultDTO::failure($this->getType(), "Outline validation failed: Minimum 4 sections required");
+            return AgentResultDTO::failure($this->getType(), 'Outline validation failed: Minimum 4 sections required');
         }
 
         return AgentResultDTO::success(
@@ -157,7 +158,7 @@ class OutlineAgent extends BaseAgent
                     'points' => ['Quy trình từng bước', 'Cách tối ưu trải nghiệm', 'Lỗi thường gặp'],
                 ],
                 [
-                    'heading' => "Mẹo tối ưu và câu hỏi thường gặp",
+                    'heading' => 'Mẹo tối ưu và câu hỏi thường gặp',
                     'points' => ['Mẹo tăng hiệu quả', 'Cách kiểm tra kết quả', 'FAQ'],
                 ],
             ],

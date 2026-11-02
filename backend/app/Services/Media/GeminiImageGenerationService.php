@@ -2,9 +2,9 @@
 
 namespace App\Services\Media;
 
+use App\Jobs\Media\DownloadImageJob;
 use App\Models\Article;
 use App\Models\MediaAsset;
-use App\Jobs\Media\DownloadImageJob;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -92,7 +92,7 @@ class GeminiImageGenerationService
     protected function generateAndStore(Article $article, string $prompt): int
     {
         $apiKey = config('ai.providers.gemini.api_key');
-        if (!$apiKey) {
+        if (! $apiKey) {
             throw new RuntimeException('GEMINI_API_KEY is missing for image generation.');
         }
 
@@ -114,12 +114,12 @@ class GeminiImageGenerationService
                 ]),
             ]);
 
-        if (!$response->successful()) {
-            throw new RuntimeException('Gemini image generation failed: ' . $response->body());
+        if (! $response->successful()) {
+            throw new RuntimeException('Gemini image generation failed: '.$response->body());
         }
 
         $base64 = $this->extractImageBytes($response->json());
-        if (!$base64) {
+        if (! $base64) {
             throw new RuntimeException('Gemini image generation response did not include image bytes.');
         }
 

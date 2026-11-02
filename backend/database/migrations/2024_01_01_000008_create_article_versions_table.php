@@ -1,9 +1,13 @@
 <?php
+
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
-return new class extends Migration {
-    public function up(): void {
+
+return new class extends Migration
+{
+    public function up(): void
+    {
         Schema::create('article_versions', function (Blueprint $table) {
             $table->id();
             $table->foreignId('article_id')->constrained('articles')->cascadeOnDelete();
@@ -19,12 +23,14 @@ return new class extends Migration {
             $table->string('change_reason')->nullable();
             $table->json('diff_summary')->nullable();
             $table->timestamp('created_at')->useCurrent();
-            
+
             $table->unique(['article_id', 'version_number']);
             $table->index('article_id');
         });
     }
-    public function down(): void {
+
+    public function down(): void
+    {
         Schema::dropIfExists('article_versions');
     }
 };

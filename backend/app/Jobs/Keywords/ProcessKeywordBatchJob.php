@@ -19,6 +19,7 @@ class ProcessKeywordBatchJob implements ShouldQueue
     use Batchable, Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public $tries = 3;
+
     public $backoff = [10, 30, 60];
 
     public function __construct(
@@ -44,7 +45,7 @@ class ProcessKeywordBatchJob implements ShouldQueue
     public function failed(Throwable $exception): void
     {
         Keyword::whereIn('id', $this->keywordIds)->update([
-            'status' => KeywordStatus::FAILED
+            'status' => KeywordStatus::FAILED,
         ]);
     }
 }

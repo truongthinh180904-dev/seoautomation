@@ -30,9 +30,9 @@ class UpdateWordPressSiteRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
-        if ($this->filled('url') && !$this->filled('api_url')) {
+        if ($this->filled('url') && ! $this->filled('api_url')) {
             $this->merge([
-                'api_url' => rtrim((string) $this->input('url'), '/') . '/wp-json',
+                'api_url' => rtrim((string) $this->input('url'), '/').'/wp-json',
             ]);
         }
     }

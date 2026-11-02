@@ -14,7 +14,7 @@ class WordPressMediaService
 
     public function upload(MediaAsset $asset, WordPressSite $site): MediaAsset
     {
-        if (!$asset->local_path || !Storage::exists($asset->local_path)) {
+        if (! $asset->local_path || ! Storage::exists($asset->local_path)) {
             throw new WordPressPublishException('Media asset local file is missing.');
         }
 
@@ -23,18 +23,18 @@ class WordPressMediaService
         $apiUrl = rtrim($site->api_url, '/');
 
         $response = $this->wordpressHttp()->withHeaders([
-            'Authorization' => 'Basic ' . base64_encode($site->username . ':' . $site->app_password),
-            'Content-Disposition' => 'attachment; filename="' . $fileName . '"',
+            'Authorization' => 'Basic '.base64_encode($site->username.':'.$site->app_password),
+            'Content-Disposition' => 'attachment; filename="'.$fileName.'"',
             'Content-Type' => $this->guessMimeType($fileName),
         ])->withBody($contents, $this->guessMimeType($fileName))
-            ->post($apiUrl . '/wp/v2/media');
+            ->post($apiUrl.'/wp/v2/media');
 
-        if (!$response->successful()) {
+        if (! $response->successful()) {
             $asset->update([
                 'status' => 'failed',
                 'error_message' => $response->body(),
             ]);
-            throw new WordPressPublishException('WordPress media upload failed: ' . $response->body());
+            throw new WordPressPublishException('WordPress media upload failed: '.$response->body());
         }
 
         $data = $response->json();
@@ -51,14 +51,14 @@ class WordPressMediaService
 
     protected function updateMetadata(MediaAsset $asset, WordPressSite $site): void
     {
-        if (!$asset->wordpress_media_id) {
+        if (! $asset->wordpress_media_id) {
             return;
         }
 
         $this->wordpressHttp()->withHeaders([
-            'Authorization' => 'Basic ' . base64_encode($site->username . ':' . $site->app_password),
+            'Authorization' => 'Basic '.base64_encode($site->username.':'.$site->app_password),
             'Content-Type' => 'application/json',
-        ])->post(rtrim($site->api_url, '/') . '/wp/v2/media/' . $asset->wordpress_media_id, array_filter([
+        ])->post(rtrim($site->api_url, '/').'/wp/v2/media/'.$asset->wordpress_media_id, array_filter([
             'alt_text' => $asset->alt_text,
             'caption' => $asset->caption,
             'description' => $asset->description,

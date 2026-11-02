@@ -29,7 +29,7 @@ class WordPressTagService
         $apiUrl = rtrim($site->api_url, '/');
         $auth = $this->authHeader($site);
 
-        $search = $this->wordpressHttp()->withHeaders($auth)->get($apiUrl . '/wp/v2/tags', [
+        $search = $this->wordpressHttp()->withHeaders($auth)->get($apiUrl.'/wp/v2/tags', [
             'search' => $tagName,
             'per_page' => 20,
         ]);
@@ -42,7 +42,7 @@ class WordPressTagService
             }
         }
 
-        $create = $this->wordpressHttp()->withHeaders($auth)->post($apiUrl . '/wp/v2/tags', [
+        $create = $this->wordpressHttp()->withHeaders($auth)->post($apiUrl.'/wp/v2/tags', [
             'name' => $tagName,
         ]);
 
@@ -50,13 +50,13 @@ class WordPressTagService
             return (int) data_get($create->json(), 'id');
         }
 
-        throw new WordPressPublishException("Cannot create WordPress tag '{$tagName}': " . $create->body());
+        throw new WordPressPublishException("Cannot create WordPress tag '{$tagName}': ".$create->body());
     }
 
     protected function authHeader(WordPressSite $site): array
     {
         return [
-            'Authorization' => 'Basic ' . base64_encode($site->username . ':' . $site->app_password),
+            'Authorization' => 'Basic '.base64_encode($site->username.':'.$site->app_password),
             'Content-Type' => 'application/json',
         ];
     }

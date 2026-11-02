@@ -30,40 +30,53 @@ class WordPressSiteController extends Controller
     public function store(StoreWordPressSiteRequest $request)
     {
         $site = $this->repository->create($request->validated());
+
         return new WordPressSiteResource($site);
     }
 
     public function show(Request $request, int $id)
     {
         $site = $this->repository->findByIdForTenant($id, $request->user()->tenant_id);
-        if (!$site) abort(404);
+        if (! $site) {
+            abort(404);
+        }
+
         return new WordPressSiteResource($site);
     }
 
     public function update(UpdateWordPressSiteRequest $request, int $id)
     {
         $site = $this->repository->findByIdForTenant($id, $request->user()->tenant_id);
-        if (!$site) abort(404);
+        if (! $site) {
+            abort(404);
+        }
 
         $this->repository->update($id, $request->validated());
+
         return new WordPressSiteResource($this->repository->findByIdForTenant($id, $request->user()->tenant_id));
     }
 
     public function destroy(Request $request, int $id)
     {
         $site = $this->repository->findByIdForTenant($id, $request->user()->tenant_id);
-        if (!$site) abort(404);
+        if (! $site) {
+            abort(404);
+        }
 
         $this->repository->delete($id);
+
         return response()->noContent();
     }
 
     public function test(Request $request, int $id)
     {
         $site = $this->repository->findByIdForTenant($id, $request->user()->tenant_id);
-        if (!$site) abort(404);
+        if (! $site) {
+            abort(404);
+        }
 
         $result = $this->service->testConnection($id);
+
         return response()->json($result, $result['success'] ? 200 : 400);
     }
 }

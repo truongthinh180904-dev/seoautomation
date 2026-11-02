@@ -50,31 +50,31 @@ class ArticleRepository implements ArticleRepositoryInterface
         $query = Article::where('tenant_id', $tenantId)
             ->with(['keyword:id,keyword', 'campaign:id,name,status', 'wordpressSite:id,name', 'user:id,name']);
 
-        if (!empty($filters['status'])) {
+        if (! empty($filters['status'])) {
             $query->where('status', $filters['status']);
         }
 
-        if (!empty($filters['keyword_id'])) {
+        if (! empty($filters['keyword_id'])) {
             $query->where('keyword_id', $filters['keyword_id']);
         }
 
-        if (!empty($filters['campaign_id'])) {
+        if (! empty($filters['campaign_id'])) {
             $query->where('campaign_id', $filters['campaign_id']);
         }
 
-        if (!empty($filters['wordpress_site_id'])) {
+        if (! empty($filters['wordpress_site_id'])) {
             $query->where('wordpress_site_id', $filters['wordpress_site_id']);
         }
 
-        if (!empty($filters['wp_site_id'])) {
+        if (! empty($filters['wp_site_id'])) {
             $query->where('wordpress_site_id', $filters['wp_site_id']);
         }
 
-        if (!empty($filters['search'])) {
+        if (! empty($filters['search'])) {
             $search = $filters['search'];
             $query->where(function ($q) use ($search) {
-                $q->where('title', 'like', '%' . $search . '%')
-                    ->orWhereHas('keyword', fn ($keywordQuery) => $keywordQuery->where('keyword', 'like', '%' . $search . '%'));
+                $q->where('title', 'like', '%'.$search.'%')
+                    ->orWhereHas('keyword', fn ($keywordQuery) => $keywordQuery->where('keyword', 'like', '%'.$search.'%'));
             });
         }
 

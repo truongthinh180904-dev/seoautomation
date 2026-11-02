@@ -16,7 +16,7 @@ enum AgentType: string
 
     public function label(): string
     {
-        return match($this) {
+        return match ($this) {
             self::SERP_RESEARCH => 'Nghiên cứu SERP',
             self::COMPETITOR_ANALYSIS => 'Phân tích đối thủ',
             self::CONTENT_ANALYSIS => 'Phân tích nội dung',
@@ -31,17 +31,17 @@ enum AgentType: string
 
     public function queue(): string
     {
-        return match($this) {
+        return match ($this) {
             self::SERP_RESEARCH,
             self::COMPETITOR_ANALYSIS,
             self::CONTENT_ANALYSIS => 'ai-research',
-            
+
             self::OUTLINE,
             self::WRITING,
             self::SEO_OPTIMIZATION,
             self::QA_VALIDATION,
             self::INTERNAL_LINKING => 'ai-writing',
-            
+
             self::PUBLISHING => 'publishing',
         };
     }

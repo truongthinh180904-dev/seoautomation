@@ -19,7 +19,7 @@ class WordPressPublishService
 
     public function publish(PublishingDTO $dto, WordPressSite $site): array
     {
-        $auth = base64_encode($site->username . ':' . $site->app_password);
+        $auth = base64_encode($site->username.':'.$site->app_password);
         $tagIds = array_values(array_unique(array_merge(
             $dto->tagIds,
             $this->tagService->resolveTagNames($dto->tagNames, $site)
@@ -61,18 +61,19 @@ class WordPressPublishService
 
         $apiUrl = rtrim($site->api_url, '/');
         $postType = trim($dto->postType ?: 'post', '/');
-        
+
         $response = $this->wordpressHttp()->withHeaders([
-            'Authorization' => 'Basic ' . $auth,
+            'Authorization' => 'Basic '.$auth,
             'Content-Type' => 'application/json',
-        ])->post($apiUrl . "/wp/v2/{$postType}s", $body);
+        ])->post($apiUrl."/wp/v2/{$postType}s", $body);
 
         if ($response->successful()) {
             $data = $response->json();
+
             return [
                 'post_id' => $data['id'] ?? null,
                 'url' => $data['link'] ?? null,
-                'edit_url' => isset($data['id']) ? rtrim($site->url, '/') . "/wp-admin/post.php?post={$data['id']}&action=edit" : null,
+                'edit_url' => isset($data['id']) ? rtrim($site->url, '/')."/wp-admin/post.php?post={$data['id']}&action=edit" : null,
             ];
         }
 
@@ -81,22 +82,22 @@ class WordPressPublishService
         }
 
         if ($response->status() === 400 || $response->status() === 422) {
-            throw new WordPressValidationException("Validation error: " . $response->body(), $response->json() ?? []);
+            throw new WordPressValidationException('Validation error: '.$response->body(), $response->json() ?? []);
         }
 
-        throw new WordPressPublishException("Publishing failed: " . $response->body());
+        throw new WordPressPublishException('Publishing failed: '.$response->body());
     }
 
     public function testConnection(WordPressSite $site): bool
     {
         try {
-            $auth = base64_encode($site->username . ':' . $site->app_password);
+            $auth = base64_encode($site->username.':'.$site->app_password);
 
             $apiUrl = rtrim($site->api_url, '/');
-            
+
             $response = $this->wordpressHttp()->withHeaders([
-                'Authorization' => 'Basic ' . $auth,
-            ])->get($apiUrl . '/wp/v2/users/me');
+                'Authorization' => 'Basic '.$auth,
+            ])->get($apiUrl.'/wp/v2/users/me');
 
             return $response->successful();
         } catch (\Exception $e) {

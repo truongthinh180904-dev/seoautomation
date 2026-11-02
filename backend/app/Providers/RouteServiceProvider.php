@@ -22,6 +22,7 @@ class RouteServiceProvider extends ServiceProvider
 
         RateLimiter::for('ai_generation', function (Request $request) {
             $tenantId = $request->user()?->tenant_id ?: $request->ip();
+
             return Limit::perHour(50)->by($tenantId);
         });
 

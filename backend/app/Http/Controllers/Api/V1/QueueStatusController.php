@@ -16,11 +16,11 @@ class QueueStatusController extends Controller
 
         $stats = array_map(function (string $queue) {
             return [
-                'name'       => $queue,
-                'label'      => $this->label($queue),
-                'pending'    => $this->pendingCount($queue),
+                'name' => $queue,
+                'label' => $this->label($queue),
+                'pending' => $this->pendingCount($queue),
                 'processing' => $this->processingCount($queue),
-                'failed'     => $this->failedCount($queue),
+                'failed' => $this->failedCount($queue),
             ];
         }, $queues);
 
@@ -28,16 +28,16 @@ class QueueStatusController extends Controller
             ->orderByDesc('failed_at')
             ->limit(50)
             ->get()
-            ->map(fn($job) => [
-                'id'        => $job->id,
-                'queue'     => $job->queue,
-                'payload'   => json_decode($job->payload, true),
+            ->map(fn ($job) => [
+                'id' => $job->id,
+                'queue' => $job->queue,
+                'payload' => json_decode($job->payload, true),
                 'exception' => str($job->exception)->limit(300)->toString(),
                 'failed_at' => $job->failed_at,
             ]);
 
         return response()->json([
-            'stats'       => $stats,
+            'stats' => $stats,
             'failed_jobs' => $failedJobs,
         ]);
     }
@@ -45,25 +45,26 @@ class QueueStatusController extends Controller
     public function retry(int $jobId): JsonResponse
     {
         \Artisan::call('queue:retry', ['id' => [$jobId]]);
+
         return response()->json(['message' => "Job #{$jobId} queued for retry."]);
     }
 
     private function label(string $queue): string
     {
-        return match($queue) {
-            'ai-research'   => 'AI Research',
-            'ai-writing'    => 'AI Writing',
-            'imports'       => 'Imports & Media',
-            'publishing'    => 'Publishing',
+        return match ($queue) {
+            'ai-research' => 'AI Research',
+            'ai-writing' => 'AI Writing',
+            'imports' => 'Imports & Media',
+            'publishing' => 'Publishing',
             'notifications' => 'Notifications',
-            'default'       => 'Default',
-            default         => $queue,
+            'default' => 'Default',
+            default => $queue,
         };
     }
 
     private function pendingCount(string $queue): int
     {
-        if (!Schema::hasTable('jobs')) {
+        if (! Schema::hasTable('jobs')) {
             return 0;
         }
 
@@ -75,7 +76,7 @@ class QueueStatusController extends Controller
 
     private function processingCount(string $queue): int
     {
-        if (!Schema::hasTable('jobs')) {
+        if (! Schema::hasTable('jobs')) {
             return 0;
         }
 
@@ -87,7 +88,7 @@ class QueueStatusController extends Controller
 
     private function failedCount(string $queue): int
     {
-        if (!Schema::hasTable('failed_jobs')) {
+        if (! Schema::hasTable('failed_jobs')) {
             return 0;
         }
 

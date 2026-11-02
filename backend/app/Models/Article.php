@@ -8,7 +8,6 @@ use App\Traits\HasVersions;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Support\Str;
 
 class Article extends Model
 {
@@ -155,6 +154,7 @@ class Article extends Model
         $token = bin2hex(random_bytes(32));
         $this->review_token = $token;
         $this->save();
+
         return $token;
     }
 

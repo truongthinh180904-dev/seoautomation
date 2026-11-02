@@ -10,11 +10,11 @@ use App\Http\Requests\StoreKeywordRequest;
 use App\Http\Requests\UpdateKeywordRequest;
 use App\Http\Resources\KeywordResource;
 use App\Repositories\Contracts\KeywordRepositoryInterface;
-use App\Services\Keyword\KeywordImportService;
 use App\Services\Keyword\KeywordImportPreviewService;
+use App\Services\Keyword\KeywordImportService;
 use App\Services\Keyword\KeywordParserService;
-use Illuminate\Http\Request;
 use Exception;
+use Illuminate\Http\Request;
 
 class KeywordController extends Controller
 {
@@ -32,6 +32,7 @@ class KeywordController extends Controller
         $perPage = $request->input('per_page', 20);
 
         $keywords = $this->repository->paginateForTenant($tenantId, $filters, $perPage);
+
         return KeywordResource::collection($keywords);
     }
 
@@ -42,13 +43,16 @@ class KeywordController extends Controller
             'user_id' => $request->user()->id,
         ]);
         $keyword = $this->repository->create($data);
+
         return new KeywordResource($keyword);
     }
 
     public function show(Request $request, int $id)
     {
         $keyword = $this->repository->findByIdForTenant($id, $request->user()->tenant_id);
-        if (!$keyword) abort(404);
+        if (! $keyword) {
+            abort(404);
+        }
 
         return new KeywordResource($keyword->load([
             'campaign:id,name,status',
@@ -64,11 +68,11 @@ class KeywordController extends Controller
 
             $summary = $this->importService->import(
                 $rows,
-                $request->user()->tenant_id, 
+                $request->user()->tenant_id,
                 $request->user()->id,
                 $request->integer('campaign_id') ?: null
             );
-            
+
             return response()->json($summary);
         } catch (Exception $e) {
             return response()->json([
@@ -99,7 +103,9 @@ class KeywordController extends Controller
     public function update(UpdateKeywordRequest $request, int $id)
     {
         $keyword = $this->repository->findByIdForTenant($id, $request->user()->tenant_id);
-        if (!$keyword) abort(404);
+        if (! $keyword) {
+            abort(404);
+        }
         $payload = $request->validated();
 
         if (array_key_exists('meta', $payload)) {
@@ -118,9 +124,12 @@ class KeywordController extends Controller
     public function destroy(Request $request, int $id)
     {
         $keyword = $this->repository->findByIdForTenant($id, $request->user()->tenant_id);
-        if (!$keyword) abort(404);
-        
+        if (! $keyword) {
+            abort(404);
+        }
+
         $keyword->update(['status' => KeywordStatus::SKIPPED]);
+
         return response()->noContent();
     }
 

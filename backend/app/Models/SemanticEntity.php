@@ -18,6 +18,7 @@ class SemanticEntity extends Model
     ];
 
     public $timestamps = false;
+
     const UPDATED_AT = null;
 
     protected $casts = [

@@ -19,12 +19,12 @@ class SendArticleReviewNotification implements ShouldQueue
     public function handle(ArticleGenerated $event): void
     {
         $article = $event->article->loadMissing('keyword');
-        $previewUrl = url('/articles/' . $article->id);
+        $previewUrl = url('/articles/'.$article->id);
 
         $this->notifications->send(
             tenantId: $article->tenant_id,
             type: NotificationType::ARTICLE_REVIEW_REQUESTED,
-            subject: 'Bài viết AI cần duyệt: ' . $article->title,
+            subject: 'Bài viết AI cần duyệt: '.$article->title,
             message: "Bài viết cho keyword \"{$article->keyword?->keyword}\" đã được tạo và cần duyệt.\n\nXem trong dashboard: {$previewUrl}",
             data: [
                 'article_id' => $article->id,

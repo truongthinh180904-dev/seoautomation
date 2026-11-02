@@ -20,16 +20,16 @@ class SEOOptimizationAgent extends BaseAgent
         $articleContent = $context['article_content'] ?? null;
         $tenantId = $context['tenant_id'] ?? null;
 
-        if (!$keyword || !$articleContent || !$tenantId) {
-            throw new \InvalidArgumentException("Missing required context fields.");
+        if (! $keyword || ! $articleContent || ! $tenantId) {
+            throw new \InvalidArgumentException('Missing required context fields.');
         }
 
         $promptData = $this->promptBuilderService->build($this->getType(), [
             'keyword' => $keyword,
-            'article_content' => mb_substr($articleContent, 0, 20000)
+            'article_content' => mb_substr($articleContent, 0, 20000),
         ], $tenantId);
 
-        $systemPrompt = $promptData['system_prompt'] . "\n\nYou MUST return the response ONLY as a JSON object with this exact structure: {\"seo_title\": \"string (max 60 chars)\", \"seo_description\": \"string (max 160 chars)\", \"faqs\": [{\"question\": \"string\", \"answer\": \"string\"}]}. Do not include markdown formatting or other text.";
+        $systemPrompt = $promptData['system_prompt']."\n\nYou MUST return the response ONLY as a JSON object with this exact structure: {\"seo_title\": \"string (max 60 chars)\", \"seo_description\": \"string (max 160 chars)\", \"faqs\": [{\"question\": \"string\", \"answer\": \"string\"}]}. Do not include markdown formatting or other text.";
 
         $request = new AIRequestDTO(
             systemPrompt: $systemPrompt,
@@ -45,7 +45,7 @@ class SEOOptimizationAgent extends BaseAgent
         $response = $this->callAI($request);
         $parsed = app(JsonResponseParser::class)->parse($response->content);
 
-        if (!$parsed) {
+        if (! $parsed) {
             return AgentResultDTO::failure($this->getType(), 'Failed to parse JSON SEO data from AI response.');
         }
 
@@ -54,7 +54,7 @@ class SEOOptimizationAgent extends BaseAgent
         $faqs = $parsed['faqs'] ?? [];
 
         if (empty($seoTitle) || empty($seoDescription)) {
-            return AgentResultDTO::failure($this->getType(), "SEO validation failed: Missing seo_title or seo_description");
+            return AgentResultDTO::failure($this->getType(), 'SEO validation failed: Missing seo_title or seo_description');
         }
 
         return AgentResultDTO::success(

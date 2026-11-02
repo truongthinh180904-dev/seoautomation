@@ -26,23 +26,23 @@ class KeywordRepository implements KeywordRepositoryInterface
         $query = Keyword::where('tenant_id', $tenantId)
             ->with(['wordpressSite:id,name', 'campaign:id,name,status', 'user:id,name', 'article:id,keyword_id,status,review_notes,pipeline_status']);
 
-        if (!empty($filters['status'])) {
+        if (! empty($filters['status'])) {
             $query->where('status', $filters['status']);
         }
 
-        if (!empty($filters['wordpress_site_id'])) {
+        if (! empty($filters['wordpress_site_id'])) {
             $query->where('wordpress_site_id', $filters['wordpress_site_id']);
         }
 
-        if (!empty($filters['campaign_id'])) {
+        if (! empty($filters['campaign_id'])) {
             $query->where('campaign_id', $filters['campaign_id']);
         }
 
-        if (!empty($filters['search'])) {
-            $query->where('keyword', 'like', '%' . $filters['search'] . '%');
+        if (! empty($filters['search'])) {
+            $query->where('keyword', 'like', '%'.$filters['search'].'%');
         }
 
-        if (!empty($filters['batch_id'])) {
+        if (! empty($filters['batch_id'])) {
             $query->where('batch_id', $filters['batch_id']);
         }
 
@@ -98,13 +98,16 @@ class KeywordRepository implements KeywordRepositoryInterface
     public function markAsFailed(int $id, string $reason): bool
     {
         $keyword = Keyword::find($id);
-        if (!$keyword) return false;
-        
+        if (! $keyword) {
+            return false;
+        }
+
         $meta = $keyword->meta ?? [];
         $meta['error_reason'] = $reason;
-        
+
         $keyword->status = KeywordStatus::FAILED;
         $keyword->meta = $meta;
+
         return $keyword->save();
     }
 
@@ -123,7 +126,7 @@ class KeywordRepository implements KeywordRepositoryInterface
         if (empty($keywords)) {
             return 0;
         }
-        
+
         $now = now();
         $records = array_map(function ($keyword) use ($now) {
             $keyword['created_at'] = $keyword['created_at'] ?? $now;
@@ -143,10 +146,12 @@ class KeywordRepository implements KeywordRepositoryInterface
                     $keyword[$jsonColumn] = json_encode($keyword[$jsonColumn]);
                 }
             }
+
             return $keyword;
         }, $keywords);
 
         Keyword::insert($records);
+
         return count($records);
     }
 

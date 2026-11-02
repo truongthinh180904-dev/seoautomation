@@ -16,7 +16,7 @@ class CostTrackingService
         $articleId = $data['article_id'] ?? null;
         $campaignId = $data['campaign_id'] ?? null;
 
-        if (!$campaignId && $articleId) {
+        if (! $campaignId && $articleId) {
             $campaignId = Article::query()->whereKey($articleId)->value('campaign_id');
         }
 
@@ -72,7 +72,7 @@ class CostTrackingService
         $costWarning = $costLimit !== null && $costLimit > 0 && ($costUsed / $costLimit) >= 0.8;
 
         return new QuotaCheckResultDTO(
-            canProceed: !$articlesExceeded && !$costExceeded,
+            canProceed: ! $articlesExceeded && ! $costExceeded,
             articlesExceeded: $articlesExceeded,
             costExceeded: $costExceeded,
             warningThreshold: $articleWarning || $costWarning,
@@ -128,12 +128,12 @@ class CostTrackingService
                 $dirty = true;
             }
 
-            if (!$subscription->billing_cycle_start) {
+            if (! $subscription->billing_cycle_start) {
                 $subscription->billing_cycle_start = now()->startOfMonth();
                 $dirty = true;
             }
 
-            if (!$subscription->billing_cycle_end) {
+            if (! $subscription->billing_cycle_end) {
                 $subscription->billing_cycle_end = now()->endOfMonth();
                 $dirty = true;
             }

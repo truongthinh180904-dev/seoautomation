@@ -19,8 +19,8 @@ class ContentAnalysisAgent extends BaseAgent
         $content = $context['content'] ?? null;
         $tenantId = $context['tenant_id'] ?? null;
 
-        if (!$keyword || !$content || !$tenantId) {
-            throw new \InvalidArgumentException("Missing keyword, content, or tenant_id");
+        if (! $keyword || ! $content || ! $tenantId) {
+            throw new \InvalidArgumentException('Missing keyword, content, or tenant_id');
         }
 
         // Limit content length to save tokens (approx 15000 chars)
@@ -28,7 +28,7 @@ class ContentAnalysisAgent extends BaseAgent
 
         $promptData = $this->promptBuilderService->build($this->getType(), [
             'keyword' => $keyword,
-            'content' => $contentSubstring
+            'content' => $contentSubstring,
         ], $tenantId);
 
         $request = new AIRequestDTO(
@@ -44,7 +44,7 @@ class ContentAnalysisAgent extends BaseAgent
         $response = $this->callAI($request);
 
         $parsed = json_decode($response->content, true);
-        
+
         $semanticEntities = $parsed['semantic_entities'] ?? [];
         $semanticKeywords = $parsed['semantic_keywords'] ?? [];
         $searchIntent = $parsed['search_intent'] ?? null;

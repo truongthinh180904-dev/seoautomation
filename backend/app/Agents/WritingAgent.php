@@ -5,10 +5,9 @@ namespace App\Agents;
 use App\DTOs\AgentResultDTO;
 use App\DTOs\AIRequestDTO;
 use App\Enums\AgentType;
-use App\Exceptions\Article\DuplicateContentException;
-use App\Services\Article\DuplicateDetectionService;
-use App\Services\Article\ArticleContentFormatter;
 use App\Services\AI\JsonResponseParser;
+use App\Services\Article\ArticleContentFormatter;
+use App\Services\Article\DuplicateDetectionService;
 use Illuminate\Support\Facades\Log;
 
 class WritingAgent extends BaseAgent
@@ -24,8 +23,8 @@ class WritingAgent extends BaseAgent
         $outline = $context['outline'] ?? [];
         $tenantId = $context['tenant_id'] ?? null;
 
-        if (!$keyword || empty($outline) || !$tenantId) {
-            throw new \InvalidArgumentException("Missing required context fields.");
+        if (! $keyword || empty($outline) || ! $tenantId) {
+            throw new \InvalidArgumentException('Missing required context fields.');
         }
 
         $semanticKeywords = implode(', ', $context['semantic_keywords'] ?? []);
@@ -33,9 +32,9 @@ class WritingAgent extends BaseAgent
         $targetWordCount = max(1200, min(5000, (int) ($context['target_word_count'] ?? 3000)));
         $minWordCount = max(900, (int) round($targetWordCount * 0.75));
         $maxWordCount = (int) round($targetWordCount * 1.15);
-        
+
         $faqsToAnswer = '';
-        if (!empty($context['faqs']) && is_array($context['faqs'])) {
+        if (! empty($context['faqs']) && is_array($context['faqs'])) {
             $faqsToAnswer = json_encode($context['faqs'], JSON_UNESCAPED_UNICODE);
         }
 
@@ -53,7 +52,7 @@ class WritingAgent extends BaseAgent
 
         $request = new AIRequestDTO(
             systemPrompt: $promptData['system_prompt'],
-            userPrompt: $promptData['user_prompt'] . "\n\nYêu cầu định dạng bắt buộc:\n- Return ONLY valid JSON, không bọc markdown/code fence.\n- Độ dài mục tiêu: khoảng {$targetWordCount} từ, tối thiểu {$minWordCount}, tối đa {$maxWordCount}; không viết lan man vượt giới hạn.\n- content phải là HTML sạch cho WordPress, chỉ dùng <p>, <h2>, <h3>, <ul>, <ol>, <li>, <strong>, <em>, <a>, <table>.\n- Không dùng <h1> trong content vì title đã được lưu riêng.\n- Không lặp lại title ở đầu content.\n- Mỗi heading có 1-3 đoạn nội dung hữu ích, tự nhiên, không keyword stuffing.\n- Ưu tiên thông tin thực tế, câu ngắn, đoạn ngắn, không lỗi font/ký tự lạ.\n- Không trả chuỗi JSON bên trong content.",
+            userPrompt: $promptData['user_prompt']."\n\nYêu cầu định dạng bắt buộc:\n- Return ONLY valid JSON, không bọc markdown/code fence.\n- Độ dài mục tiêu: khoảng {$targetWordCount} từ, tối thiểu {$minWordCount}, tối đa {$maxWordCount}; không viết lan man vượt giới hạn.\n- content phải là HTML sạch cho WordPress, chỉ dùng <p>, <h2>, <h3>, <ul>, <ol>, <li>, <strong>, <em>, <a>, <table>.\n- Không dùng <h1> trong content vì title đã được lưu riêng.\n- Không lặp lại title ở đầu content.\n- Mỗi heading có 1-3 đoạn nội dung hữu ích, tự nhiên, không keyword stuffing.\n- Ưu tiên thông tin thực tế, câu ngắn, đoạn ngắn, không lỗi font/ký tự lạ.\n- Không trả chuỗi JSON bên trong content.",
             model: '',
             agentType: $this->getType(),
             tenantId: $tenantId,
@@ -67,7 +66,7 @@ class WritingAgent extends BaseAgent
         $parser = app(JsonResponseParser::class);
         $parsed = $parser->parse($response->content);
 
-        if (!$parsed) {
+        if (! $parsed) {
             Log::warning('WritingAgent JSON parse failed, falling back to raw content', [
                 'keyword_id' => $context['keyword_id'] ?? null,
                 'article_id' => $context['article_id'] ?? null,
@@ -83,7 +82,7 @@ class WritingAgent extends BaseAgent
         $excerpt = trim((string) ($parsed['excerpt'] ?? ''));
 
         if (empty($title) || empty($htmlContent)) {
-            return AgentResultDTO::failure($this->getType(), "Article validation failed: Missing title or content");
+            return AgentResultDTO::failure($this->getType(), 'Article validation failed: Missing title or content');
         }
 
         if (stripos($title, $keyword) === false) {
@@ -103,13 +102,13 @@ class WritingAgent extends BaseAgent
         return AgentResultDTO::success(
             agent: $this->getType(),
             data: [
-                'title'                => $title,
-                'content'             => $htmlContent,
-                'excerpt'             => $excerpt,
-                'word_count'          => $wordCount,
-                'ai_provider'         => $response->provider->value,
-                'ai_model'            => $response->model,
-                'ai_cost_usd'         => $response->totalCostUsd(),
+                'title' => $title,
+                'content' => $htmlContent,
+                'excerpt' => $excerpt,
+                'word_count' => $wordCount,
+                'ai_provider' => $response->provider->value,
+                'ai_model' => $response->model,
+                'ai_cost_usd' => $response->totalCostUsd(),
                 'duplicate_check_hash' => $contentHash,
             ],
             tokens: $response->totalTokens,
@@ -122,10 +121,10 @@ class WritingAgent extends BaseAgent
         $content = app(JsonResponseParser::class)->clean($content);
         $content = trim($content);
 
-        if (!str_contains($content, '<')) {
+        if (! str_contains($content, '<')) {
             $paragraphs = array_filter(array_map('trim', preg_split('/\R{2,}/', $content) ?: []));
-            $content = '<h1>' . e($keyword) . '</h1>' . implode('', array_map(
-                fn (string $paragraph) => '<p>' . nl2br(e($paragraph)) . '</p>',
+            $content = '<h1>'.e($keyword).'</h1>'.implode('', array_map(
+                fn (string $paragraph) => '<p>'.nl2br(e($paragraph)).'</p>',
                 $paragraphs
             ));
         }

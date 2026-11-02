@@ -33,6 +33,7 @@ class KeywordImportService
 
             if ($keyword === '') {
                 $skipped++;
+
                 continue;
             }
 
@@ -40,6 +41,7 @@ class KeywordImportService
 
             if (in_array($keyword, $existingKeywords, true) || isset($seenKeywords[$keywordKey])) {
                 $skipped++;
+
                 continue;
             }
 
@@ -76,7 +78,7 @@ class KeywordImportService
             ];
         }
 
-        if (!empty($validRows)) {
+        if (! empty($validRows)) {
             $imported = $this->repository->bulkCreate($validRows);
         }
 

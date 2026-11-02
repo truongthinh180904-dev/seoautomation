@@ -45,9 +45,9 @@ return [
     ],
 
     'zalo' => [
-        'oa_token'       => env('ZALO_OA_TOKEN'),
-        'app_secret'     => env('ZALO_APP_SECRET'),
-        'admin_user_id'  => env('ZALO_ADMIN_USER_ID'),
+        'oa_token' => env('ZALO_OA_TOKEN'),
+        'app_secret' => env('ZALO_APP_SECRET'),
+        'admin_user_id' => env('ZALO_ADMIN_USER_ID'),
     ],
 
     'serp' => [

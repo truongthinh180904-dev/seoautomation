@@ -8,12 +8,12 @@ class ImageOptimizationService
     {
         $originalSize = strlen($contents);
 
-        if (!config('media.optimization.enabled', true) || !function_exists('imagecreatefromstring')) {
+        if (! config('media.optimization.enabled', true) || ! function_exists('imagecreatefromstring')) {
             return $this->result($contents, $mimeType, false, $originalSize);
         }
 
         $image = @imagecreatefromstring($contents);
-        if (!$image) {
+        if (! $image) {
             return $this->result($contents, $mimeType, false, $originalSize);
         }
 
@@ -39,7 +39,7 @@ class ImageOptimizationService
         }
 
         $outputMimeType = $this->outputMimeType($image, $mimeType);
-        
+
         $maxSizeBytes = 100 * 1024; // 100KB
         $optimized = null;
 
@@ -47,7 +47,7 @@ class ImageOptimizationService
         if ($outputMimeType === 'image/png') {
             $optimized = $this->encode($image, $outputMimeType, 9);
             if ($optimized && strlen($optimized) > $maxSizeBytes) {
-                if (!$this->hasTransparency($image)) {
+                if (! $this->hasTransparency($image)) {
                     $outputMimeType = 'image/jpeg';
                 } else {
                     $outputMimeType = 'image/webp';
@@ -60,7 +60,7 @@ class ImageOptimizationService
             $quality = $initialQuality;
             do {
                 $optimized = $this->encode($image, $outputMimeType, $quality);
-                if (!$optimized || strlen($optimized) <= $maxSizeBytes) {
+                if (! $optimized || strlen($optimized) <= $maxSizeBytes) {
                     break;
                 }
                 $quality -= 10;
@@ -71,7 +71,7 @@ class ImageOptimizationService
 
         imagedestroy($image);
 
-        if (!$optimized || strlen($optimized) >= $originalSize) {
+        if (! $optimized || strlen($optimized) >= $originalSize) {
             return $this->result($contents, $mimeType, false, $originalSize, $width, $height);
         }
 
@@ -129,7 +129,7 @@ class ImageOptimizationService
         if (
             $mimeType !== 'image/jpeg'
             && config('media.optimization.convert_to_jpeg', true)
-            && !$this->hasTransparency($image)
+            && ! $this->hasTransparency($image)
         ) {
             return 'image/jpeg';
         }

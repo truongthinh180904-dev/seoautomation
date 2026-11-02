@@ -21,7 +21,7 @@ class OpenAIProvider implements AIProviderInterface
     {
         $startTime = microtime(true);
         $model = $request->model ?: 'gpt-4o-mini';
-        
+
         try {
             $response = $this->client->chat()->create([
                 'model' => $model,
@@ -53,9 +53,9 @@ class OpenAIProvider implements AIProviderInterface
         } catch (Throwable $e) {
             $message = strtolower($e->getMessage());
             if (str_contains($message, 'rate limit') || $e->getCode() === 429) {
-                throw new RateLimitException("OpenAI Rate Limit exceeded: " . $e->getMessage(), 429, $e);
+                throw new RateLimitException('OpenAI Rate Limit exceeded: '.$e->getMessage(), 429, $e);
             }
-            throw new ProviderException("OpenAI Error: " . $e->getMessage(), $this->getProvider(), $e->getCode(), $e);
+            throw new ProviderException('OpenAI Error: '.$e->getMessage(), $this->getProvider(), $e->getCode(), $e);
         }
     }
 
@@ -66,6 +66,6 @@ class OpenAIProvider implements AIProviderInterface
 
     public function isAvailable(): bool
     {
-        return !empty(config('openai.api_key'));
+        return ! empty(config('openai.api_key'));
     }
 }

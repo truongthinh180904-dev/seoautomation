@@ -30,8 +30,8 @@ class SerpResearchAgent extends BaseAgent
         $keywordId = $context['keyword_id'] ?? null;
         $tenantId = $context['tenant_id'] ?? null;
 
-        if (!$keyword || !$keywordId || !$tenantId) {
-            throw new \InvalidArgumentException("Missing required context: keyword, keyword_id, tenant_id");
+        if (! $keyword || ! $keywordId || ! $tenantId) {
+            throw new \InvalidArgumentException('Missing required context: keyword, keyword_id, tenant_id');
         }
 
         // 1. Call SerpResearchService

@@ -20,6 +20,7 @@ class UploadToWordPressMediaJob implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public int $tries = 3;
+
     public array $backoff = [60, 180, 300];
 
     public function __construct(
@@ -34,7 +35,7 @@ class UploadToWordPressMediaJob implements ShouldQueue
         $asset = MediaAsset::find($this->mediaAssetId);
         $site = WordPressSite::find($this->wordpressSiteId);
 
-        if (!$asset || !$site || $asset->status->value !== 'downloaded') {
+        if (! $asset || ! $site || $asset->status->value !== 'downloaded') {
             return;
         }
 

@@ -16,11 +16,11 @@ class ScheduleRepository implements ScheduleRepositoryInterface
             ->orderBy('next_run_at')
             ->orderByDesc('id');
 
-        if (!empty($filters['type'])) {
+        if (! empty($filters['type'])) {
             $query->where('type', $filters['type']);
         }
 
-        if (!empty($filters['status'])) {
+        if (! empty($filters['status'])) {
             $query->where('status', $filters['status']);
         }
 

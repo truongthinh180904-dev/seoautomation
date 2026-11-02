@@ -14,7 +14,7 @@ enum ArticleStatus: string
 
     public function label(): string
     {
-        return match($this) {
+        return match ($this) {
             self::DRAFT => 'Bản nháp',
             self::REVIEW => 'Chờ duyệt',
             self::APPROVED => 'Đã duyệt',
@@ -32,7 +32,7 @@ enum ArticleStatus: string
 
     public function canTransitionTo(self $status): bool
     {
-        return match($this) {
+        return match ($this) {
             self::DRAFT => $status === self::REVIEW,
             self::REVIEW => in_array($status, [self::APPROVED, self::REJECTED]),
             self::APPROVED => $status === self::PUBLISHING,

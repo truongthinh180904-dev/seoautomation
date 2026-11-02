@@ -2,9 +2,9 @@
 
 namespace App\Jobs\Media;
 
-use App\Models\Article;
 use App\Enums\ArticleStatus;
 use App\Jobs\Publishing\PublishToWordPressJob;
+use App\Models\Article;
 use App\Services\Article\ArticlePipelineService;
 use App\Services\Media\GeminiImageGenerationService;
 use Illuminate\Bus\Queueable;
@@ -20,7 +20,9 @@ class GenerateArticleImagesJob implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public int $tries = 2;
+
     public array $backoff = [120, 300];
+
     public int $timeout = 600;
 
     public function __construct(public int $articleId)
@@ -31,7 +33,7 @@ class GenerateArticleImagesJob implements ShouldQueue
     public function handle(GeminiImageGenerationService $generator, ArticlePipelineService $pipeline): void
     {
         $article = Article::with('keyword')->find($this->articleId);
-        if (!$article) {
+        if (! $article) {
             return;
         }
 
@@ -55,7 +57,7 @@ class GenerateArticleImagesJob implements ShouldQueue
                 'error' => $exception->getMessage(),
             ]);
 
-            $pipeline->fail($article, 'media_download', 'AI image generation failed: ' . $exception->getMessage());
+            $pipeline->fail($article, 'media_download', 'AI image generation failed: '.$exception->getMessage());
         }
     }
 }

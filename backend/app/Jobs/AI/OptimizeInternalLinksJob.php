@@ -11,12 +11,14 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Log;
 
 class OptimizeInternalLinksJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public $tries = 2;
+
     public $backoff = [60, 180];
 
     public function __construct(public int $articleId)
@@ -29,18 +31,18 @@ class OptimizeInternalLinksJob implements ShouldQueue
         try {
             $article = Article::with(['keyword', 'wordpressSite'])->find($this->articleId);
 
-            if (!$article || !$article->wordpressSite) {
+            if (! $article || ! $article->wordpressSite) {
                 return;
             }
 
             $relatedPostsRaw = $linkingService->fetchRelatedPosts($article->wordpressSite, $article->keyword->keyword ?? '');
-            
-            if (!empty($relatedPostsRaw)) {
+
+            if (! empty($relatedPostsRaw)) {
                 $relatedPosts = array_map(function ($post) {
                     return [
                         'id' => $post['id'] ?? '',
                         'title' => is_array($post['title']) ? ($post['title']['rendered'] ?? '') : ($post['title'] ?? ''),
-                        'url' => $post['link'] ?? ''
+                        'url' => $post['link'] ?? '',
                     ];
                 }, $relatedPostsRaw);
 
@@ -56,12 +58,12 @@ class OptimizeInternalLinksJob implements ShouldQueue
 
                 if ($result->success) {
                     $data = $result->data;
-                    if (!empty($data['content']) && $data['content'] !== $article->content) {
+                    if (! empty($data['content']) && $data['content'] !== $article->content) {
                         $article->content = $data['content'];
                         $article->save();
                     }
 
-                    if (!empty($data['links_added'])) {
+                    if (! empty($data['links_added'])) {
                         foreach ($data['links_added'] as $link) {
                             InternalLink::firstOrCreate([
                                 'source_article_id' => $article->id,
@@ -77,7 +79,7 @@ class OptimizeInternalLinksJob implements ShouldQueue
                 }
             }
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::warning("OptimizeInternalLinksJob failed: " . $e->getMessage());
+            Log::warning('OptimizeInternalLinksJob failed: '.$e->getMessage());
         } finally {
             if (class_exists(GenerateSeoMetadataJob::class)) {
                 GenerateSeoMetadataJob::dispatch($this->articleId)->onQueue('ai-writing');

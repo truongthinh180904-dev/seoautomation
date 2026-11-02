@@ -1,8 +1,11 @@
 <?php
 
+use App\Http\Middleware\ApiRateLimiter;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Routing\Middleware\ThrottleRequests;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -13,15 +16,15 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
-            'throttle' => \Illuminate\Routing\Middleware\ThrottleRequests::class,
+            'throttle' => ThrottleRequests::class,
         ]);
 
         $middleware->api(prepend: [
-            \App\Http\Middleware\ApiRateLimiter::class,
+            ApiRateLimiter::class,
             'throttle:api',
         ]);
     })
-    ->withSchedule(function (\Illuminate\Console\Scheduling\Schedule $schedule): void {
+    ->withSchedule(function (Schedule $schedule): void {
         // Process keywords due for AI pipeline — every 5 minutes
         $schedule->command('seo:process-scheduled')
             ->everyFiveMinutes()

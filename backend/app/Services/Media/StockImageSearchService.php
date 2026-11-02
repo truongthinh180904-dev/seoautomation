@@ -8,7 +8,7 @@ class StockImageSearchService
 {
     public function search(string $query, int $limit): array
     {
-        if (!config('ai.image_generation.stock.enabled', true) || $limit <= 0) {
+        if (! config('ai.image_generation.stock.enabled', true) || $limit <= 0) {
             return [];
         }
 
@@ -25,7 +25,7 @@ class StockImageSearchService
     protected function searchPexels(string $query, int $limit): array
     {
         $key = config('ai.image_generation.stock.pexels_api_key');
-        if (!$key) {
+        if (! $key) {
             return [];
         }
 
@@ -39,7 +39,7 @@ class StockImageSearchService
                 'orientation' => 'landscape',
             ]);
 
-        if (!$response->successful()) {
+        if (! $response->successful()) {
             return [];
         }
 
@@ -47,11 +47,11 @@ class StockImageSearchService
             ->map(fn (array $photo) => [
                 'url' => data_get($photo, 'src.landscape') ?: data_get($photo, 'src.large') ?: data_get($photo, 'src.large2x'),
                 'alt' => data_get($photo, 'alt') ?: $query,
-                'caption' => trim('Photo by ' . (data_get($photo, 'photographer') ?: 'Pexels')),
+                'caption' => trim('Photo by '.(data_get($photo, 'photographer') ?: 'Pexels')),
                 'provider' => 'pexels',
                 'credit' => data_get($photo, 'photographer_url'),
             ])
-            ->filter(fn (array $image) => !empty($image['url']))
+            ->filter(fn (array $image) => ! empty($image['url']))
             ->values()
             ->all();
     }
@@ -59,7 +59,7 @@ class StockImageSearchService
     protected function searchUnsplash(string $query, int $limit): array
     {
         $key = config('ai.image_generation.stock.unsplash_access_key');
-        if (!$key) {
+        if (! $key) {
             return [];
         }
 
@@ -73,7 +73,7 @@ class StockImageSearchService
                 'client_id' => $key,
             ]);
 
-        if (!$response->successful()) {
+        if (! $response->successful()) {
             return [];
         }
 
@@ -81,18 +81,18 @@ class StockImageSearchService
             ->map(fn (array $photo) => [
                 'url' => $this->optimizedUnsplashUrl(data_get($photo, 'urls.regular') ?: data_get($photo, 'urls.full')),
                 'alt' => data_get($photo, 'alt_description') ?: data_get($photo, 'description') ?: $query,
-                'caption' => trim('Photo by ' . (data_get($photo, 'user.name') ?: 'Unsplash')),
+                'caption' => trim('Photo by '.(data_get($photo, 'user.name') ?: 'Unsplash')),
                 'provider' => 'unsplash',
                 'credit' => data_get($photo, 'links.html'),
             ])
-            ->filter(fn (array $image) => !empty($image['url']))
+            ->filter(fn (array $image) => ! empty($image['url']))
             ->values()
             ->all();
     }
 
     protected function optimizedUnsplashUrl(?string $url): ?string
     {
-        if (!$url) {
+        if (! $url) {
             return null;
         }
 
@@ -105,10 +105,10 @@ class StockImageSearchService
             'fit' => 'max',
         ]);
 
-        return ($parts['scheme'] ?? 'https') . '://'
-            . ($parts['host'] ?? 'images.unsplash.com')
-            . ($parts['path'] ?? '')
-            . '?' . http_build_query($query);
+        return ($parts['scheme'] ?? 'https').'://'
+            .($parts['host'] ?? 'images.unsplash.com')
+            .($parts['path'] ?? '')
+            .'?'.http_build_query($query);
     }
 
     protected function uniqueByUrl(array $images): array
@@ -117,11 +117,12 @@ class StockImageSearchService
 
         return array_values(array_filter($images, function (array $image) use (&$seen) {
             $url = $image['url'] ?? null;
-            if (!$url || isset($seen[$url])) {
+            if (! $url || isset($seen[$url])) {
                 return false;
             }
 
             $seen[$url] = true;
+
             return true;
         }));
     }

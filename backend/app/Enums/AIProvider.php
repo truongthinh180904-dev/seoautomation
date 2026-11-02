@@ -11,7 +11,7 @@ enum AIProvider: string
 
     public function label(): string
     {
-        return match($this) {
+        return match ($this) {
             self::OPENAI => 'OpenAI',
             self::ANTHROPIC => 'Anthropic',
             self::GEMINI => 'Google Gemini',
@@ -21,7 +21,7 @@ enum AIProvider: string
 
     public function configKey(): string
     {
-        return match($this) {
+        return match ($this) {
             self::OPENAI => 'ai.providers.openai',
             self::ANTHROPIC => 'ai.providers.anthropic',
             self::GEMINI => 'ai.providers.gemini',

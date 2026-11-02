@@ -5,6 +5,7 @@ namespace App\Services\AI;
 use App\DTOs\AIRequestDTO;
 use App\DTOs\AIResponseDTO;
 use App\Enums\AIProvider;
+use App\Enums\NotificationType;
 use App\Exceptions\AI\AllProvidersFailedException;
 use App\Exceptions\AI\ProviderException;
 use App\Exceptions\AI\RateLimitException;
@@ -12,7 +13,6 @@ use App\Models\AILog;
 use App\Providers\AI\Contracts\AIProviderInterface;
 use App\Services\Cost\CostTrackingService;
 use App\Services\Notifications\NotificationService;
-use App\Enums\NotificationType;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redis;
 
@@ -25,7 +25,7 @@ class AIProviderService
 
     // Per-provider rate limit: max hits within window (in seconds)
     protected array $providerRateLimits = [
-        'openai'    => ['max' => 50, 'window' => 60],
+        'openai' => ['max' => 50, 'window' => 60],
         'anthropic' => ['max' => 40, 'window' => 60],
     ];
 
@@ -49,13 +49,13 @@ class AIProviderService
         foreach ($this->providerChain as $providerEnum) {
             $providerKey = $providerEnum->value;
 
-            if (!isset($this->providers[$providerKey])) {
+            if (! isset($this->providers[$providerKey])) {
                 continue;
             }
 
             $provider = $this->providers[$providerKey];
 
-            if (!$provider->isAvailable()) {
+            if (! $provider->isAvailable()) {
                 continue;
             }
 
@@ -63,6 +63,7 @@ class AIProviderService
             if ($this->isProviderRateLimited($providerKey)) {
                 Log::warning("AIProviderService: {$providerKey} is Redis rate-limited, skipping.");
                 $lastException = new RateLimitException("Provider {$providerKey} is locally rate-limited (Redis).");
+
                 continue;
             }
 
@@ -89,16 +90,18 @@ class AIProviderService
                 $this->markProviderRateLimitedInRedis($providerKey);
                 $this->logError($request, $providerEnum, 'rate_limited', $e->getMessage());
                 $this->logUsageError($request, $providerEnum, 'rate_limited', $e->getMessage());
+
                 continue;
             } catch (ProviderException $e) {
                 $lastException = $e;
                 $this->logError($request, $providerEnum, 'failed', $e->getMessage());
                 $this->logUsageError($request, $providerEnum, 'failed', $e->getMessage());
+
                 continue;
             }
         }
 
-        $errorMsg = "All AI providers failed. Last error: " . ($lastException ? $lastException->getMessage() : 'No available providers.');
+        $errorMsg = 'All AI providers failed. Last error: '.($lastException ? $lastException->getMessage() : 'No available providers.');
 
         $this->alertAdmin($request, $errorMsg, $lastException);
 
@@ -117,7 +120,7 @@ class AIProviderService
         foreach ($configured as $provider) {
             $providerEnum = AIProvider::tryFrom((string) $provider);
 
-            if ($providerEnum && !in_array($providerEnum, $chain, true)) {
+            if ($providerEnum && ! in_array($providerEnum, $chain, true)) {
                 $chain[] = $providerEnum;
             }
         }
@@ -131,6 +134,7 @@ class AIProviderService
     protected function isProviderRateLimited(string $providerKey): bool
     {
         $blockedKey = "ai_provider:blocked:{$providerKey}";
+
         return (bool) Redis::connection('cache')->exists($blockedKey);
     }
 
@@ -140,7 +144,9 @@ class AIProviderService
     protected function incrementProviderUsage(string $providerKey): void
     {
         $limits = $this->providerRateLimits[$providerKey] ?? null;
-        if (!$limits) return;
+        if (! $limits) {
+            return;
+        }
 
         $usageKey = "ai_provider:usage:{$providerKey}";
         $redis = Redis::connection('cache');
@@ -168,7 +174,7 @@ class AIProviderService
 
     protected function alertAdmin(AIRequestDTO $request, string $errorMsg, ?\Throwable $lastException): void
     {
-        if (!$request->tenantId) {
+        if (! $request->tenantId) {
             return;
         }
 
@@ -177,7 +183,7 @@ class AIProviderService
                 tenantId: $request->tenantId,
                 type: NotificationType::ARTICLE_QA_FAILED,
                 subject: 'AI providers failed',
-                message: $errorMsg . "\n\nLast error: " . ($lastException?->getMessage() ?? 'N/A'),
+                message: $errorMsg."\n\nLast error: ".($lastException?->getMessage() ?? 'N/A'),
                 data: [
                     'article_id' => $request->articleId,
                     'keyword_id' => $request->keywordId,
@@ -185,55 +191,55 @@ class AIProviderService
                 ]
             );
         } catch (\Throwable $e) {
-            Log::error("Failed to queue AI provider failure notification: " . $e->getMessage());
+            Log::error('Failed to queue AI provider failure notification: '.$e->getMessage());
         }
     }
 
     protected function logRequest(AIRequestDTO $request, AIResponseDTO $response, string $status, float $costUsd): void
     {
         AILog::create([
-            'tenant_id'        => $request->tenantId,
-            'article_id'       => $request->articleId,
-            'keyword_id'       => $request->keywordId,
-            'agent_type'       => $request->agentType->value,
-            'provider'         => $response->provider->value,
-            'model'            => $response->model,
-            'prompt_version'   => $request->promptVersion,
-            'prompt_tokens'    => $response->promptTokens,
+            'tenant_id' => $request->tenantId,
+            'article_id' => $request->articleId,
+            'keyword_id' => $request->keywordId,
+            'agent_type' => $request->agentType->value,
+            'provider' => $response->provider->value,
+            'model' => $response->model,
+            'prompt_version' => $request->promptVersion,
+            'prompt_tokens' => $response->promptTokens,
             'completion_tokens' => $response->completionTokens,
-            'total_tokens'     => $response->totalTokens,
-            'cost_usd'         => $costUsd,
-            'latency_ms'       => $response->latencyMs,
-            'status'           => $status,
-            'error_message'    => null,
-            'request_hash'     => $request->toHash(),
+            'total_tokens' => $response->totalTokens,
+            'cost_usd' => $costUsd,
+            'latency_ms' => $response->latencyMs,
+            'status' => $status,
+            'error_message' => null,
+            'request_hash' => $request->toHash(),
         ]);
     }
 
     protected function logError(AIRequestDTO $request, AIProvider $provider, string $status, string $errorMessage): void
     {
         AILog::create([
-            'tenant_id'        => $request->tenantId,
-            'article_id'       => $request->articleId,
-            'keyword_id'       => $request->keywordId,
-            'agent_type'       => $request->agentType->value,
-            'provider'         => $provider->value,
-            'model'            => $request->model,
-            'prompt_version'   => $request->promptVersion,
-            'prompt_tokens'    => 0,
+            'tenant_id' => $request->tenantId,
+            'article_id' => $request->articleId,
+            'keyword_id' => $request->keywordId,
+            'agent_type' => $request->agentType->value,
+            'provider' => $provider->value,
+            'model' => $request->model,
+            'prompt_version' => $request->promptVersion,
+            'prompt_tokens' => 0,
             'completion_tokens' => 0,
-            'total_tokens'     => 0,
-            'cost_usd'         => 0,
-            'latency_ms'       => 0,
-            'status'           => $status,
-            'error_message'    => $errorMessage,
-            'request_hash'     => $request->toHash(),
+            'total_tokens' => 0,
+            'cost_usd' => 0,
+            'latency_ms' => 0,
+            'status' => $status,
+            'error_message' => $errorMessage,
+            'request_hash' => $request->toHash(),
         ]);
     }
 
     protected function logUsage(AIRequestDTO $request, AIResponseDTO $response, string $status, float $costUsd): void
     {
-        if (!$request->tenantId) {
+        if (! $request->tenantId) {
             return;
         }
 
@@ -255,7 +261,7 @@ class AIProviderService
 
     protected function logUsageError(AIRequestDTO $request, AIProvider $provider, string $status, string $errorMessage): void
     {
-        if (!$request->tenantId) {
+        if (! $request->tenantId) {
             return;
         }
 

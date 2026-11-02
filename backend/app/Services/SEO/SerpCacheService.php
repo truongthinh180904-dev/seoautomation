@@ -17,7 +17,7 @@ class SerpCacheService
             ->where('expires_at', '>', now())
             ->first();
 
-        if (!$cache) {
+        if (! $cache) {
             return null;
         }
 

@@ -18,6 +18,7 @@ class CrawlCompetitorJob implements ShouldQueue
     use Batchable, Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public $tries = 2;
+
     public $backoff = [60, 180];
 
     public function __construct(
@@ -46,8 +47,8 @@ class CrawlCompetitorJob implements ShouldQueue
 
         $result = $agent->execute($context);
 
-        if (!$result->success) {
-            $this->markAsFailed("Agent error: " . $result->error);
+        if (! $result->success) {
+            $this->markAsFailed('Agent error: '.$result->error);
             if (str_contains(strtolower($result->error ?? ''), 'crawl failed')) {
                 throw new \Exception($result->error);
             }
@@ -56,7 +57,7 @@ class CrawlCompetitorJob implements ShouldQueue
 
     public function failed(Throwable $exception): void
     {
-        $this->markAsFailed("Job failed: " . $exception->getMessage());
+        $this->markAsFailed('Job failed: '.$exception->getMessage());
     }
 
     protected function markAsFailed(string $error): void
@@ -67,7 +68,7 @@ class CrawlCompetitorJob implements ShouldQueue
                 'tenant_id' => $this->tenantId,
                 'url' => $this->url,
                 'analysis_completed' => false,
-                'faqs' => ['error' => $error], 
+                'faqs' => ['error' => $error],
             ]
         );
         Log::error("CrawlCompetitorJob failed for URL {$this->url}: {$error}");

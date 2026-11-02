@@ -22,6 +22,7 @@ class GenerateSeoMetadataJob implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public $tries = 2;
+
     public $backoff = [60, 180];
 
     public function __construct(
@@ -35,11 +36,10 @@ class GenerateSeoMetadataJob implements ShouldQueue
         SEOScoreService $seoScoreService,
         ArticleQualityReportService $qualityReportService,
         ArticlePipelineService $pipeline
-    ): void
-    {
+    ): void {
         $article = Article::with('keyword')->find($this->articleId);
 
-        if (!$article || !$article->keyword) {
+        if (! $article || ! $article->keyword) {
             return;
         }
 
@@ -55,10 +55,11 @@ class GenerateSeoMetadataJob implements ShouldQueue
 
         $result = $agent->execute($context);
 
-        if (!$result->success) {
+        if (! $result->success) {
             $pipeline->fail($article, 'seo_metadata', $result->error ?? 'SEO Metadata failed.');
-            $article->update(['status' => ArticleStatus::FAILED, 'review_notes' => 'SEO Metadata failed: ' . $result->error]);
+            $article->update(['status' => ArticleStatus::FAILED, 'review_notes' => 'SEO Metadata failed: '.$result->error]);
             $this->fail(new \Exception($result->error));
+
             return;
         }
 
@@ -66,8 +67,8 @@ class GenerateSeoMetadataJob implements ShouldQueue
 
         $article->seo_title = $data['seo_title'];
         $article->seo_description = $data['seo_description'];
-        
-        if (!empty($data['faqs'])) {
+
+        if (! empty($data['faqs'])) {
             $article->faqs = $data['faqs'];
         }
 
@@ -96,7 +97,7 @@ class GenerateSeoMetadataJob implements ShouldQueue
             app(ArticlePipelineService::class)->fail($article, 'seo_metadata', $exception->getMessage());
             $article->update([
                 'status' => ArticleStatus::FAILED,
-                'review_notes' => 'SEO Metadata failed: ' . $exception->getMessage(),
+                'review_notes' => 'SEO Metadata failed: '.$exception->getMessage(),
             ]);
             $article->keyword?->update(['status' => KeywordStatus::FAILED]);
         }

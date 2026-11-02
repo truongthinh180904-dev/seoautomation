@@ -9,10 +9,10 @@ class ArticleContentFormatter
         $content = trim($content);
         $content = $this->unwrapJsonContent($content);
         $content = html_entity_decode($content, ENT_QUOTES | ENT_HTML5, 'UTF-8');
-        $content = str_replace(["\\n", "\r\n", "\r"], "\n", $content);
+        $content = str_replace(['\\n', "\r\n", "\r"], "\n", $content);
         $content = preg_replace('/```(?:html|json)?|```/i', '', $content) ?? $content;
 
-        if (!str_contains($content, '<')) {
+        if (! str_contains($content, '<')) {
             $content = $this->plainTextToHtml($content, $title);
         }
 
@@ -46,12 +46,12 @@ class ArticleContentFormatter
             $url = trim((string) ($item['url'] ?? ''));
             $anchor = trim((string) ($item['anchor'] ?? $item['anchor_text'] ?? ''));
 
-            if ($url === '' || $anchor === '' || str_contains($content, 'href="' . e($url) . '"')) {
+            if ($url === '' || $anchor === '' || str_contains($content, 'href="'.e($url).'"')) {
                 continue;
             }
 
-            $pattern = '/' . preg_quote($anchor, '/') . '(?![^<]*>|[^<>]*<\/a>)/iu';
-            $replacement = '<a href="' . e($url) . '">' . e($anchor) . '</a>';
+            $pattern = '/'.preg_quote($anchor, '/').'(?![^<]*>|[^<>]*<\/a>)/iu';
+            $replacement = '<a href="'.e($url).'">'.e($anchor).'</a>';
             $updated = preg_replace($pattern, $replacement, $content, 1);
 
             if (is_string($updated) && $updated !== $content) {
@@ -86,16 +86,18 @@ class ArticleContentFormatter
             }
 
             if (preg_match('/^[-*•]\s+(.+)$/u', $line, $matches)) {
-                $html .= '<ul><li>' . e($matches[1]) . '</li></ul>';
+                $html .= '<ul><li>'.e($matches[1]).'</li></ul>';
+
                 continue;
             }
 
-            if (mb_strlen($line) < 90 && !str_ends_with($line, '.')) {
-                $html .= '<h2>' . e($line) . '</h2>';
+            if (mb_strlen($line) < 90 && ! str_ends_with($line, '.')) {
+                $html .= '<h2>'.e($line).'</h2>';
+
                 continue;
             }
 
-            $html .= '<p>' . e($line) . '</p>';
+            $html .= '<p>'.e($line).'</p>';
         }
 
         return $html;
@@ -107,7 +109,7 @@ class ArticleContentFormatter
 
         if ($title) {
             $quoted = preg_quote($title, '/');
-            $content = preg_replace('/^\s*' . $quoted . '\s*/iu', '', $content, 1) ?? $content;
+            $content = preg_replace('/^\s*'.$quoted.'\s*/iu', '', $content, 1) ?? $content;
         }
 
         return $content;
@@ -116,6 +118,7 @@ class ArticleContentFormatter
     private function normalizeHeadings(string $content): string
     {
         $content = preg_replace('/<h1([^>]*)>/i', '<h2$1>', $content) ?? $content;
+
         return preg_replace('/<\/h1>/i', '</h2>', $content) ?? $content;
     }
 
@@ -130,6 +133,7 @@ class ArticleContentFormatter
     private function normalizeLists(string $content): string
     {
         $content = preg_replace('/<\/ul>\s*<ul>/i', '', $content) ?? $content;
+
         return preg_replace('/<li>\s*<\/li>/i', '', $content) ?? $content;
     }
 
@@ -147,7 +151,7 @@ class ArticleContentFormatter
         $items = [];
         foreach (preg_split('/[;\n]+/', $value) ?: [] as $chunk) {
             $parts = array_map('trim', explode('|', $chunk));
-            if (!empty($parts[0])) {
+            if (! empty($parts[0])) {
                 $items[] = [
                     'url' => $parts[0],
                     'anchor' => $parts[1] ?? parse_url($parts[0], PHP_URL_HOST) ?? $parts[0],

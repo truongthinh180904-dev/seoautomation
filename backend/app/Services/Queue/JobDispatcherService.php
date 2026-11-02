@@ -19,7 +19,7 @@ class JobDispatcherService
             ->where('status', KeywordStatus::PENDING)
             ->where(function ($q) {
                 $q->whereNull('scheduled_at')
-                  ->orWhere('scheduled_at', '<=', now());
+                    ->orWhere('scheduled_at', '<=', now());
             })
             ->limit(50) // safety cap per cron tick
             ->pluck('id')
@@ -37,7 +37,7 @@ class JobDispatcherService
         // Mark as processing so they're not re-picked
         Keyword::whereIn('id', $keywords)->update(['status' => KeywordStatus::PROCESSING]);
 
-        Log::info("JobDispatcherService: dispatched " . count($keywords) . " keywords into queue.");
+        Log::info('JobDispatcherService: dispatched '.count($keywords).' keywords into queue.');
 
         return count($keywords);
     }

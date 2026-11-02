@@ -3,9 +3,9 @@
 namespace App\Models;
 
 use App\Enums\AgentType;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Builder;
 
 class AIPromptVersion extends Model
 {
@@ -26,6 +26,7 @@ class AIPromptVersion extends Model
     ];
 
     public $timestamps = false;
+
     const UPDATED_AT = null;
 
     protected $casts = [

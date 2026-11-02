@@ -7,7 +7,8 @@ use Illuminate\Console\Command;
 
 class CheckStalledJobs extends Command
 {
-    protected $signature   = 'seo:check-stalled {--threshold=10 : Minutes before a processing job is considered stalled}';
+    protected $signature = 'seo:check-stalled {--threshold=10 : Minutes before a processing job is considered stalled}';
+
     protected $description = 'Detect and reset keywords stuck in PROCESSING state beyond the threshold';
 
     public function handle(JobDispatcherService $dispatcher): int

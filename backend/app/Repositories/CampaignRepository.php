@@ -14,16 +14,16 @@ class CampaignRepository implements CampaignRepositoryInterface
             ->with(['wordpressSite:id,name', 'creator:id,name'])
             ->withCount(['keywords', 'articles']);
 
-        if (!empty($filters['status'])) {
+        if (! empty($filters['status'])) {
             $query->where('status', $filters['status']);
         }
 
-        if (!empty($filters['wordpress_site_id'])) {
+        if (! empty($filters['wordpress_site_id'])) {
             $query->where('wordpress_site_id', $filters['wordpress_site_id']);
         }
 
-        if (!empty($filters['search'])) {
-            $query->where('name', 'like', '%' . $filters['search'] . '%');
+        if (! empty($filters['search'])) {
+            $query->where('name', 'like', '%'.$filters['search'].'%');
         }
 
         return $query->latest()->paginate($perPage);

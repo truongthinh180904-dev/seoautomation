@@ -61,7 +61,7 @@ class WordPressPreflightCheckService
 
         return [
             'key' => 'featured_image',
-            'passed' => !$required || filled($article->featured_image_url) || filled($article->image_assets),
+            'passed' => ! $required || filled($article->featured_image_url) || filled($article->image_assets),
             'message' => 'Featured image is available when required',
         ];
     }

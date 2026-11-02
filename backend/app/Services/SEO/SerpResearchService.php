@@ -25,22 +25,22 @@ class SerpResearchService
             $apiKey = config('seo.serp_api_key');
 
             // Optionally bypass if no API key is set for local development
-            if (!$apiKey && !app()->isProduction()) {
+            if (! $apiKey && ! app()->isProduction()) {
                 // Mock result
                 return [
                     new SerpResultDTO(
                         position: 1,
                         url: 'https://example.com/mock-result',
-                        title: 'Mock Result for ' . $keyword,
+                        title: 'Mock Result for '.$keyword,
                         description: 'This is a mock result because API key is missing.',
                         domain: 'example.com',
                         rawData: ['mock' => true]
-                    )
+                    ),
                 ];
             }
 
-            if (!$apiKey) {
-                throw new SerpApiException("SERP API Key is not configured.");
+            if (! $apiKey) {
+                throw new SerpApiException('SERP API Key is not configured.');
             }
 
             $response = Http::get('https://serpapi.com/search', [
@@ -52,7 +52,7 @@ class SerpResearchService
             ]);
 
             if ($response->failed()) {
-                throw new SerpApiException("SerpAPI Error: " . $response->body());
+                throw new SerpApiException('SerpAPI Error: '.$response->body());
             }
 
             if ($tenantId) {
@@ -72,7 +72,7 @@ class SerpResearchService
             $dtos = [];
             foreach ($organicResults as $result) {
                 $domain = parse_url($result['link'] ?? '', PHP_URL_HOST);
-                
+
                 $dtos[] = new SerpResultDTO(
                     position: $result['position'] ?? 0,
                     url: $result['link'] ?? '',

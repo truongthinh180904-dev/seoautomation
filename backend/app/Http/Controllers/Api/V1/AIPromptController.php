@@ -39,7 +39,7 @@ class AIPromptController extends Controller
     {
         $prompt = $this->repository->findVisibleForTenant($id, $request->user()->tenant_id);
 
-        if (!$prompt) {
+        if (! $prompt) {
             abort(404);
         }
 
@@ -66,7 +66,7 @@ class AIPromptController extends Controller
     {
         $prompt = $this->repository->findVisibleForTenant($id, $request->user()->tenant_id);
 
-        if (!$prompt) {
+        if (! $prompt) {
             abort(404);
         }
 
@@ -90,7 +90,7 @@ class AIPromptController extends Controller
     {
         $prompt = $this->repository->findVisibleForTenant($id, $request->user()->tenant_id);
 
-        if (!$prompt) {
+        if (! $prompt) {
             abort(404);
         }
 
@@ -114,7 +114,7 @@ class AIPromptController extends Controller
     {
         $prompt = $this->repository->findVisibleForTenant($id, $request->user()->tenant_id);
 
-        if (!$prompt) {
+        if (! $prompt) {
             abort(404);
         }
 
@@ -130,7 +130,7 @@ class AIPromptController extends Controller
     {
         $prompt = $this->repository->findVisibleForTenant($id, $request->user()->tenant_id);
 
-        if (!$prompt) {
+        if (! $prompt) {
             abort(404);
         }
 
@@ -155,7 +155,7 @@ class AIPromptController extends Controller
             return $data;
         }
 
-        if (!array_key_exists('tenant_id', $data)) {
+        if (! array_key_exists('tenant_id', $data)) {
             $data['tenant_id'] = $currentTenantId;
         }
 

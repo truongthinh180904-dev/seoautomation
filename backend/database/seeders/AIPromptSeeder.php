@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Enums\AgentType;
 use App\Models\AIPromptVersion;
+use App\Models\User;
 use Illuminate\Database\Seeder;
 
 class AIPromptSeeder extends Seeder
@@ -76,7 +77,7 @@ class AIPromptSeeder extends Seeder
             ],
         ];
 
-        $admin = \App\Models\User::first();
+        $admin = User::first();
 
         foreach ($prompts as $prompt) {
             AIPromptVersion::updateOrCreate(

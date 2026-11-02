@@ -20,7 +20,7 @@ class InternalLinkingAgent extends BaseAgent
         $relatedPosts = $context['related_posts'] ?? [];
         $tenantId = $context['tenant_id'] ?? null;
 
-        if (!$articleContent || !$tenantId || empty($relatedPosts)) {
+        if (! $articleContent || ! $tenantId || empty($relatedPosts)) {
             return AgentResultDTO::success($this->getType(), ['content' => $articleContent, 'links_added' => []]);
         }
 
@@ -31,7 +31,7 @@ class InternalLinkingAgent extends BaseAgent
             'related_posts' => $postsSummary,
         ], $tenantId);
 
-        $systemPrompt = $promptData['system_prompt'] . "\n\nYou MUST return the response ONLY as a JSON object with this exact structure: {\"modified_content\": \"HTML string with <a> tags inserted\", \"links_added\": [{\"url\": \"string\", \"anchor_text\": \"string\"}]}. Do not include markdown formatting.";
+        $systemPrompt = $promptData['system_prompt']."\n\nYou MUST return the response ONLY as a JSON object with this exact structure: {\"modified_content\": \"HTML string with <a> tags inserted\", \"links_added\": [{\"url\": \"string\", \"anchor_text\": \"string\"}]}. Do not include markdown formatting.";
 
         $request = new AIRequestDTO(
             systemPrompt: $systemPrompt,
@@ -49,7 +49,8 @@ class InternalLinkingAgent extends BaseAgent
         $parsed = json_decode($content, true);
 
         if (json_last_error() !== JSON_ERROR_NONE) {
-            Log::warning("InternalLinkingAgent failed to parse JSON: " . json_last_error_msg());
+            Log::warning('InternalLinkingAgent failed to parse JSON: '.json_last_error_msg());
+
             return AgentResultDTO::success($this->getType(), ['content' => $articleContent, 'links_added' => []]);
         }
 
@@ -78,6 +79,7 @@ class InternalLinkingAgent extends BaseAgent
         if (str_ends_with($content, '```')) {
             $content = substr($content, 0, -3);
         }
+
         return trim($content);
     }
 }

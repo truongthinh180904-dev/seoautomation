@@ -14,7 +14,7 @@ class LoginController extends Controller
     {
         $user = User::where('email', $request->email)->first();
 
-        if (!$user || !Hash::check($request->password, $user->password)) {
+        if (! $user || ! Hash::check($request->password, $user->password)) {
             return response()->json([
                 'message' => 'Thông tin đăng nhập không chính xác',
             ], 422);
@@ -33,7 +33,7 @@ class LoginController extends Controller
                 'user' => new UserResource($user),
                 'token' => $token,
                 'token_type' => 'Bearer',
-            ]
+            ],
         ]);
     }
 }

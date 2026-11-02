@@ -7,8 +7,8 @@ use App\Http\Requests\StoreScheduleRequest;
 use App\Http\Requests\UpdateScheduleRequest;
 use App\Http\Resources\ScheduleResource;
 use App\Repositories\Contracts\ScheduleRepositoryInterface;
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class ScheduleController extends Controller
 {
@@ -53,7 +53,7 @@ class ScheduleController extends Controller
     {
         $schedule = $this->schedules->findByIdForTenant($id, $request->user()->tenant_id);
 
-        if (!$schedule) {
+        if (! $schedule) {
             abort(404);
         }
 
@@ -69,7 +69,7 @@ class ScheduleController extends Controller
     {
         $schedule = $this->schedules->findByIdForTenant($id, $request->user()->tenant_id);
 
-        if (!$schedule) {
+        if (! $schedule) {
             abort(404);
         }
 

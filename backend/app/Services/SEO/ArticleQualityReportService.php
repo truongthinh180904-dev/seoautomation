@@ -34,11 +34,11 @@ class ArticleQualityReportService
         $readabilityScore = 0;
         $readabilityScore += $this->check($checks, 'word_count_ok', $wordCount >= config('quality.min_word_count'), 10, 'Đạt số từ tối thiểu');
         $readabilityScore += $this->check($checks, 'heading_structure_ok', $headingCount >= config('quality.min_heading_count'), 10, 'Đủ heading chính');
-        $readabilityScore += $this->check($checks, 'faq_exists', !config('quality.faq_required') || !empty($article->faqs), 5, 'FAQ đạt yêu cầu');
-        $readabilityScore += $this->check($checks, 'no_placeholder_text', !preg_match('/lorem ipsum|placeholder|TODO/i', (string) $article->content), 5, 'Không có placeholder text');
+        $readabilityScore += $this->check($checks, 'faq_exists', ! config('quality.faq_required') || ! empty($article->faqs), 5, 'FAQ đạt yêu cầu');
+        $readabilityScore += $this->check($checks, 'no_placeholder_text', ! preg_match('/lorem ipsum|placeholder|TODO/i', (string) $article->content), 5, 'Không có placeholder text');
 
         $mediaScore = 0;
-        $mediaScore += $this->check($checks, 'featured_image_exists', filled($article->featured_image_url) || filled($article->image_assets) || !config('quality.featured_image_required'), 10, 'Featured image đạt yêu cầu');
+        $mediaScore += $this->check($checks, 'featured_image_exists', filled($article->featured_image_url) || filled($article->image_assets) || ! config('quality.featured_image_required'), 10, 'Featured image đạt yêu cầu');
         $mediaScore += $this->check($checks, 'images_have_alt', true, 5, 'Alt ảnh sẵn sàng kiểm tra chi tiết ở media pipeline');
 
         $wpScore = 0;
@@ -47,7 +47,7 @@ class ArticleQualityReportService
         $wpScore += $this->check($checks, 'content_not_empty', trim($contentText) !== '', 5, 'Content không rỗng');
 
         foreach ($checks as $check) {
-            if (!$check['passed']) {
+            if (! $check['passed']) {
                 $warnings[] = $check['message'];
                 if (in_array($check['key'], ['meta_title_length_ok', 'meta_desc_length_ok', 'internal_links_count_ok', 'featured_image_exists'], true)) {
                     $autoFixable[] = $check['key'];

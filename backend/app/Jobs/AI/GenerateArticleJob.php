@@ -5,19 +5,19 @@ namespace App\Jobs\AI;
 use App\Agents\WritingAgent;
 use App\Enums\ArticleStatus;
 use App\Enums\KeywordStatus;
+use App\Jobs\Media\GenerateArticleImagesJob;
 use App\Models\Article;
 use App\Models\CompetitorAnalysis;
 use App\Models\Keyword;
-use App\Jobs\Media\GenerateArticleImagesJob;
-use App\Services\Article\ArticlePipelineService;
 use App\Services\Article\ArticleContentFormatter;
+use App\Services\Article\ArticlePipelineService;
+use App\Services\Cost\CostTrackingService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
-use App\Services\Cost\CostTrackingService;
 use Throwable;
 
 class GenerateArticleJob implements ShouldQueue
@@ -25,6 +25,7 @@ class GenerateArticleJob implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public $tries = 2;
+
     public $backoff = [120, 300];
 
     public function __construct(
@@ -39,12 +40,11 @@ class GenerateArticleJob implements ShouldQueue
         CostTrackingService $costTracking,
         ArticlePipelineService $pipeline,
         ArticleContentFormatter $formatter
-    ): void
-    {
+    ): void {
         $article = Article::find($this->articleId);
         $keyword = Keyword::find($this->keywordId);
 
-        if (!$article || !$keyword) {
+        if (! $article || ! $keyword) {
             return;
         }
 
@@ -88,9 +88,10 @@ class GenerateArticleJob implements ShouldQueue
 
         $result = $agent->execute($context);
 
-        if (!$result->success) {
+        if (! $result->success) {
             $pipeline->fail($article, 'writing', $result->error ?? 'WritingAgent failed');
             $this->fail(new \Exception($result->error ?? 'WritingAgent failed'));
+
             return;
         }
 
@@ -103,7 +104,7 @@ class GenerateArticleJob implements ShouldQueue
             'content' => $content,
             'excerpt' => $data['excerpt'],
             'word_count' => $formatter->wordCount($content),
-            'internal_links' => !empty($internalLinks) ? $internalLinks : $article->internal_links,
+            'internal_links' => ! empty($internalLinks) ? $internalLinks : $article->internal_links,
             'ai_provider' => $data['ai_provider'] ?? 'openai',
             'ai_model' => $data['ai_model'] ?? null,
             'ai_tokens_used' => $result->tokensUsed,
@@ -117,11 +118,11 @@ class GenerateArticleJob implements ShouldQueue
 
         // Dispatch OptimizeInternalLinksJob if it exists, otherwise fall back to GenerateSeoMetadataJob
         if (class_exists('App\Jobs\AI\OptimizeInternalLinksJob')) {
-            \App\Jobs\AI\OptimizeInternalLinksJob::dispatch($this->articleId)->onQueue('ai-writing');
+            OptimizeInternalLinksJob::dispatch($this->articleId)->onQueue('ai-writing');
         } elseif (class_exists('App\Jobs\AI\GenerateSeoMetadataJob')) {
-            \App\Jobs\AI\GenerateSeoMetadataJob::dispatch($this->articleId)->onQueue('ai-writing');
+            GenerateSeoMetadataJob::dispatch($this->articleId)->onQueue('ai-writing');
         } else {
-            Log::info("SEO Metadata and Internal Linking jobs not found, skipping.");
+            Log::info('SEO Metadata and Internal Linking jobs not found, skipping.');
         }
     }
 
@@ -133,7 +134,7 @@ class GenerateArticleJob implements ShouldQueue
 
             $article->update([
                 'status' => ArticleStatus::FAILED,
-                'review_notes' => "Writing generation failed: " . $exception->getMessage()
+                'review_notes' => 'Writing generation failed: '.$exception->getMessage(),
             ]);
 
             $article->keyword?->update(['status' => KeywordStatus::FAILED]);

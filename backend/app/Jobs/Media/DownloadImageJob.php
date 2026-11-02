@@ -2,10 +2,10 @@
 
 namespace App\Jobs\Media;
 
+use App\Enums\ArticleStatus;
 use App\Models\MediaAsset;
 use App\Services\Article\ArticlePipelineService;
 use App\Services\Media\ImageDownloadService;
-use App\Enums\ArticleStatus;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -18,6 +18,7 @@ class DownloadImageJob implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public int $tries = 3;
+
     public array $backoff = [60, 180, 300];
 
     public function __construct(public int $mediaAssetId)
@@ -28,7 +29,7 @@ class DownloadImageJob implements ShouldQueue
     public function handle(ImageDownloadService $downloader, ArticlePipelineService $pipeline): void
     {
         $asset = MediaAsset::find($this->mediaAssetId);
-        if (!$asset || $asset->status->value !== 'pending') {
+        if (! $asset || $asset->status->value !== 'pending') {
             return;
         }
 
