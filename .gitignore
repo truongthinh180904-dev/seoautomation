@@ -1,0 +1,23 @@
+# OS & Editor
+.DS_Store
+Thumbs.gp
+.idea/
+.vscode/
+
+# Database dumps & temporary scratch files (NEVER push to GitHub)
+*.sql
+*.sql.gz
+*.dump
+*.tmp
+test_write.tmp
+
+# Environment secrets (allow .env.example)
+.env
+.env.*
+!.env.example
+!backend/.env.example
+!frontend/.env.example
+
+# QLPK Autonomous Framework runtime state & logs
+qlpk-autonomous-framework/logs/
+qlpk-autonomous-framework/.agy-state/
