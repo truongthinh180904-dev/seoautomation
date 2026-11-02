@@ -25,16 +25,18 @@ LOCK_FILE="${STATE_DIR}/orchestrator.lock"
 STOP_FILE="${STATE_DIR}/STOP"
 PID_FILE="${STATE_DIR}/orchestrator.pid"
 
-# --- MODEL ROUTING CONFIGURATION (ĐỊNH TUYẾN MODEL CHUẨN) ---
-PLANNER_MODEL="${PLANNER_MODEL:-gemini-4-argon-medium}"
+# --- MODEL ROUTING CONFIGURATION (CLAUDE CODE ROUTING — REPLACING EXHAUSTED GEMINI 4) ---
+PLANNER_MODEL="${PLANNER_MODEL:-Claude Opus 5.5}"
 CODER_MODEL="${CODER_MODEL:-gemini-3.8-flash-high}"
-REVIEWER_MODEL="${REVIEWER_MODEL:-gemini-4-argon-medium}"
-DEBUG_FALLBACK_MODEL="${DEBUG_FALLBACK_MODEL:-gemini-3.8-flash-high}"
+REVIEWER_MODEL="${REVIEWER_MODEL:-Claude Sonnet 5.5}"
+DEBUG_FALLBACK_MODEL="${DEBUG_FALLBACK_MODEL:-Claude Sonnet 5.5}"
+SECONDARY_FALLBACK_MODEL="${SECONDARY_FALLBACK_MODEL:-GPT-OSS 120B (Medium)}"
 
 # --- CONFIGURATION & THRESHOLDS ---
 ALLOWED_BRANCHES="${ALLOWED_BRANCHES:-dev}"
 AUTO_PUSH_BRANCH="${AUTO_PUSH_BRANCH:-dev}"
 FORCE_RUN="${FORCE_RUN:-0}"
+ALLOW_DIRTY_RESUME="${ALLOW_DIRTY_RESUME:-1}"
 CPU_LOAD_PER_CORE_LIMIT="${CPU_LOAD_PER_CORE_LIMIT:-4.0}"
 MIN_FREE_MEMORY_PERCENT="${MIN_FREE_MEMORY_PERCENT:-10}"
 RESOURCE_POLL_INTERVAL_SECONDS="${RESOURCE_POLL_INTERVAL_SECONDS:-15}"
@@ -42,6 +44,7 @@ RESOURCE_WAIT_SECONDS="${RESOURCE_WAIT_SECONDS:-300}"
 
 TASK_COOLDOWN_SECONDS="${TASK_COOLDOWN_SECONDS:-15}"
 ERROR_COOLDOWN_SECONDS="${ERROR_COOLDOWN_SECONDS:-30}"
+MODEL_SWITCH_DELAY_SECONDS="${MODEL_SWITCH_DELAY_SECONDS:-5}"
 QUOTA_BACKOFF_SECONDS="${QUOTA_BACKOFF_SECONDS:-900}"
 
 MODEL_TIMEOUT_SECONDS="${MODEL_TIMEOUT_SECONDS:-900}"
@@ -167,6 +170,11 @@ assert_clean_git_tree() {
     local dirty_files
     dirty_files="$(git status --porcelain 2>/dev/null | grep -vE "${ALLOW_UNTRACKED_REGEX}" || true)"
     if [ -n "${dirty_files}" ]; then
+        if [ "${ALLOW_DIRTY_RESUME}" -eq 1 ] || [ "${FORCE_RUN}" -eq 1 ]; then
+            log_warn "Uncommitted files present on '${current_branch}'; continuing safely (ALLOW_DIRTY_RESUME=${ALLOW_DIRTY_RESUME}):"
+            echo "${dirty_files}" | tee -a "${MAIN_LOG}"
+            return 0
+        fi
         log_error "Dirty git tree detected before task run. Untracked/uncommitted files:"
         echo "${dirty_files}" | tee -a "${MAIN_LOG}"
         log_error "Clean or stash changes before running orchestrator."
@@ -336,84 +344,149 @@ generate_review_diff_snapshot() {
     ) > "${diff_file}"
 }
 
-# --- AGENT INVOCATION WRAPPERS (AGY CLI BINDINGS) ---
+# --- AGENT INVOCATION WRAPPERS (AGY CLI BINDINGS WITH MULTI-MODEL FAILOVER) ---
+# Try exact display name first (e.g. "Claude Sonnet 5.5"), then normalized CLI slugs if CLI rejects display format.
+run_agy_single_model() {
+    local requested_model="$1"
+    local mode="$2"
+    local prompt="$3"
+    local stdout_file="$4"
+    local stderr_file="$5"
+
+    local slug_hyphen slug_dot
+    slug_hyphen="$(echo "${requested_model}" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//')"
+    slug_dot="$(echo "${requested_model}" | tr '[:upper:]' '[:lower:]' | sed -E 's/[()]+//g; s/[[:space:]]+/-/g; s/-+$//')"
+
+    local candidates=("${requested_model}")
+    [ "${slug_dot}" != "${requested_model}" ] && candidates+=("${slug_dot}")
+    [ "${slug_hyphen}" != "${requested_model}" ] && [ "${slug_hyphen}" != "${slug_dot}" ] && candidates+=("${slug_hyphen}")
+
+    local exit_code=1
+    local cand
+    for cand in "${candidates[@]}"; do
+        exit_code=0
+        if [ "${stdout_file}" = "${stderr_file}" ]; then
+            agy --model "${cand}" --mode "${mode}" -p "${prompt}" > "${stdout_file}" 2>&1 || exit_code=$?
+        else
+            agy --model "${cand}" --mode "${mode}" -p "${prompt}" > "${stdout_file}" 2> "${stderr_file}" || exit_code=$?
+        fi
+
+        # If model identifier itself was unrecognized, immediately try next alias slug (<1s)
+        if [ "${exit_code}" -ne 0 ] && grep -Eiq "(unknown model|invalid model|model.*not found|unrecognized model|unsupported model)" "${stderr_file}" "${stdout_file}" 2>/dev/null; then
+            continue
+        fi
+        return "${exit_code}"
+    done
+    return "${exit_code}"
+}
+
+is_quota_error_in_files() {
+    local exit_code="$1"; shift
+    if [ "${exit_code}" -eq 429 ] || [ "${exit_code}" -eq 137 ]; then
+        return 0
+    fi
+    grep -Eiq "(429|RESOURCE_EXHAUSTED|Individual quota reached|quota|rate limit)" "$@" 2>/dev/null
+}
+
 invoke_planner() {
     local prompt="$1"
-    log_info "Invoking PLANNER (Model: ${PLANNER_MODEL}, Mode: plan)..."
+    local planner_err="${LOGS_DIR}/planner.err.log"
+    local planner_out="${LOGS_DIR}/planner.out.log"
     cd "${PROJECT_ROOT}" || return 1
-    agy --model "${PLANNER_MODEL}" --mode plan -p "${prompt}"
+
+    local m exit_code=1
+    for m in "${PLANNER_MODEL}" "${REVIEWER_MODEL}" "${SECONDARY_FALLBACK_MODEL}"; do
+        log_info "Invoking PLANNER (Model: ${m}, Mode: plan)..."
+        exit_code=0
+        run_agy_single_model "${m}" "plan" "${prompt}" "${planner_out}" "${planner_err}" || exit_code=$?
+        if ! is_quota_error_in_files "${exit_code}" "${planner_err}" "${planner_out}"; then
+            cat "${planner_out}"
+            return "${exit_code}"
+        fi
+        log_warn "PLANNER model '${m}' hit quota/rate limit. Switching to next model in ${MODEL_SWITCH_DELAY_SECONDS}s..."
+        sleep "${MODEL_SWITCH_DELAY_SECONDS}"
+    done
+    return "${exit_code}"
 }
 
 invoke_coder() {
     local prompt="$1"
     local task_id="${2:-TASK}"
-    local model="${CODER_MODEL}"
     local coder_log="${LOGS_DIR}/${task_id}-coder.log"
     refresh_workspace_snapshot
-    log_info "Invoking CODER for ${task_id} (Model: ${model}, Mode: accept-edits)..."
-
     cd "${PROJECT_ROOT}" || return 1
-    local exit_code=0
-    agy --model "${model}" --mode accept-edits -p "${prompt}" > "${coder_log}" 2>&1 || exit_code=$?
 
-    # Self-heal if model accidentally tried calling run_command ('command' permission denied in headless -p)
-    if grep -Fq 'required the "command" permission' "${coder_log}" 2>/dev/null; then
-        log_warn "Coder triggered headless 'command' permission auto-denial on ${task_id}. Retrying immediately with strict FILE-TOOLS-ONLY enforcement..."
-        refresh_workspace_snapshot
-        local strict_retry_prompt="CẢNH BÁO KHẨN CẤP: Lượt chạy vừa rồi của bạn bị HỦY NGAY LẬP TỨC vì bạn đã gọi tool chạy lệnh shell (\`run_command\` / \`command\`) trong chế độ headless \`-p\`!
+    local m exit_code=1
+    for m in "${CODER_MODEL}" "${DEBUG_FALLBACK_MODEL}" "${SECONDARY_FALLBACK_MODEL}" "${PLANNER_MODEL}"; do
+        log_info "Invoking CODER for ${task_id} (Model: ${m}, Mode: accept-edits)..."
+        exit_code=0
+        run_agy_single_model "${m}" "accept-edits" "${prompt}" "${coder_log}" "${coder_log}" || exit_code=$?
+
+        # Self-heal if model accidentally tried calling run_command ('command' permission denied in headless -p)
+        if grep -Fq 'required the "command" permission' "${coder_log}" 2>/dev/null; then
+            log_warn "Coder (${m}) triggered headless 'command' permission auto-denial on ${task_id}. Retrying immediately with strict FILE-TOOLS-ONLY enforcement..."
+            refresh_workspace_snapshot
+            local strict_retry_prompt="CẢNH BÁO KHẨN CẤP: Lượt chạy vừa rồi của bạn bị HỦY NGAY LẬP TỨC vì bạn đã gọi tool chạy lệnh shell (\`run_command\` / \`command\`) trong chế độ headless \`-p\`!
 TUYỆT ĐỐI KHÔNG ĐƯỢC GỌI \`run_command\`, \`ask_question\`, hay \`invoke_subagent\` DƯỚI BẤT KỲ HÌNH THỨC NÀO!
 Hãy CHỈ SỬ DỤNG 3 công cụ đã được cấp quyền sẵn là: \`read_file\`, \`write_file\`, \`edit_file\`.
 Để xem danh sách toàn bộ file/thư mục hiện có trong dự án (thay cho \`ls\`/\`find\`), hãy dùng \`read_file\` đọc \`${PROJECT_ROOT}/qlpk-autonomous-framework/.agy-state/workspace-files.txt\`.
 
 ${prompt}"
-        exit_code=0
-        agy --model "${model}" --mode accept-edits -p "${strict_retry_prompt}" >> "${coder_log}" 2>&1 || exit_code=$?
-    fi
+            exit_code=0
+            run_agy_single_model "${m}" "accept-edits" "${strict_retry_prompt}" "${coder_log}" "${coder_log}" || exit_code=$?
+        fi
 
-    # Fallback logic on Rate Limit (429) or quota message
-    if [ "${exit_code}" -eq 429 ] || [ "${exit_code}" -eq 137 ] || grep -Eiq "(429|RESOURCE_EXHAUSTED|quota|rate limit)" "${coder_log}" 2>/dev/null; then
-        log_warn "Coder quota/rate limit encountered (${exit_code}). Activating DEBUG_FALLBACK_MODEL: ${DEBUG_FALLBACK_MODEL} after ${QUOTA_BACKOFF_SECONDS}s backoff..."
-        sleep "${QUOTA_BACKOFF_SECONDS}"
+        if ! is_quota_error_in_files "${exit_code}" "${coder_log}"; then
+            return "${exit_code}"
+        fi
+
+        log_warn "Coder model '${m}' hit quota/rate limit (${exit_code}). Switching immediately (${MODEL_SWITCH_DELAY_SECONDS}s) to next fallback model..."
+        sleep "${MODEL_SWITCH_DELAY_SECONDS}"
         refresh_workspace_snapshot
-        exit_code=0
-        agy --model "${DEBUG_FALLBACK_MODEL}" --mode accept-edits -p "${prompt}" >> "${coder_log}" 2>&1 || exit_code=$?
-    fi
-    return "${exit_code}"
+    done
+
+    log_warn "All Coder models hit rate limits; cooling down ${QUOTA_BACKOFF_SECONDS}s before retrying ${DEBUG_FALLBACK_MODEL}..."
+    sleep "${QUOTA_BACKOFF_SECONDS}"
+    run_agy_single_model "${DEBUG_FALLBACK_MODEL}" "accept-edits" "${prompt}" "${coder_log}" "${coder_log}"
 }
 
 invoke_reviewer() {
     local task_id="$1"
     local prompt="$2"
-    local model="${REVIEWER_MODEL}"
     local review_report="${REPORTS_DIR}/${task_id}-review.md"
     local reviewer_err="${LOGS_DIR}/${task_id}-reviewer.err.log"
     generate_review_diff_snapshot "${task_id}"
-    log_info "Invoking REVIEWER for ${task_id} (Model: ${model}, Mode: plan)..."
-
     cd "${PROJECT_ROOT}" || return 1
-    local exit_code=0
-    agy --model "${model}" --mode plan -p "${prompt}" > "${review_report}" 2> "${reviewer_err}" || exit_code=$?
 
-    # Self-heal if Reviewer tried calling run_command ('command' permission denied in headless plan mode)
-    if grep -Fq 'required the "command" permission' "${reviewer_err}" 2>/dev/null || grep -Fq 'required the "command" permission' "${review_report}" 2>/dev/null; then
-        log_warn "Reviewer triggered headless 'command' permission auto-denial on ${task_id}. Retrying immediately with strict READ_FILE-ONLY enforcement..."
-        local strict_rev_prompt="CẢNH BÁO KHẨN CẤP: Lượt chạy vừa rồi bị HỦY vì bạn gọi \`run_command\` trong chế độ headless \`--mode plan\`!
+    local m exit_code=1
+    for m in "${REVIEWER_MODEL}" "${PLANNER_MODEL}" "${SECONDARY_FALLBACK_MODEL}" "${CODER_MODEL}"; do
+        log_info "Invoking REVIEWER for ${task_id} (Model: ${m}, Mode: plan)..."
+        exit_code=0
+        run_agy_single_model "${m}" "plan" "${prompt}" "${review_report}" "${reviewer_err}" || exit_code=$?
+
+        # Self-heal if Reviewer tried calling run_command ('command' permission denied in headless plan mode)
+        if grep -Fq 'required the "command" permission' "${reviewer_err}" 2>/dev/null || grep -Fq 'required the "command" permission' "${review_report}" 2>/dev/null; then
+            log_warn "Reviewer (${m}) triggered headless 'command' permission auto-denial on ${task_id}. Retrying immediately with strict READ_FILE-ONLY enforcement..."
+            local strict_rev_prompt="CẢNH BÁO KHẨN CẤP: Lượt chạy vừa rồi bị HỦY vì bạn gọi \`run_command\` trong chế độ headless \`--mode plan\`!
 TUYỆT ĐỐI CẤM GỌI \`run_command\`, \`ask_question\`, hay \`invoke_subagent\`! CHỈ ĐƯỢC GỌI \`read_file\`!
 Bản \`git diff\` đầy đủ đã có sẵn tại \`${PROJECT_ROOT}/qlpk-autonomous-framework/.agy-state/${task_id}-diff.patch\` — hãy đọc bằng \`read_file\`!
 
 ${prompt}"
-        exit_code=0
-        agy --model "${model}" --mode plan -p "${strict_rev_prompt}" > "${review_report}" 2>> "${reviewer_err}" || exit_code=$?
-    fi
+            exit_code=0
+            run_agy_single_model "${m}" "plan" "${strict_rev_prompt}" "${review_report}" "${reviewer_err}" || exit_code=$?
+        fi
 
-    # Fallback logic on Rate Limit (429)
-    if [ "${exit_code}" -eq 429 ] || grep -Eiq "(429|RESOURCE_EXHAUSTED|quota|rate limit)" "${reviewer_err}" 2>/dev/null; then
-        log_warn "Reviewer quota/rate limit encountered (${exit_code}). Activating DEBUG_FALLBACK_MODEL: ${DEBUG_FALLBACK_MODEL} after ${QUOTA_BACKOFF_SECONDS}s backoff..."
-        sleep "${QUOTA_BACKOFF_SECONDS}"
-        exit_code=0
-        agy --model "${DEBUG_FALLBACK_MODEL}" --mode plan -p "${prompt}" > "${review_report}" 2>> "${reviewer_err}" || exit_code=$?
-    fi
-    return "${exit_code}"
+        if ! is_quota_error_in_files "${exit_code}" "${reviewer_err}" "${review_report}"; then
+            return "${exit_code}"
+        fi
+
+        log_warn "Reviewer model '${m}' hit quota/rate limit (${exit_code}). Switching immediately (${MODEL_SWITCH_DELAY_SECONDS}s) to next fallback model..."
+        sleep "${MODEL_SWITCH_DELAY_SECONDS}"
+    done
+
+    log_warn "All Reviewer models hit rate limits; cooling down ${QUOTA_BACKOFF_SECONDS}s before retrying ${SECONDARY_FALLBACK_MODEL}..."
+    sleep "${QUOTA_BACKOFF_SECONDS}"
+    run_agy_single_model "${SECONDARY_FALLBACK_MODEL}" "plan" "${prompt}" "${review_report}" "${reviewer_err}"
 }
 
 # --- TASK DEFINITIONS & PROGRESS UPDATER ---
@@ -707,7 +780,8 @@ do_dry_run() {
     echo "   - PLANNER Model        : ${PLANNER_MODEL} (Mode: plan)"
     echo "   - CODER Model          : ${CODER_MODEL} (Mode: accept-edits)"
     echo "   - REVIEWER Model       : ${REVIEWER_MODEL} (Mode: plan)"
-    echo "   - DEBUG FALLBACK Model : ${DEBUG_FALLBACK_MODEL}"
+    echo "   - DEBUG FALLBACK #1    : ${DEBUG_FALLBACK_MODEL}"
+    echo "   - DEBUG FALLBACK #2    : ${SECONDARY_FALLBACK_MODEL}"
 
     log_info "2. Checking Git..."
     git --version || log_error "git missing!"

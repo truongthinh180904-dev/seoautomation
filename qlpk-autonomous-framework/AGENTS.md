@@ -12,11 +12,11 @@ Nhằm đảm bảo tính khách quan và ngăn chặn triệt để tình trạ
 
 | Vai trò (Role) | Model Khuyến Nghị | Chế độ (--mode) | Trách nhiệm chính | Quyền hạn |
 | :--- | :--- | :--- | :--- | :--- |
-| **PLANNER** | `gemini-4-argon-medium` | `plan` (Chỉ đọc) | Đọc yêu cầu dự án, chia task nguyên tử, xác định dependencies, ghi `ROADMAP.md` và `PROGRESS.md`. | Chỉ đọc code, không sửa file source. |
-| **CODER** | `gemini-3.8-flash-high` | `accept-edits` (Ghi file) | Đọc đặc tả task, viết code đúng phạm vi `allowed_files` bằng `write_file`/`edit_file`. | Sửa file trong danh sách cho phép. **Cấm chạy lệnh shell nguy hiểm**. |
+| **PLANNER** | `Claude Opus 5.5` | `plan` (Chỉ đọc) | Đọc yêu cầu dự án, chia task nguyên tử, xác định dependencies, ghi `ROADMAP.md` và `PROGRESS.md`. | Chỉ đọc code, không sửa file source. |
+| **CODER** | `gemini-3.8-flash-high` *(dự phòng: `Claude Sonnet 5.5` / `GPT-OSS 120B (Medium)`)* | `accept-edits` (Ghi file) | Đọc đặc tả task, viết code đúng phạm vi `allowed_files` bằng `write_file`/`edit_file`. | Sửa file trong danh sách cho phép. **Cấm chạy lệnh shell nguy hiểm**. |
 | **AUTOMATED TESTER** | Shell Runner (Bash thật, KHÔNG dùng LLM) | Trực tiếp trong sandbox | Chạy kiểm thử thật bằng lệnh shell (`php artisan test`, `npm run build`, `php artisan pint --test`). Lấy `exit_code == 0` làm bằng chứng. | Thực thi lệnh test, xuất file report `reports/tasks/<task_id>-test.md`. |
-| **REVIEWER** | `gemini-4-argon-medium` | `plan` (Chỉ đọc) | Đọc `git diff` và file test report. Kiểm duyệt 14 tiêu chí, chỉ phê duyệt khi đạt chuẩn qua JSON `{"verdict": "PASS"}`. | Chỉ đọc code, xuất file `reports/tasks/<task_id>-review.md`. |
-| **DEBUG FALLBACK** | `gemini-3.8-flash-high` | `accept-edits` | Tự động kích hoạt khi Coder hoặc Reviewer bị lỗi Quota / Rate Limit (429). | Thay thế tạm thời để giải cứu pipeline. |
+| **REVIEWER** | `Claude Sonnet 5.5` *(dự phòng: `Claude Opus 5.5` / `GPT-OSS 120B (Medium)`)* | `plan` (Chỉ đọc) | Đọc `git diff` và file test report. Kiểm duyệt 14 tiêu chí, chỉ phê duyệt khi đạt chuẩn qua JSON `{"verdict": "PASS"}`. | Chỉ đọc code, xuất file `reports/tasks/<task_id>-review.md`. |
+| **DEBUG FALLBACK** | `Claude Sonnet 5.5` -> `GPT-OSS 120B (Medium)` | Theo vai trò | Tự động kích hoạt ngay sau 5s khi Model chính bị lỗi Quota / Rate Limit (429). | Thay thế tức thời để giải cứu pipeline. |
 
 ---
 

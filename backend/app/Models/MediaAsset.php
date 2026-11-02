@@ -14,6 +14,8 @@ class MediaAsset extends Model
 
     protected $fillable = [
         'tenant_id',
+        'workspace_id',
+        'website_id',
         'campaign_id',
         'article_id',
         'source_type',
@@ -36,6 +38,16 @@ class MediaAsset extends Model
         'metadata' => 'array',
         'wordpress_media_id' => 'integer',
     ];
+
+    public function workspace(): BelongsTo
+    {
+        return $this->belongsTo(Workspace::class);
+    }
+
+    public function website(): BelongsTo
+    {
+        return $this->belongsTo(Website::class);
+    }
 
     public function campaign(): BelongsTo
     {

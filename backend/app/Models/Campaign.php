@@ -15,6 +15,8 @@ class Campaign extends Model
 
     protected $fillable = [
         'tenant_id',
+        'workspace_id',
+        'website_id',
         'wordpress_site_id',
         'created_by',
         'name',
@@ -44,6 +46,16 @@ class Campaign extends Model
         'completed_at' => 'datetime',
         'default_word_count' => 'integer',
     ];
+
+    public function workspace(): BelongsTo
+    {
+        return $this->belongsTo(Workspace::class);
+    }
+
+    public function website(): BelongsTo
+    {
+        return $this->belongsTo(Website::class);
+    }
 
     public function wordpressSite(): BelongsTo
     {

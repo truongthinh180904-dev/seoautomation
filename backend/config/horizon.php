@@ -267,7 +267,7 @@ return [
             ],
             'supervisor-default' => [
                 'connection' => 'redis',
-                'queue' => ['default'],
+                'queue' => ['default', 'notifications', 'seo'],
                 'balance' => 'auto',
                 'minProcesses' => 1,
                 'maxProcesses' => 3,
@@ -288,7 +288,7 @@ return [
         'local' => [
             'supervisor-local' => [
                 'connection' => 'redis',
-                'queue' => ['critical', 'publishing', 'ai-writing', 'ai-research', 'imports', 'default', 'cleanup'],
+                'queue' => ['critical', 'publishing', 'ai-writing', 'ai-research', 'imports', 'default', 'notifications', 'seo', 'cleanup'],
                 'balance' => 'false',
                 'processes' => 3,
                 'tries' => 3,

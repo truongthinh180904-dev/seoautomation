@@ -15,6 +15,8 @@ class Article extends Model
 
     protected $fillable = [
         'tenant_id',
+        'workspace_id',
+        'website_id',
         'keyword_id',
         'campaign_id',
         'wordpress_site_id',
@@ -66,6 +68,10 @@ class Article extends Model
         'duplicate_check_hash',
     ];
 
+    protected $hidden = [
+        'review_token',
+    ];
+
     protected $casts = [
         'status' => ArticleStatus::class,
         'outline' => 'array',
@@ -92,6 +98,16 @@ class Article extends Model
     public function tenant(): BelongsTo
     {
         return $this->belongsTo(Tenant::class);
+    }
+
+    public function workspace(): BelongsTo
+    {
+        return $this->belongsTo(Workspace::class);
+    }
+
+    public function website(): BelongsTo
+    {
+        return $this->belongsTo(Website::class);
     }
 
     public function keyword(): BelongsTo
@@ -147,6 +163,16 @@ class Article extends Model
     public function qualityReports(): HasMany
     {
         return $this->hasMany(QualityReport::class);
+    }
+
+    public function tasks(): HasMany
+    {
+        return $this->hasMany(Task::class);
+    }
+
+    public function usageRecords(): HasMany
+    {
+        return $this->hasMany(UsageRecord::class);
     }
 
     public function generateReviewToken(): string

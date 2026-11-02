@@ -14,7 +14,7 @@ return new class extends Migration
             $table->string('name');
             $table->string('email');
             $table->string('password');
-            $table->enum('role', ['super_admin', 'admin', 'editor', 'viewer']);
+            $table->enum('role', ['super_admin', 'admin', 'editor', 'viewer'])->default('editor');
             $table->string('zalo_user_id', 100)->nullable();
             $table->string('avatar_url', 500)->nullable();
             $table->timestamp('last_login_at')->nullable();
