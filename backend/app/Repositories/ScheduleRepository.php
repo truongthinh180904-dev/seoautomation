@@ -29,7 +29,12 @@ class ScheduleRepository implements ScheduleRepositoryInterface
 
     public function findByIdForTenant(int $id, int $tenantId): ?Schedule
     {
-        return Schedule::where('tenant_id', $tenantId)
+        return Schedule::where(function ($q) use ($tenantId) {
+            $q->where('tenant_id', $tenantId);
+            if (app()->bound('current_workspace_id')) {
+                $q->orWhere('workspace_id', app('current_workspace_id'));
+            }
+        })
             ->with('creator:id,name')
             ->find($id);
     }

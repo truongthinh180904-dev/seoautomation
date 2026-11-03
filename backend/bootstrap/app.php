@@ -1,6 +1,9 @@
 <?php
 
 use App\Http\Middleware\ApiRateLimiter;
+use App\Http\Middleware\EnsureActiveAccount;
+use App\Http\Middleware\EnsurePlatformAdmin;
+use App\Http\Middleware\EnsureWorkspaceAccess;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -17,6 +20,9 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'throttle' => ThrottleRequests::class,
+            'workspace' => EnsureWorkspaceAccess::class,
+            'admin' => EnsurePlatformAdmin::class,
+            'active_account' => EnsureActiveAccount::class,
         ]);
 
         $middleware->api(prepend: [

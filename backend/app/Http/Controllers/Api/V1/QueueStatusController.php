@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -12,6 +14,12 @@ class QueueStatusController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
+        $user = $request->user();
+        $isSuperAdmin = ($user?->role === UserRole::SUPER_ADMIN || $user?->role?->value === 'super_admin' || $user?->role === 'super_admin');
+        if (! $user || (! $user->is_platform_admin && ! $isSuperAdmin)) {
+            abort(403, 'Yêu cầu quyền Quản trị viên hệ thống.');
+        }
+
         $queues = ['ai-research', 'ai-writing', 'imports', 'publishing', 'notifications', 'default'];
 
         $stats = array_map(function (string $queue) {
@@ -24,17 +32,19 @@ class QueueStatusController extends Controller
             ];
         }, $queues);
 
-        $failedJobs = DB::table('failed_jobs')
-            ->orderByDesc('failed_at')
-            ->limit(50)
-            ->get()
-            ->map(fn ($job) => [
-                'id' => $job->id,
-                'queue' => $job->queue,
-                'payload' => json_decode($job->payload, true),
-                'exception' => str($job->exception)->limit(300)->toString(),
-                'failed_at' => $job->failed_at,
-            ]);
+        $failedJobs = Schema::hasTable('failed_jobs')
+            ? DB::table('failed_jobs')
+                ->orderByDesc('failed_at')
+                ->limit(50)
+                ->get()
+                ->map(fn ($job) => [
+                    'id' => $job->id,
+                    'queue' => $job->queue,
+                    'payload' => json_decode($job->payload, true),
+                    'exception' => str($job->exception)->limit(300)->toString(),
+                    'failed_at' => $job->failed_at,
+                ])
+            : collect();
 
         return response()->json([
             'stats' => $stats,
@@ -42,9 +52,15 @@ class QueueStatusController extends Controller
         ]);
     }
 
-    public function retry(int $jobId): JsonResponse
+    public function retry(Request $request, int $jobId): JsonResponse
     {
-        \Artisan::call('queue:retry', ['id' => [$jobId]]);
+        $user = $request->user();
+        $isSuperAdmin = ($user?->role === UserRole::SUPER_ADMIN || $user?->role?->value === 'super_admin' || $user?->role === 'super_admin');
+        if (! $user || (! $user->is_platform_admin && ! $isSuperAdmin)) {
+            abort(403, 'Yêu cầu quyền Quản trị viên hệ thống.');
+        }
+
+        Artisan::call('queue:retry', ['id' => [$jobId]]);
 
         return response()->json(['message' => "Job #{$jobId} queued for retry."]);
     }

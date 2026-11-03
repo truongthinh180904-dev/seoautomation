@@ -18,7 +18,12 @@ class ArticleRepository implements ArticleRepositoryInterface
     public function findByIdForTenant(int $id, int $tenantId): ?Article
     {
         return Article::with(['keyword', 'wordpressSite', 'user'])
-            ->where('tenant_id', $tenantId)
+            ->where(function ($q) use ($tenantId) {
+                $q->where('tenant_id', $tenantId);
+                if (app()->bound('current_workspace_id')) {
+                    $q->orWhere('workspace_id', app('current_workspace_id'));
+                }
+            })
             ->find($id);
     }
 
@@ -100,17 +105,32 @@ class ArticleRepository implements ArticleRepositoryInterface
 
     public function update(int $id, array $data): bool
     {
-        return Article::where('id', $id)->update($data) > 0;
+        $article = Article::find($id);
+        if (! $article) {
+            return false;
+        }
+
+        return $article->update($data);
     }
 
     public function updateStatus(int $id, ArticleStatus $status): bool
     {
-        return Article::where('id', $id)->update(['status' => $status]) > 0;
+        $article = Article::find($id);
+        if (! $article) {
+            return false;
+        }
+
+        return $article->update(['status' => $status]);
     }
 
     public function deleteForTenant(int $id, int $tenantId): bool
     {
-        return Article::where('tenant_id', $tenantId)
+        return Article::where(function ($q) use ($tenantId) {
+            $q->where('tenant_id', $tenantId);
+            if (app()->bound('current_workspace_id')) {
+                $q->orWhere('workspace_id', app('current_workspace_id'));
+            }
+        })
             ->where('id', $id)
             ->delete() > 0;
     }

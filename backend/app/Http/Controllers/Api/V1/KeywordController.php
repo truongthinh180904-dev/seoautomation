@@ -9,11 +9,13 @@ use App\Http\Requests\ImportKeywordsRequest;
 use App\Http\Requests\StoreKeywordRequest;
 use App\Http\Requests\UpdateKeywordRequest;
 use App\Http\Resources\KeywordResource;
+use App\Jobs\SERP\SerpResearchJob;
 use App\Repositories\Contracts\KeywordRepositoryInterface;
 use App\Services\Keyword\KeywordImportPreviewService;
 use App\Services\Keyword\KeywordImportService;
 use App\Services\Keyword\KeywordParserService;
 use Exception;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class KeywordController extends Controller
@@ -38,13 +40,34 @@ class KeywordController extends Controller
 
     public function store(StoreKeywordRequest $request)
     {
+        $workspace = $request->attributes->get('current_workspace');
+        $workspaceId = $workspace?->id ?: $request->user()->default_workspace_id;
+
         $data = array_merge($request->validated(), [
             'tenant_id' => $request->user()->tenant_id,
+            'workspace_id' => $workspaceId,
             'user_id' => $request->user()->id,
         ]);
         $keyword = $this->repository->create($data);
 
         return new KeywordResource($keyword);
+    }
+
+    public function serp(Request $request, int $id): JsonResponse
+    {
+        $keyword = $this->repository->findByIdForTenant($id, $request->user()->tenant_id);
+        if (! $keyword) {
+            abort(404);
+        }
+
+        $keyword->update(['status' => KeywordStatus::PROCESSING]);
+        SerpResearchJob::dispatch($keyword);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Yêu cầu nghiên cứu SERP đã được đưa vào hàng đợi.',
+            'data' => new KeywordResource($keyword),
+        ]);
     }
 
     public function show(Request $request, int $id)

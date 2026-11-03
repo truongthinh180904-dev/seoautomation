@@ -39,6 +39,15 @@ class MediaAsset extends Model
         'wordpress_media_id' => 'integer',
     ];
 
+    public function setSourceTypeAttribute($value): void
+    {
+        if ($value === 'upload') {
+            $value = MediaSourceType::UPLOADED;
+        }
+
+        $this->attributes['source_type'] = $value instanceof MediaSourceType ? $value->value : $value;
+    }
+
     public function workspace(): BelongsTo
     {
         return $this->belongsTo(Workspace::class);

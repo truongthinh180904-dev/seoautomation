@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use App\Enums\UserRole;
-use App\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -13,7 +12,7 @@ use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
 {
-    use BelongsToTenant, HasApiTokens, HasFactory;
+    use HasApiTokens, HasFactory;
 
     protected $fillable = [
         'tenant_id',
@@ -48,6 +47,11 @@ class User extends Authenticatable
         'last_login_at' => 'datetime',
         'email_verified_at' => 'datetime',
     ];
+
+    public function tenant(): BelongsTo
+    {
+        return $this->belongsTo(Tenant::class);
+    }
 
     public function defaultWorkspace(): BelongsTo
     {
@@ -84,5 +88,10 @@ class User extends Authenticatable
     public function publishedArticles(): HasMany
     {
         return $this->hasMany(Article::class, 'published_by');
+    }
+
+    public function auditLogs(): HasMany
+    {
+        return $this->hasMany(AuditLog::class, 'actor_id');
     }
 }

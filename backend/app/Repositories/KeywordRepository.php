@@ -18,7 +18,12 @@ class KeywordRepository implements KeywordRepositoryInterface
 
     public function findByIdForTenant(int $id, int $tenantId): ?Keyword
     {
-        return Keyword::where('tenant_id', $tenantId)->find($id);
+        return Keyword::where(function ($q) use ($tenantId) {
+            $q->where('tenant_id', $tenantId);
+            if (app()->bound('current_workspace_id')) {
+                $q->orWhere('workspace_id', app('current_workspace_id'));
+            }
+        })->find($id);
     }
 
     public function paginateForTenant(int $tenantId, array $filters, int $perPage = 20): LengthAwarePaginator

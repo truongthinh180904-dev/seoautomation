@@ -33,8 +33,15 @@ class CampaignController extends Controller
 
     public function store(StoreCampaignRequest $request)
     {
+        $data = $request->validated();
+        $workspace = $request->attributes->get('current_workspace');
+        $workspaceId = $workspace?->id ?: $request->user()->default_workspace_id;
+        if ($workspaceId) {
+            $data['workspace_id'] = $workspaceId;
+        }
+
         $campaign = $this->campaignService->create(
-            $request->validated(),
+            $data,
             $request->user()->tenant_id,
             $request->user()->id
         );

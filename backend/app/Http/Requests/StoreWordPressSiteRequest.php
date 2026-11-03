@@ -2,6 +2,8 @@
 
 namespace App\Http\Requests;
 
+use App\Enums\UserRole;
+use App\Services\Security\UrlSafetyValidator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -9,15 +11,21 @@ class StoreWordPressSiteRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        return $this->user() !== null && $this->user()->role !== UserRole::VIEWER;
     }
 
     public function rules(): array
     {
+        $urlSafetyRule = function ($attribute, $value, $fail) {
+            if ($value && ! UrlSafetyValidator::isSafeUrl($value)) {
+                $fail("Trường {$attribute} không an toàn hoặc trỏ tới địa chỉ nội bộ bị cấm.");
+            }
+        };
+
         return [
             'name' => ['required', 'string', 'max:255'],
-            'url' => ['required', 'url', 'max:500'],
-            'api_url' => ['required', 'url', 'max:500'],
+            'url' => ['required', 'url', 'max:500', $urlSafetyRule],
+            'api_url' => ['required', 'url', 'max:500', $urlSafetyRule],
             'username' => ['required', 'string', 'max:255'],
             'app_password' => ['required', 'string', 'max:500'],
             'default_author_id' => ['nullable', 'integer', 'min:1'],

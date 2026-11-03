@@ -29,7 +29,14 @@ class WordPressSiteController extends Controller
 
     public function store(StoreWordPressSiteRequest $request)
     {
-        $site = $this->repository->create($request->validated());
+        $workspace = $request->attributes->get('current_workspace');
+        $workspaceId = $workspace?->id ?: $request->user()->default_workspace_id;
+
+        $data = $request->validated();
+        $data['tenant_id'] = $request->user()->tenant_id;
+        $data['workspace_id'] = $workspaceId;
+
+        $site = $this->repository->create($data);
 
         return new WordPressSiteResource($site);
     }

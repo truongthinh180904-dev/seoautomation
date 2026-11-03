@@ -195,7 +195,7 @@ class ArticleController extends Controller
             abort(404);
         }
 
-        return new ArticleResource($article);
+        return (new ArticleResource($article))->response();
     }
 
     /**
@@ -228,6 +228,8 @@ class ArticleController extends Controller
     public function generate(GenerateArticleRequest $request): JsonResponse
     {
         $tenantId = $request->user()->tenant_id;
+        $workspace = $request->attributes->get('current_workspace');
+        $workspaceId = $workspace?->id ?: $request->user()->default_workspace_id;
         $validated = $request->validated();
         $quota = $this->costTracking->checkQuota($tenantId);
 
@@ -250,6 +252,7 @@ class ArticleController extends Controller
             $keywordMeta = $keyword->meta ?? [];
             $article = $this->repository->create([
                 'tenant_id' => $tenantId,
+                'workspace_id' => $workspaceId ?: $keyword->workspace_id,
                 'keyword_id' => $keyword->id,
                 'campaign_id' => $validated['campaign_id'] ?? $keyword->campaign_id,
                 'wordpress_site_id' => $validated['wordpress_site_id'] ?? $keyword->wordpress_site_id,

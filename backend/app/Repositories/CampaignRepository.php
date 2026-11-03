@@ -31,7 +31,12 @@ class CampaignRepository implements CampaignRepositoryInterface
 
     public function findByIdForTenant(int $id, int $tenantId): ?Campaign
     {
-        return Campaign::where('tenant_id', $tenantId)
+        return Campaign::where(function ($q) use ($tenantId) {
+            $q->where('tenant_id', $tenantId);
+            if (app()->bound('current_workspace_id')) {
+                $q->orWhere('workspace_id', app('current_workspace_id'));
+            }
+        })
             ->with(['wordpressSite:id,name,url', 'creator:id,name'])
             ->withCount(['keywords', 'articles'])
             ->find($id);
@@ -44,12 +49,22 @@ class CampaignRepository implements CampaignRepositoryInterface
 
     public function update(int $id, array $data): bool
     {
-        return Campaign::where('id', $id)->update($data) > 0;
+        $campaign = Campaign::find($id);
+        if (! $campaign) {
+            return false;
+        }
+
+        return $campaign->update($data);
     }
 
     public function deleteForTenant(int $id, int $tenantId): bool
     {
-        return Campaign::where('tenant_id', $tenantId)
+        return Campaign::where(function ($q) use ($tenantId) {
+            $q->where('tenant_id', $tenantId);
+            if (app()->bound('current_workspace_id')) {
+                $q->orWhere('workspace_id', app('current_workspace_id'));
+            }
+        })
             ->where('id', $id)
             ->delete() > 0;
     }

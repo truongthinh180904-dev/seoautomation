@@ -24,7 +24,7 @@ class AIPromptController extends Controller
     /**
      * List prompt versions — optionally filtered by agent_type.
      */
-    public function index(Request $request): JsonResponse
+    public function index(Request $request)
     {
         $prompts = $this->repository->paginateVisibleForTenant(
             $request->user()->tenant_id,
@@ -32,7 +32,7 @@ class AIPromptController extends Controller
             $request->integer('per_page', 20)
         );
 
-        return response()->json(AIPromptVersionResource::collection($prompts));
+        return AIPromptVersionResource::collection($prompts);
     }
 
     public function show(int $id, Request $request): JsonResponse
@@ -116,6 +116,10 @@ class AIPromptController extends Controller
 
         if (! $prompt) {
             abort(404);
+        }
+
+        if ($prompt->tenant_id === null && $request->user()->role !== UserRole::SUPER_ADMIN && ! $request->user()->is_platform_admin) {
+            abort(403, 'Không thể cập nhật điểm hiệu năng của prompt toàn hệ thống.');
         }
 
         $this->repository->updatePerformance($id, (float) $request->validated('seo_score'));

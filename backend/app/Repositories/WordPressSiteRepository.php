@@ -31,7 +31,12 @@ class WordPressSiteRepository implements WordPressSiteRepositoryInterface
     public function findByIdForTenant(int $id, int $tenantId): ?WordPressSite
     {
         return WordPressSite::where('id', $id)
-            ->where('tenant_id', $tenantId)
+            ->where(function ($q) use ($tenantId) {
+                $q->where('tenant_id', $tenantId);
+                if (app()->bound('current_workspace_id')) {
+                    $q->orWhere('workspace_id', app('current_workspace_id'));
+                }
+            })
             ->first();
     }
 
@@ -42,15 +47,25 @@ class WordPressSiteRepository implements WordPressSiteRepositoryInterface
 
     public function update(int $id, array $data): bool
     {
-        return WordPressSite::where('id', $id)->update($data) > 0;
+        $site = WordPressSite::find($id);
+        if (! $site) {
+            return false;
+        }
+
+        return $site->update($data);
     }
 
     public function updateConnectionStatus(int $id, string $status): bool
     {
-        return WordPressSite::where('id', $id)->update([
+        $site = WordPressSite::find($id);
+        if (! $site) {
+            return false;
+        }
+
+        return $site->update([
             'connection_status' => $status,
             'last_connected_at' => now(),
-        ]) > 0;
+        ]);
     }
 
     public function delete(int $id): bool
