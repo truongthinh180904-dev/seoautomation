@@ -35,3 +35,10 @@ export function useUsageAnalytics() {
     queryFn: () => analyticsApi.usage(),
   });
 }
+
+export function useAdminPlatformOverview(days = 30) {
+  return useQuery({
+    queryKey: ['analytics', 'platform-overview', days],
+    queryFn: () => analyticsApi.platformOverview(days),
+  });
+}

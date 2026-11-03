@@ -14,7 +14,7 @@ function DropdownMenuPortal({ ...props }: MenuPrimitive.Portal.Props) {
   return <MenuPrimitive.Portal data-slot="dropdown-menu-portal" {...props} />
 }
 
-function DropdownMenuTrigger({ ...props }: MenuPrimitive.Trigger.Props) {
+function DropdownMenuTrigger({ asChild, ...props }: MenuPrimitive.Trigger.Props & { asChild?: boolean }) {
   return <MenuPrimitive.Trigger data-slot="dropdown-menu-trigger" {...props} />
 }
 
@@ -77,10 +77,12 @@ function DropdownMenuItem({
   className,
   inset,
   variant = "default",
+  asChild,
   ...props
 }: MenuPrimitive.Item.Props & {
   inset?: boolean
   variant?: "default" | "destructive"
+  asChild?: boolean
 }) {
   return (
     <MenuPrimitive.Item
@@ -104,9 +106,11 @@ function DropdownMenuSubTrigger({
   className,
   inset,
   children,
+  asChild,
   ...props
 }: MenuPrimitive.SubmenuTrigger.Props & {
   inset?: boolean
+  asChild?: boolean
 }) {
   return (
     <MenuPrimitive.SubmenuTrigger
@@ -150,9 +154,11 @@ function DropdownMenuCheckboxItem({
   children,
   checked,
   inset,
+  asChild,
   ...props
 }: MenuPrimitive.CheckboxItem.Props & {
   inset?: boolean
+  asChild?: boolean
 }) {
   return (
     <MenuPrimitive.CheckboxItem
@@ -192,9 +198,11 @@ function DropdownMenuRadioItem({
   className,
   children,
   inset,
+  asChild,
   ...props
 }: MenuPrimitive.RadioItem.Props & {
   inset?: boolean
+  asChild?: boolean
 }) {
   return (
     <MenuPrimitive.RadioItem

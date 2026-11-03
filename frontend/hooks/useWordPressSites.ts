@@ -22,6 +22,13 @@ export function useWordPressSiteActions() {
       },
       onSuccess: () => queryClient.invalidateQueries({ queryKey: ['wordpress-sites'] }),
     }),
+    update: useMutation({
+      mutationFn: async ({ id, payload }: { id: number; payload: Partial<WordPressSitePayload> }) => {
+        const { data } = await apiClient.put<ApiResponse<WordPressSite>>(`/wordpress-sites/${id}`, payload);
+        return data;
+      },
+      onSuccess: () => queryClient.invalidateQueries({ queryKey: ['wordpress-sites'] }),
+    }),
     test: useMutation({
       mutationFn: async (id: number) => {
         const { data } = await apiClient.post<WordPressConnectionResult>(`/wordpress-sites/${id}/test`);

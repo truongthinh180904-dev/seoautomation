@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import ArticleTable from '@/components/features/articles/ArticleTable';
 import { useArticles } from '@/hooks/useArticles';
-import { Search, Filter, Plus } from 'lucide-react';
+import { Search, Filter, Loader2, Sparkles } from 'lucide-react';
+import Link from 'next/link';
 
-export default function ArticlesPage() {
+function ArticlesPageContent() {
   const searchParams = useSearchParams();
   const campaignId = Number(searchParams.get('campaign_id'));
   const [page, setPage] = useState(1);
@@ -28,10 +29,12 @@ export default function ArticlesPage() {
           <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Bài viết AI</h1>
           <p className="text-slate-500 mt-1">Theo dõi tiến độ, chi phí và chất lượng SEO</p>
         </div>
-        <button className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-medium transition-all shadow-sm active:scale-95">
-          <Plus className="w-4 h-4" />
-          Tạo bài viết mới
-        </button>
+        <Link href="/keywords">
+          <button className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-medium transition-all shadow-sm active:scale-95 cursor-pointer">
+            <Sparkles className="w-4 h-4" />
+            Tạo bài viết từ Keywords
+          </button>
+        </Link>
       </div>
 
       <div className="bg-white p-3 rounded-2xl shadow-sm border border-slate-200 flex flex-col sm:flex-row gap-3 items-center">
@@ -83,14 +86,14 @@ export default function ArticlesPage() {
             <button 
               onClick={() => setPage(p => Math.max(1, p - 1))}
               disabled={page === 1}
-              className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-95 shadow-sm"
+              className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-95 shadow-sm cursor-pointer"
             >
               Trước
             </button>
             <button 
               onClick={() => setPage(p => Math.min(data.meta.last_page, p + 1))}
               disabled={page === data.meta.last_page}
-              className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-95 shadow-sm"
+              className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-95 shadow-sm cursor-pointer"
             >
               Sau
             </button>
@@ -98,5 +101,19 @@ export default function ArticlesPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function ArticlesPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex h-64 items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+        </div>
+      }
+    >
+      <ArticlesPageContent />
+    </Suspense>
   );
 }

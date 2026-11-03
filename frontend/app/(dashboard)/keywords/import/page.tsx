@@ -181,22 +181,24 @@ export default function KeywordImportPage() {
             </div>
           )}
           
-          <table className="min-w-full divide-y divide-slate-200">
-            <thead className="bg-white">
-              <tr>
-                <th className="px-8 py-4 text-left text-xs font-extrabold text-slate-400 uppercase tracking-widest w-24">STT</th>
-                <th className="px-8 py-4 text-left text-xs font-extrabold text-slate-400 uppercase tracking-widest">Từ khoá nhận diện</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-slate-100">
-              {(serverPreview?.sample_rows ?? parsedData).slice(0, 5).map((row, idx) => (
-                <tr key={idx} className="hover:bg-slate-50 transition-colors">
-                  <td className="px-8 py-5 text-sm font-bold text-slate-400">{idx + 1}</td>
-                  <td className="px-8 py-5 text-base font-bold text-slate-900">{row.keyword}</td>
+          <div className="w-full overflow-x-auto">
+            <table className="min-w-full divide-y divide-slate-200">
+              <thead className="bg-white">
+                <tr>
+                  <th className="px-8 py-4 text-left text-xs font-extrabold text-slate-400 uppercase tracking-widest w-24 whitespace-nowrap">STT</th>
+                  <th className="px-8 py-4 text-left text-xs font-extrabold text-slate-400 uppercase tracking-widest">Từ khoá nhận diện</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="bg-white divide-y divide-slate-100">
+                {(serverPreview?.sample_rows ?? parsedData).slice(0, 5).map((row, idx) => (
+                  <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                    <td className="px-8 py-5 text-sm font-bold text-slate-400 whitespace-nowrap">{idx + 1}</td>
+                    <td className="px-8 py-5 text-base font-bold text-slate-900">{row.keyword}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
           
           {parsedData.length > 5 && (
             <div className="p-5 text-center text-sm font-bold text-slate-500 border-t border-slate-200 bg-slate-50/50">

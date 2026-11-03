@@ -3,7 +3,7 @@
 import React, { useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { ShieldCheck, CreditCard, Building2, ArrowLeft, Loader2, AlertTriangle } from 'lucide-react';
+import { ShieldCheck, CreditCard, Building2, ArrowLeft, Loader2, AlertTriangle, LayoutDashboard } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -27,7 +27,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     }
   }, [isAuthenticated, router]);
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated || !user) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50">
         <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
@@ -60,14 +60,22 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
   const navItems = [
     {
+      label: 'Tổng quan hệ thống',
+      href: '/admin',
+      icon: LayoutDashboard,
+      exact: true,
+    },
+    {
       label: 'Đơn thanh toán chuyển khoản',
       href: '/admin/payment-orders',
       icon: CreditCard,
+      exact: false,
     },
     {
       label: 'Quản lý Workspaces & Credit',
       href: '/admin/workspaces',
       icon: Building2,
+      exact: false,
     },
   ];
 
@@ -94,7 +102,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
               <nav className="hidden md:flex space-x-1 pl-6">
                 {navItems.map((item) => {
                   const Icon = item.icon;
-                  const isActive = pathname.startsWith(item.href);
+                  const isActive = item.exact ? pathname === item.href : pathname.startsWith(item.href);
 
                   return (
                     <Link
@@ -116,7 +124,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
             <div className="flex items-center space-x-3">
               <span className="text-xs text-slate-500 hidden sm:inline">
-                {user.email}
+                {user?.email}
               </span>
               <Link href="/dashboard">
                 <Button variant="outline" size="sm" className="h-8 text-xs font-medium border-slate-200">
@@ -131,7 +139,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         <div className="flex md:hidden border-t border-slate-100 px-4 py-2 space-x-2 overflow-x-auto">
           {navItems.map((item) => {
             const Icon = item.icon;
-            const isActive = pathname.startsWith(item.href);
+            const isActive = item.exact ? pathname === item.href : pathname.startsWith(item.href);
 
             return (
               <Link

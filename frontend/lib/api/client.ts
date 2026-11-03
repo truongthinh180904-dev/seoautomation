@@ -11,9 +11,14 @@ const apiClient = axios.create({
 
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    const token = useAuthStore.getState().token;
+    const authState = useAuthStore.getState();
+    const token = authState.token;
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+    }
+    const activeWorkspaceId = authState.activeWorkspaceId;
+    if (activeWorkspaceId && !config.headers['X-Workspace-Id']) {
+      config.headers['X-Workspace-Id'] = activeWorkspaceId.toString();
     }
     return config;
   },
@@ -25,9 +30,12 @@ apiClient.interceptors.response.use(
   (error: AxiosError) => {
     if (error.response) {
       if (error.response.status === 401) {
-        useAuthStore.getState().logout();
-        if (typeof window !== 'undefined') {
-          window.location.href = '/login';
+        const isPublicReview = typeof window !== 'undefined' && window.location.pathname.startsWith('/review');
+        if (!isPublicReview) {
+          useAuthStore.getState().logout();
+          if (typeof window !== 'undefined') {
+            window.location.href = '/login';
+          }
         }
       } else if (error.response.status === 422) {
         const data = error.response.data as Partial<ApiValidationError>;

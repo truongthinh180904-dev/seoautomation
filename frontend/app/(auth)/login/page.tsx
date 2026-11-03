@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -19,6 +19,8 @@ import {
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuthStore } from '@/stores/authStore';
+import { Loader2 } from 'lucide-react';
+import Link from 'next/link';
 
 const loginSchema = z.object({
   email: z.string().email('Email không hợp lệ'),
@@ -31,12 +33,19 @@ function isValidationError(error: unknown): error is ApiValidationError {
   return typeof error === 'object' && error !== null && 'errors' in error;
 }
 
-export default function LoginPage() {
+function getSafeRedirectUrl(target: string | null): string {
+  if (!target) return '/dashboard';
+  if (target.startsWith('/') && !target.startsWith('//') && !target.includes('://')) {
+    return target;
+  }
+  return '/dashboard';
+}
+
+function LoginFormContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { login, isLoggingIn } = useAuth();
-  
-  // Use store directly to avoid hydration mismatch by checking after mount
+
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const initialize = useAuthStore((state) => state.initialize);
   const [mounted, setMounted] = useState(false);
@@ -50,7 +59,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (mounted && isAuthenticated) {
-      router.replace(searchParams.get('redirect') || '/dashboard');
+      router.replace(getSafeRedirectUrl(searchParams.get('redirect')));
     }
   }, [mounted, isAuthenticated, router, searchParams]);
 
@@ -65,7 +74,7 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginFormValues) => {
     try {
       await login(data);
-      router.replace(searchParams.get('redirect') || '/dashboard');
+      router.replace(getSafeRedirectUrl(searchParams.get('redirect')));
     } catch (error: unknown) {
       if (isValidationError(error)) {
         Object.entries(error.errors).forEach(([key, messages]) => {
@@ -78,7 +87,6 @@ export default function LoginPage() {
     }
   };
 
-  // Prevent flash of login form if already authenticated
   if (!mounted || isAuthenticated) {
     return null;
   }
@@ -121,11 +129,34 @@ export default function LoginPage() {
               )}
             />
             <Button type="submit" className="w-full" disabled={isLoggingIn}>
+              {isLoggingIn && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {isLoggingIn ? 'Đang đăng nhập...' : 'Đăng nhập'}
             </Button>
+            <div className="flex items-center justify-between pt-2 text-xs text-slate-500">
+              <Link href="/forgot-password" className="hover:text-blue-600 transition-colors">
+                Quên mật khẩu?
+              </Link>
+              <Link href="/register" className="font-semibold text-blue-600 hover:underline">
+                Tạo tài khoản mới
+              </Link>
+            </div>
           </form>
         </Form>
       </CardContent>
     </Card>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex h-64 items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+        </div>
+      }
+    >
+      <LoginFormContent />
+    </Suspense>
   );
 }

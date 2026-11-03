@@ -9,7 +9,8 @@ import { toast } from 'sonner';
 
 interface ArticleImportSettingsProps {
   article: Article;
-  onSave: (payload: ArticleUpdatePayload) => Promise<void> | void;
+  onSave?: (payload: ArticleUpdatePayload) => Promise<void> | void;
+  onStatusChange?: (newStatus: Article['status']) => Promise<void> | void;
   isSaving?: boolean;
 }
 
@@ -19,7 +20,12 @@ function valueToText(value: unknown): string {
   return value ? String(value) : '';
 }
 
-export default function ArticleImportSettings({ article, onSave, isSaving }: ArticleImportSettingsProps) {
+export default function ArticleImportSettings({
+  article,
+  onSave,
+  onStatusChange,
+  isSaving,
+}: ArticleImportSettingsProps) {
   const mediaPlan = article.media_plan ?? {};
   const keywordMeta = article.keyword?.meta ?? {};
   const [inlineImageCount, setInlineImageCount] = useState(
@@ -57,18 +63,20 @@ export default function ArticleImportSettings({ article, onSave, isSaving }: Art
 
   const handleSave = async () => {
     const count = Math.min(10, Math.max(0, inlineImageCount || 0));
-    await onSave({
-      media_plan: {
-        ...mediaPlan,
-        inline_image_count: count,
-        featured_image_url: featuredImageUrl || null,
-        image_urls: imageUrls || null,
-        internal_links: internalLinks || null,
-        image_generation_prompt: imagePrompt || null,
-        image_search_query: imageSearchQuery || null,
-        image_source: imageSource,
-      },
-    });
+    if (onSave) {
+      await onSave({
+        media_plan: {
+          ...mediaPlan,
+          inline_image_count: count,
+          featured_image_url: featuredImageUrl || null,
+          image_urls: imageUrls || null,
+          internal_links: internalLinks || null,
+          image_generation_prompt: imagePrompt || null,
+          image_search_query: imageSearchQuery || null,
+          image_source: imageSource,
+        },
+      });
+    }
   };
 
   const handleAddImage = async () => {
@@ -100,6 +108,30 @@ export default function ArticleImportSettings({ article, onSave, isSaving }: Art
 
   return (
     <div className="space-y-4">
+      {onStatusChange && (
+        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+          <h2 className="text-base font-black text-slate-900">Trạng thái bài viết</h2>
+          <div className="mt-4 space-y-2">
+            <label className="block">
+              <span className="text-xs font-bold text-slate-500">Chuyển trạng thái quy trình</span>
+              <select
+                value={article.status}
+                onChange={(e) => onStatusChange(e.target.value as Article['status'])}
+                className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 bg-white"
+              >
+                <option value="draft">Bản nháp (draft)</option>
+                <option value="review">Chờ duyệt (review)</option>
+                <option value="approved">Đã duyệt (approved)</option>
+                <option value="rejected">Từ chối (rejected)</option>
+                <option value="publishing">Đang đăng (publishing)</option>
+                <option value="published">Đã đăng (published)</option>
+                <option value="failed">Thất bại (failed)</option>
+              </select>
+            </label>
+          </div>
+        </div>
+      )}
+
       <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="text-base font-black text-slate-900">Brief từ Excel</h2>
         <div className="mt-4 space-y-3">

@@ -46,6 +46,9 @@ interface Article {
     name: string;
     url: string;
   } | null;
+  wordpress_post_url?: string | null;
+  wordpress_url?: string | null;
+  review_notes?: string | null;
   keyword: {
     id: number;
     keyword: string;
@@ -66,6 +69,7 @@ interface Article {
     name: string;
   } | null;
   created_at: string;
+  updated_at?: string | null;
   published_at: string | null;
 }
 

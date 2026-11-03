@@ -1,19 +1,7 @@
 import type { Metadata } from "next";
-import { Geist_Mono, Roboto } from "next/font/google";
 import "./globals.css";
 import Providers from "./providers";
 import { Toaster } from "@/components/ui/sonner";
-
-const roboto = Roboto({
-  variable: "--font-roboto",
-  subsets: ["latin", "vietnamese"],
-  weight: ["400", "500", "700", "900"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
 
 export const metadata: Metadata = {
   title: "AI SEO Automation",
@@ -28,9 +16,16 @@ export default function RootLayout({
   return (
     <html
       lang="vi"
-      className={`${roboto.variable} ${geistMono.variable} h-full antialiased`}
+      className="h-full antialiased font-sans"
+      suppressHydrationWarning
+      style={
+        {
+          "--font-roboto": 'Roboto, -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif',
+          "--font-geist-mono": 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+        } as React.CSSProperties
+      }
     >
-      <body className="min-h-full flex flex-col">
+      <body className="min-h-full flex flex-col font-sans">
         <Providers>
           {children}
           <Toaster />

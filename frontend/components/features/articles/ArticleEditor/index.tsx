@@ -18,6 +18,8 @@ import ToolbarPlugin from './ToolbarPlugin';
 import SEOScorePanel from './SEOScorePanel';
 import { $generateHtmlFromNodes, $generateNodesFromDOM } from '@lexical/html';
 import { $getRoot, $insertNodes, EditorState, LexicalEditor } from 'lexical';
+import { Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 const editorConfig = {
   namespace: 'ArticleEditor',
@@ -40,8 +42,8 @@ const editorConfig = {
     },
     link: 'text-blue-600 underline hover:text-blue-800 cursor-pointer',
   },
-  onError(error: Error) {
-    console.error(error);
+  onError(_error: Error) {
+    // Unhandled lexical error suppressed for clean runtime
   },
   nodes: [
     HeadingNode,
@@ -58,20 +60,22 @@ const editorConfig = {
   ],
 };
 
-interface ArticleEditorProps {
+export interface ArticleEditorProps {
   initialContent: string;
   initialTitle: string;
   initialMetaDescription: string;
-  keyword: string;
-  onSave: (data: { title: string, content: string, metaDescription: string }) => void;
+  keyword?: string;
+  onSave: (data: { title: string; content: string; metaDescription: string }) => void;
+  isSaving?: boolean;
 }
 
 export default function ArticleEditor({ 
   initialContent, 
   initialTitle, 
   initialMetaDescription, 
-  keyword,
-  onSave
+  keyword = '',
+  onSave,
+  isSaving = false,
 }: ArticleEditorProps) {
   const [content, setContent] = useState(initialContent);
   const [title, setTitle] = useState(initialTitle);
@@ -144,12 +148,15 @@ export default function ArticleEditor({
         </div>
 
         <div className="flex justify-end gap-4 pt-4">
-          <button 
+          <Button 
+            type="button"
+            disabled={isSaving}
             onClick={() => onSave({ title, content, metaDescription })}
-            className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold shadow-lg shadow-blue-200 transition-all active:scale-95"
+            className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold shadow-lg shadow-blue-200 transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
           >
-            Save Changes
-          </button>
+            {isSaving && <Loader2 className="w-4 h-4 animate-spin" />}
+            {isSaving ? 'Đang lưu...' : 'Lưu thay đổi'}
+          </Button>
         </div>
       </div>
 

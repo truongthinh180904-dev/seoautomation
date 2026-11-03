@@ -97,16 +97,16 @@ export default function KeywordTable({ keywords, isLoading }: KeywordTableProps)
                   />
                 </th>
                 <th className="px-6 py-4 text-left text-xs font-extrabold text-slate-500 uppercase tracking-wider">Từ khoá</th>
-                <th className="px-6 py-4 text-left text-xs font-extrabold text-slate-500 uppercase tracking-wider">Lượt tìm kiếm (Vol)</th>
-                <th className="px-6 py-4 text-left text-xs font-extrabold text-slate-500 uppercase tracking-wider">Trạng thái</th>
-                <th className="px-6 py-4 text-left text-xs font-extrabold text-slate-500 uppercase tracking-wider">Bài viết AI</th>
-                <th className="px-6 py-4 text-right text-xs font-extrabold text-slate-500 uppercase tracking-wider">Thao tác</th>
+                <th className="px-6 py-4 text-left text-xs font-extrabold text-slate-500 uppercase tracking-wider whitespace-nowrap">Lượt tìm kiếm (Vol)</th>
+                <th className="px-6 py-4 text-left text-xs font-extrabold text-slate-500 uppercase tracking-wider whitespace-nowrap">Trạng thái</th>
+                <th className="px-6 py-4 text-left text-xs font-extrabold text-slate-500 uppercase tracking-wider whitespace-nowrap">Bài viết AI</th>
+                <th className="px-6 py-4 text-right text-xs font-extrabold text-slate-500 uppercase tracking-wider whitespace-nowrap">Thao tác</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-slate-100">
               {keywords.map((kw) => (
                 <tr key={kw.id} className={`${selectedIds.includes(kw.id) ? 'bg-blue-50/60' : 'hover:bg-slate-50/80'} transition-colors group cursor-pointer`} onClick={() => handleSelect(kw.id)}>
-                  <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
+                  <td className="px-6 py-4 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                     <input 
                       type="checkbox" 
                       className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 transition-colors cursor-pointer"
@@ -115,8 +115,8 @@ export default function KeywordTable({ keywords, isLoading }: KeywordTableProps)
                     />
                   </td>
                   <td className="px-6 py-4 text-sm font-bold text-slate-900">{kw.keyword}</td>
-                  <td className="px-6 py-4 text-sm font-medium text-slate-500">{kw.search_volume ? kw.search_volume.toLocaleString() : '-'}</td>
-                  <td className="px-6 py-4">
+                  <td className="px-6 py-4 text-sm font-medium text-slate-500 whitespace-nowrap">{kw.search_volume ? kw.search_volume.toLocaleString() : '-'}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">
                     <div>
                       {getStatusBadge(kw.status)}
                       {kw.article?.pipeline_status && (
@@ -129,7 +129,7 @@ export default function KeywordTable({ keywords, isLoading }: KeywordTableProps)
                       )}
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-sm font-medium">
+                  <td className="px-6 py-4 text-sm font-medium whitespace-nowrap">
                     {kw.article_id ? (
                       <span className="inline-flex items-center gap-1.5 text-emerald-600">
                         <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
@@ -139,7 +139,7 @@ export default function KeywordTable({ keywords, isLoading }: KeywordTableProps)
                       <span className="text-slate-400">-</span>
                     )}
                   </td>
-                  <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
+                  <td className="px-6 py-4 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                     <Link
                       href={`/keywords/${kw.id}`}
                       className="mr-2 inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-600 shadow-sm transition-all hover:bg-slate-50"

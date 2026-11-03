@@ -6,7 +6,7 @@ import { useArticle, useArticleActions } from '@/hooks/useArticles';
 import ArticleEditor from '@/components/features/articles/ArticleEditor';
 import ArticleImportSettings from '@/components/features/articles/ArticleImportSettings';
 import ArticleTimeline from '@/components/features/articles/ArticleTimeline';
-import { ArrowLeft, Loader2, CheckCircle, XCircle } from 'lucide-react';
+import { ArrowLeft, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { toast } from 'sonner';
@@ -18,7 +18,7 @@ export default function ArticleEditPage() {
 
   const article = articleResponse?.data;
 
-  const handleSave = async (updatedData: { title: string, content: string, metaDescription: string }) => {
+  const handleSave = async (updatedData: { title: string; content: string; metaDescription: string }) => {
     try {
       await updateArticle.mutateAsync({
         id: Number(id),
@@ -28,9 +28,9 @@ export default function ArticleEditPage() {
           seo_description: updatedData.metaDescription,
         }
       });
-      toast.success("Article saved successfully");
+      toast.success("Đã lưu bài viết thành công!");
     } catch {
-      toast.error("Failed to save article");
+      toast.error("Không thể lưu bài viết");
     }
   };
 
@@ -40,9 +40,21 @@ export default function ArticleEditPage() {
         id: Number(id),
         data: { status: newStatus }
       });
-      toast.success(`Article ${newStatus}`);
+      toast.success(`Đã cập nhật trạng thái: ${newStatus}`);
     } catch {
-      toast.error("Failed to update status");
+      toast.error("Lỗi cập nhật trạng thái");
+    }
+  };
+
+  const handleSettingsSave = async (payload: ArticleUpdatePayload) => {
+    try {
+      await updateArticle.mutateAsync({
+        id: Number(id),
+        data: payload,
+      });
+      toast.success("Đã lưu cài đặt bài viết thành công!");
+    } catch {
+      toast.error("Không thể lưu cài đặt bài viết");
     }
   };
 
@@ -70,21 +82,78 @@ export default function ArticleEditPage() {
   if (error || !article) {
     return (
       <div className="h-[60vh] flex flex-col items-center justify-center space-y-4">
-        <div className="text-rose-500 font-bold text-xl">Article not found</div>
+        <div className="text-rose-500 font-bold text-xl">Không tìm thấy bài viết</div>
         <Link href="/articles">
-          <Button variant="outline">Back to Articles</Button>
+          <Button variant="outline">Quay lại danh sách</Button>
         </Link>
       </div>
     );
   }
 
-  // Mock timeline events for now
-  const timelineEvents = [
-    { id: '1', status: 'published', user: 'System (WordPress)', timestamp: '2 hours ago' },
-    { id: '2', status: 'approved', user: 'Admin', timestamp: '3 hours ago', note: 'Content looks great.' },
-    { id: '3', status: 'review', user: 'AI Writing Agent', timestamp: '4 hours ago' },
-    { id: '4', status: 'draft', user: 'System', timestamp: '5 hours ago' },
-  ];
+  // Xây dựng Timeline sự kiện thực tế từ dữ liệu bài viết
+  const timelineEvents: Array<{ id: string; status: string; user: string; timestamp: string; note?: string }> = [];
+
+  if (article.created_at) {
+    timelineEvents.push({
+      id: 'init',
+      status: 'draft',
+      user: 'Khởi tạo từ khóa',
+      timestamp: new Date(article.created_at).toLocaleString('vi-VN'),
+      note: `Từ khóa: ${article.keyword?.keyword || 'N/A'}`
+    });
+  }
+
+  if (article.pipeline_status?.steps) {
+    const steps = article.pipeline_status.steps;
+    if (steps.writing?.status === 'completed') {
+      timelineEvents.push({
+        id: 'writing',
+        status: 'review',
+        user: 'AI Writing Agent',
+        timestamp: steps.writing.finished_at ? new Date(steps.writing.finished_at).toLocaleString('vi-VN') : 'Đã hoàn thành',
+        note: `Độ dài: ${article.word_count || 0} từ`
+      });
+    }
+    if (steps.seo_metadata?.status === 'completed') {
+      timelineEvents.push({
+        id: 'seo',
+        status: 'review',
+        user: 'SEO Optimization Agent',
+        timestamp: steps.seo_metadata.finished_at ? new Date(steps.seo_metadata.finished_at).toLocaleString('vi-VN') : 'Đã tối ưu',
+        note: `SEO Score: ${article.seo_score ?? 'N/A'}/100`
+      });
+    }
+  }
+
+  if (article.status === 'approved' || article.status === 'published') {
+    timelineEvents.push({
+      id: 'approved',
+      status: 'approved',
+      user: 'Quản trị viên',
+      timestamp: article.updated_at ? new Date(article.updated_at).toLocaleString('vi-VN') : 'Đã duyệt',
+      note: 'Bài viết đã được duyệt chất lượng.'
+    });
+  }
+
+  if (article.published_at || article.status === 'published') {
+    timelineEvents.push({
+      id: 'published',
+      status: 'published',
+      user: `WordPress (${article.wordpress_site?.name || 'Site'})`,
+      timestamp: article.published_at ? new Date(article.published_at).toLocaleString('vi-VN') : 'Đã xuất bản',
+      note: (article.wordpress_post_url || article.wordpress_url) ? `URL: ${article.wordpress_post_url || article.wordpress_url}` : 'Đã đẩy lên WordPress'
+    });
+  }
+
+  if (article.status === 'failed') {
+    timelineEvents.push({
+      id: 'failed',
+      status: 'rejected',
+      user: 'System Error Handler',
+      timestamp: article.updated_at ? new Date(article.updated_at).toLocaleString('vi-VN') : 'Lỗi xử lý',
+      note: article.review_notes || 'Tác vụ gặp sự cố trong pipeline.'
+    });
+  }
 
   return (
     <div className="space-y-8 max-w-[1400px] mx-auto">
@@ -97,56 +166,44 @@ export default function ArticleEditPage() {
             </Button>
           </Link>
           <div>
-            <h1 className="text-2xl font-black text-slate-900 tracking-tight">Edit Article</h1>
-            <div className="flex items-center gap-2 mt-1">
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Keyword:</span>
-              <span className="text-xs font-black text-blue-600 px-2 py-0.5 bg-blue-50 rounded-full">
-                {article.keyword?.keyword}
-              </span>
-            </div>
+            <h1 className="text-2xl font-black text-slate-900 tracking-tight">Chỉnh sửa bài viết</h1>
+            <p className="text-sm font-medium text-slate-500">ID #{article.id} • {article.keyword?.keyword}</p>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
-          <Button 
-            variant="outline" 
-            className="rounded-xl border-slate-200"
-            onClick={() => handleStatusChange('rejected')}
-          >
-            <XCircle className="w-4 h-4 mr-2 text-rose-500" />
-            Reject
-          </Button>
-          <Button 
-            variant="default" 
-            className="bg-emerald-600 hover:bg-emerald-700 rounded-xl"
-            onClick={handlePublish}
-            disabled={publishArticle.isPending || !article.wordpress_site}
-            title={article.wordpress_site ? 'Duyệt và gửi WordPress' : 'Bài viết chưa gắn WordPress site'}
-          >
-            <CheckCircle className="w-4 h-4 mr-2" />
-            Approve & Publish
-          </Button>
+          {article.status !== 'published' && (
+            <Button 
+              onClick={handlePublish} 
+              disabled={publishArticle.isPending}
+              className="bg-emerald-600 hover:bg-emerald-700 font-bold"
+            >
+              {publishArticle.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Duyệt & Đăng WordPress
+            </Button>
+          )}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 items-start">
-        <div className="xl:col-span-9">
+      <div className="grid grid-cols-1 xl:grid-cols-[1fr_360px] gap-8">
+        {/* Editor Area */}
+        <div className="space-y-8">
           <ArticleEditor 
-            initialTitle={article.title}
-            initialContent={article.content ?? ''}
+            initialTitle={article.title || ''}
+            initialContent={article.content || ''}
             initialMetaDescription={article.seo_description || ''}
             keyword={article.keyword?.keyword || ''}
             onSave={handleSave}
+            isSaving={updateArticle.isPending}
           />
         </div>
 
-        <div className="xl:col-span-3 space-y-6">
-          <ArticleImportSettings
+        {/* Sidebar Controls */}
+        <div className="space-y-6">
+          <ArticleImportSettings 
             article={article}
-            onSave={async (payload) => {
-              await updateArticle.mutateAsync({ id: Number(id), data: payload });
-              toast.success('Đã lưu biến import/media cho bài viết');
-            }}
+            onSave={handleSettingsSave}
+            onStatusChange={handleStatusChange}
             isSaving={updateArticle.isPending}
           />
           <ArticleTimeline events={timelineEvents} />

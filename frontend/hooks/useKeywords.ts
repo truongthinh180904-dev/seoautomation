@@ -59,6 +59,16 @@ export function useKeywordImportPreview() {
 export function useKeywordActions() {
   const queryClient = useQueryClient();
 
+  const createKeyword = useMutation({
+    mutationFn: async (data: { keyword: string; campaign_id?: number; search_volume?: number }) => {
+      const response = await apiClient.post('/keywords', data);
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['keywords'] });
+    },
+  });
+
   const bulkDelete = useMutation({
     mutationFn: async (ids: number[]) => {
       await apiClient.post('/keywords/bulk-destroy', { ids });
@@ -78,5 +88,5 @@ export function useKeywordActions() {
     }
   });
 
-  return { bulkDelete, updateKeyword };
+  return { createKeyword, bulkDelete, updateKeyword };
 }
