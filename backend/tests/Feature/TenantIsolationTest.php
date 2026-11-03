@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Enums\ArticleStatus;
 use App\Enums\CampaignStatus;
+use App\Enums\CreditGrantSource;
 use App\Enums\KeywordStatus;
 use App\Enums\MediaAssetStatus;
 use App\Enums\MediaSourceType;
@@ -21,8 +22,10 @@ use App\Models\Website;
 use App\Models\WordPressSite;
 use App\Models\Workspace;
 use App\Models\WorkspaceMember;
+use App\Services\Billing\CreditLedgerService;
 use App\Traits\BelongsToTenant;
 use App\Traits\BelongsToWorkspace;
+use Database\Seeders\PlanSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -519,6 +522,9 @@ class TenantIsolationTest extends TestCase
 
     public function test_keyword_serp_endpoint_queues_job_for_authorized_tenant(): void
     {
+        $this->seed(PlanSeeder::class);
+        app(CreditLedgerService::class)->grantCredits($this->workspaceA, 100, CreditGrantSource::PROMO, now()->addDays(30));
+
         Queue::fake();
 
         $keywordA = Keyword::create([
