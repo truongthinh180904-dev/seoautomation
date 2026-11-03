@@ -689,7 +689,8 @@ class CreditLedgerService
             // Kiểm tra lần cấp Free gần nhất
             $lastFreeGrant = CreditGrant::where('workspace_id', $workspaceModel->id)
                 ->where('source_type', CreditGrantSource::FREE_DAILY)
-                ->latest('granted_at')
+                ->orderByDesc('granted_at')
+                ->orderByDesc('id')
                 ->first();
 
             // Nếu đã cấp trong vòng 24h và chưa hết hạn, bỏ qua
@@ -717,8 +718,9 @@ class CreditLedgerService
                 ]);
             }
 
-            $dateKey = now()->format('Y-m-d');
-            $idempotencyKey = sprintf('free_daily:ws_%d:%s', $workspaceModel->id, $dateKey);
+            $idempotencyKey = $lastFreeGrant
+                ? sprintf('free_daily:ws_%d:after_%d', $workspaceModel->id, $lastFreeGrant->id)
+                : sprintf('free_daily:ws_%d:initial', $workspaceModel->id);
 
             return $this->grantCredits(
                 workspace: $workspaceModel,
@@ -802,7 +804,7 @@ class CreditLedgerService
                 'reference_type' => 'cycle_reset',
                 'reference_id' => null,
                 'actor_id' => null,
-                'idempotency_key' => sprintf('expire:reset:%d:%s', $account->workspace_id, now()->format('YmdHis')),
+                'idempotency_key' => sprintf('expire:reset:%d:%s_%s', $account->workspace_id, now()->format('YmdHis'), uniqid()),
                 'description' => sprintf('Hết hạn %d credit còn dư: %s', $expireAmount, $reason),
                 'metadata' => ['total_cleared' => $expireAmount],
                 'created_at' => now(),

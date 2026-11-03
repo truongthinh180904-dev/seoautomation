@@ -160,7 +160,7 @@ class SubscriptionService
                 'renew_grant:%d:%d:%s',
                 $workspace->id,
                 $subscription->id,
-                $now->format('Ymd')
+                $now->format('YmdHis')
             );
 
             $this->creditLedgerService->grantCredits(

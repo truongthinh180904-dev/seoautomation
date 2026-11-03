@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Enums\PlanCode;
 use App\Enums\SubscriptionStatus;
+use App\Enums\WorkspaceStatus;
 use App\Models\CreditGrant;
 use App\Models\Subscription;
 use App\Models\Workspace;
@@ -55,25 +56,20 @@ class ProcessCreditCyclesCommand extends Command
         }
         $this->line("Đã gia hạn chu kỳ cho {$renewedCount} gói dịch vụ.");
 
-        // 3. Quét các Workspace hoạt động đang dùng Free Plan (hoặc chưa có gói trả phí) để cấp 100 credit / 24h
-        $workspaces = Workspace::where('status', 'active')->get();
+        // 3. Quét các Workspace hoạt động đang dùng Free Plan để đảm bảo cấp 100 credit / 24h
+        $freeWorkspaces = Workspace::where('status', WorkspaceStatus::ACTIVE)
+            ->whereHas('subscriptions', function ($query) {
+                $query->where('status', SubscriptionStatus::ACTIVE)
+                    ->whereHas('plan', fn ($q) => $q->where('code', PlanCode::FREE));
+            })
+            ->get();
         $freeGrantedCount = 0;
 
-        foreach ($workspaces as $workspace) {
+        foreach ($freeWorkspaces as $workspace) {
             try {
-                $activeSub = $workspace->subscriptions()
-                    ->where('status', SubscriptionStatus::ACTIVE)
-                    ->where('current_period_end', '>', now())
-                    ->latest('id')
-                    ->with('plan')
-                    ->first();
-
-                // Chỉ cấp Free hàng ngày nếu đang là Free plan hoặc chưa có active subscription
-                if (! $activeSub || ($activeSub->plan && $activeSub->plan->code === PlanCode::FREE)) {
-                    $grant = $ledgerService->ensureDailyFreeCredits($workspace);
-                    if ($grant && $grant->wasRecentlyCreated) {
-                        $freeGrantedCount++;
-                    }
+                $grant = $ledgerService->ensureDailyFreeCredits($workspace);
+                if ($grant && $grant->wasRecentlyCreated) {
+                    $freeGrantedCount++;
                 }
             } catch (\Throwable $e) {
                 Log::error("[CreditScheduler] Lỗi cấp Free credit cho workspace #{$workspace->id}: ".$e->getMessage());
