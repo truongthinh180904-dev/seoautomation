@@ -1,5 +1,7 @@
 <?php
 
+use App\Exceptions\InsufficientCreditsException;
+use App\Exceptions\QuotaExceededException;
 use App\Http\Middleware\ApiRateLimiter;
 use App\Http\Middleware\EnsureActiveAccount;
 use App\Http\Middleware\EnsurePlatformAdmin;
@@ -8,6 +10,7 @@ use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Request;
 use Illuminate\Routing\Middleware\ThrottleRequests;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -44,7 +47,37 @@ return Application::configure(basePath: dirname(__DIR__))
             ->withoutOverlapping(3)
             ->runInBackground()
             ->appendOutputTo(storage_path('logs/scheduler.log'));
+
+        // Process credit grants, expiration and cycles — hourly
+        $schedule->command('credit:process-cycles')
+            ->hourly()
+            ->withoutOverlapping(10)
+            ->runInBackground()
+            ->appendOutputTo(storage_path('logs/scheduler.log'));
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        $exceptions->render(function (InsufficientCreditsException $e, Request $request) {
+            if ($request->is('api/*') || $request->wantsJson()) {
+                return response()->json([
+                    'message' => $e->getMessage(),
+                    'error_code' => 'INSUFFICIENT_CREDITS',
+                    'required_credits' => $e->requiredCredits,
+                    'available_credits' => $e->availableCredits,
+                    'workspace_id' => $e->workspaceId,
+                ], 402);
+            }
+        });
+
+        $exceptions->render(function (QuotaExceededException $e, Request $request) {
+            if ($request->is('api/*') || $request->wantsJson()) {
+                return response()->json([
+                    'message' => $e->getMessage(),
+                    'error_code' => 'QUOTA_EXCEEDED',
+                    'quota_type' => $e->quotaType,
+                    'limit' => $e->limit,
+                    'used' => $e->used,
+                    'workspace_id' => $e->workspaceId,
+                ], 422);
+            }
+        });
     })->create();

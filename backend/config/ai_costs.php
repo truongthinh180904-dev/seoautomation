@@ -3,6 +3,14 @@
 return [
     'serper_cost_per_call_usd' => 0.001,
 
+    // Credit consumption defaults per action
+    'credits' => [
+        'standard_article' => 20,
+        'serp_lookup' => 1,
+        'image_generation' => 5,
+        'seo_autofix' => 2,
+    ],
+
     'models' => [
         // USD per 1M tokens.
         'gpt-4o' => ['input' => 5.00, 'output' => 15.00],

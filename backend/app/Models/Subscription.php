@@ -49,4 +49,10 @@ class Subscription extends Model
     {
         return $this->hasMany(CreditGrant::class);
     }
+
+    public function isActive(): bool
+    {
+        return $this->status === SubscriptionStatus::ACTIVE
+            && ($this->current_period_end === null || $this->current_period_end > now());
+    }
 }

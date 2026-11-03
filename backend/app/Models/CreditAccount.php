@@ -46,4 +46,14 @@ class CreditAccount extends Model
     {
         return $this->hasMany(CreditTransaction::class);
     }
+
+    public function getTotalCreditsAttribute(): int
+    {
+        return (int) ($this->available_credits + $this->reserved_credits);
+    }
+
+    public function hasSufficientCredits(int $amount): bool
+    {
+        return $this->available_credits >= $amount;
+    }
 }
