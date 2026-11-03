@@ -16,11 +16,18 @@ use App\Models\Plan;
 use App\Models\Subscription;
 use App\Models\User;
 use App\Models\Workspace;
+use App\Services\Security\AuditLogService;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
 
 class CreditLedgerService
 {
+    public function __construct(
+        protected ?AuditLogService $auditLogService = null
+    ) {
+        $this->auditLogService = $this->auditLogService ?? app(AuditLogService::class);
+    }
+
     /**
      * Lấy hoặc khởi tạo tài khoản credit cho workspace.
      */
@@ -507,7 +514,7 @@ class CreditLedgerService
         $workspaceId = $workspace instanceof Workspace ? $workspace->id : $workspace;
         $key = $idempotencyKey ?? sprintf('admin_adj:%d:%s:%s', $workspaceId, now()->format('YmdHis'), uniqid());
 
-        return DB::transaction(function () use ($workspaceId, $amount, $admin, $reason, $key) {
+        return DB::transaction(function () use ($workspace, $workspaceId, $amount, $admin, $reason, $key) {
             $existing = CreditTransaction::where('idempotency_key', $key)->first();
             if ($existing) {
                 return $existing;
@@ -549,7 +556,7 @@ class CreditLedgerService
                 $grantId = $grant->id;
             }
 
-            return CreditTransaction::create([
+            $transaction = CreditTransaction::create([
                 'credit_account_id' => $account->id,
                 'workspace_id' => $workspaceId,
                 'credit_grant_id' => $grantId,
@@ -574,6 +581,37 @@ class CreditLedgerService
                 ],
                 'created_at' => now(),
             ]);
+
+            // Ghi Audit Log nguyên tử bên trong cùng một Transaction
+            if ($this->auditLogService) {
+                $workspaceModel = $workspace instanceof Workspace ? $workspace : Workspace::find($workspaceId);
+                if ($workspaceModel) {
+                    $this->auditLogService->log(
+                        action: 'credit.manual_adjusted',
+                        auditable: $workspaceModel,
+                        oldValues: ['balance_before' => $balanceBefore],
+                        newValues: [
+                            'balance_after' => $balanceAfter,
+                            'delta' => $actualDelta,
+                            'admin_id' => $admin->id,
+                            'reason' => $reason,
+                        ],
+                        notes: sprintf(
+                            'Admin %s điều chỉnh %s%d credit cho workspace %s (%d). Lý do: %s',
+                            $admin->email,
+                            $actualDelta > 0 ? '+' : '',
+                            $actualDelta,
+                            $workspaceModel->name,
+                            $workspaceModel->id,
+                            $reason
+                        ),
+                        workspaceId: $workspaceModel->id,
+                        actor: $admin
+                    );
+                }
+            }
+
+            return $transaction;
         });
     }
 

@@ -1,5 +1,8 @@
 <?php
 
+use App\Http\Controllers\Api\V1\Admin\AdminCreditAdjustmentController;
+use App\Http\Controllers\Api\V1\Admin\AdminPaymentOrderController;
+use App\Http\Controllers\Api\V1\Admin\AdminWorkspaceController;
 use App\Http\Controllers\Api\V1\AIPromptController;
 use App\Http\Controllers\Api\V1\AnalyticsController;
 use App\Http\Controllers\Api\V1\ArticleController;
@@ -9,6 +12,10 @@ use App\Http\Controllers\Api\V1\Auth\LogoutController;
 use App\Http\Controllers\Api\V1\Auth\MeController;
 use App\Http\Controllers\Api\V1\Auth\RegisterController;
 use App\Http\Controllers\Api\V1\Auth\ResetPasswordController;
+use App\Http\Controllers\Api\V1\Billing\CreditController;
+use App\Http\Controllers\Api\V1\Billing\PaymentOrderController;
+use App\Http\Controllers\Api\V1\Billing\PlanController;
+use App\Http\Controllers\Api\V1\Billing\SubscriptionController;
 use App\Http\Controllers\Api\V1\CampaignController;
 use App\Http\Controllers\Api\V1\KeywordController;
 use App\Http\Controllers\Api\V1\MediaAssetController;
@@ -128,12 +135,42 @@ Route::prefix('v1')->group(function () {
             Route::apiResource('ai-prompts', AIPromptController::class);
             Route::post('ai-prompts/{id}/activate', [AIPromptController::class, 'activate']);
             Route::post('ai-prompts/{id}/performance', [AIPromptController::class, 'updatePerformance']);
+
+            // Billing, Subscription & Credit
+            Route::get('billing/plans', [PlanController::class, 'index']);
+            Route::get('billing/subscription', [SubscriptionController::class, 'current']);
+            Route::get('billing/orders', [PaymentOrderController::class, 'index']);
+            Route::post('billing/orders', [PaymentOrderController::class, 'store']);
+            Route::get('billing/orders/{id}', [PaymentOrderController::class, 'show']);
+            Route::post('billing/orders/{id}/proof', [PaymentOrderController::class, 'submitProof']);
+            Route::post('billing/orders/{id}/cancel', [PaymentOrderController::class, 'cancel']);
+            Route::get('billing/credit-history', [CreditController::class, 'history']);
+            Route::get('billing/balance', [CreditController::class, 'balance']);
         });
 
-        // Queue status (Platform Admin only)
+        // Platform Admin Operations (Queue status backwards compatibility)
         Route::middleware('admin')->group(function () {
             Route::get('queue/status', [QueueStatusController::class, 'index']);
             Route::post('queue/retry/{jobId}', [QueueStatusController::class, 'retry']);
+        });
+
+        // Platform Admin Operations (Admin Portal prefix)
+        Route::middleware('admin')->prefix('admin')->group(function () {
+            // Queue status
+            Route::get('queue/status', [QueueStatusController::class, 'index']);
+            Route::post('queue/retry/{jobId}', [QueueStatusController::class, 'retry']);
+
+            // Payment Orders Review & Verification
+            Route::get('payment-orders', [AdminPaymentOrderController::class, 'index']);
+            Route::get('payment-orders/{id}', [AdminPaymentOrderController::class, 'show']);
+            Route::post('payment-orders/{id}/approve', [AdminPaymentOrderController::class, 'approve']);
+            Route::post('payment-orders/{id}/reject', [AdminPaymentOrderController::class, 'reject']);
+
+            // Workspaces Management & Credit Adjustment
+            Route::get('workspaces', [AdminWorkspaceController::class, 'index']);
+            Route::get('workspaces/{id}', [AdminWorkspaceController::class, 'show']);
+            Route::post('workspaces/{id}/credit-adjust', [AdminCreditAdjustmentController::class, 'adjust']);
+            Route::post('workspaces/{id}/status', [AdminWorkspaceController::class, 'updateStatus']);
         });
     });
 
