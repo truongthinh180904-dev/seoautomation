@@ -26,11 +26,11 @@ STOP_FILE="${STATE_DIR}/STOP"
 PID_FILE="${STATE_DIR}/orchestrator.pid"
 
 # --- MODEL ROUTING CONFIGURATION (CODER 3.8 FLASH, REVIEWER ARGON-4, FALLBACK 3.8 FLASH) ---
-PLANNER_MODEL="${PLANNER_MODEL:-gemini-4-argon-medium}"
-CODER_MODEL="${CODER_MODEL:-gemini-3.8-flash-high}"
-REVIEWER_MODEL="${REVIEWER_MODEL:-gemini-4-argon-medium}"
-DEBUG_FALLBACK_MODEL="${DEBUG_FALLBACK_MODEL:-gemini-3.8-flash-high}"
-SECONDARY_FALLBACK_MODEL="${SECONDARY_FALLBACK_MODEL:-gemini-3.8-flash-high}"
+PLANNER_MODEL="${PLANNER_MODEL:-Gemini 4 Argon (Medium)}"
+CODER_MODEL="${CODER_MODEL:-Gemini 3.8 Flash (Medium)}"
+REVIEWER_MODEL="${REVIEWER_MODEL:-Gemini 4 Argon (Medium)}"
+DEBUG_FALLBACK_MODEL="${DEBUG_FALLBACK_MODEL:-Gemini 3.8 Flash (Medium)}"
+SECONDARY_FALLBACK_MODEL="${SECONDARY_FALLBACK_MODEL:-Gemini 3.8 Flash (Medium)}"
 
 # --- CONFIGURATION & THRESHOLDS ---
 ALLOWED_BRANCHES="${ALLOWED_BRANCHES:-dev}"
@@ -360,6 +360,8 @@ run_agy_single_model() {
     local candidates=("${requested_model}")
     [ "${slug_dot}" != "${requested_model}" ] && candidates+=("${slug_dot}")
     [ "${slug_hyphen}" != "${requested_model}" ] && [ "${slug_hyphen}" != "${slug_dot}" ] && candidates+=("${slug_hyphen}")
+    # Always include standard working models as candidate fallbacks
+    candidates+=("Gemini 3.8 Flash (Medium)" "Gemini 4 Argon (Medium)")
 
     local exit_code=1
     local cand
@@ -371,12 +373,20 @@ run_agy_single_model() {
             agy --model "${cand}" --mode "${mode}" -p "${prompt}" > "${stdout_file}" 2> "${stderr_file}" || exit_code=$?
         fi
 
-        # If model identifier itself was unrecognized, immediately try next alias slug (<1s)
-        if [ "${exit_code}" -ne 0 ] && grep -Eiq "(unknown model|invalid model|model.*not found|unrecognized model|unsupported model)" "${stderr_file}" "${stdout_file}" 2>/dev/null; then
+        # If model failed or hit quota, immediately try next candidate
+        if [ "${exit_code}" -ne 0 ]; then
             continue
         fi
-        return "${exit_code}"
+        return 0
     done
+
+    # Ultimate fallback: run agy with default settings.json model (no --model flag)
+    exit_code=0
+    if [ "${stdout_file}" = "${stderr_file}" ]; then
+        agy --mode "${mode}" -p "${prompt}" > "${stdout_file}" 2>&1 || exit_code=$?
+    else
+        agy --mode "${mode}" -p "${prompt}" > "${stdout_file}" 2> "${stderr_file}" || exit_code=$?
+    fi
     return "${exit_code}"
 }
 
