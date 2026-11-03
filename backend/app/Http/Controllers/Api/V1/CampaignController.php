@@ -88,19 +88,34 @@ class CampaignController extends Controller
         return response()->json($this->statsService->getStats($campaign));
     }
 
-    public function start(Request $request, int $id)
+    public function start(Request $request, int $id): CampaignResource
     {
-        return $this->transition($request, $id, CampaignStatus::PROCESSING);
+        $campaign = $this->campaigns->findByIdForTenant($id, $request->user()->tenant_id);
+        if (! $campaign) {
+            abort(404);
+        }
+
+        return new CampaignResource($this->campaignService->start($campaign, $request->user()));
     }
 
-    public function pause(Request $request, int $id)
+    public function pause(Request $request, int $id): CampaignResource
     {
-        return $this->transition($request, $id, CampaignStatus::PAUSED);
+        $campaign = $this->campaigns->findByIdForTenant($id, $request->user()->tenant_id);
+        if (! $campaign) {
+            abort(404);
+        }
+
+        return new CampaignResource($this->campaignService->pause($campaign));
     }
 
-    public function resume(Request $request, int $id)
+    public function resume(Request $request, int $id): CampaignResource
     {
-        return $this->transition($request, $id, CampaignStatus::PROCESSING);
+        $campaign = $this->campaigns->findByIdForTenant($id, $request->user()->tenant_id);
+        if (! $campaign) {
+            abort(404);
+        }
+
+        return new CampaignResource($this->campaignService->resume($campaign, $request->user()));
     }
 
     protected function transition(Request $request, int $id, CampaignStatus $status): CampaignResource

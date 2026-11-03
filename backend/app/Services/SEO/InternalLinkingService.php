@@ -12,10 +12,18 @@ class InternalLinkingService
     {
         $apiUrl = rtrim($site->api_url, '/');
 
-        $decryptedPassword = Crypt::decryptString($site->app_password);
-        $auth = base64_encode($site->username.':'.$decryptedPassword);
+        $password = (string) $site->app_password;
+        try {
+            $password = Crypt::decryptString($password);
+        } catch (\Throwable) {
+            // Already decrypted by Eloquent cast
+        }
 
-        $response = Http::withHeaders([
+        $auth = base64_encode($site->username.':'.$password);
+
+        $response = Http::withOptions([
+            'verify' => (bool) config('wordpress.verify_ssl', true),
+        ])->timeout(15)->withHeaders([
             'Authorization' => 'Basic '.$auth,
         ])->get($apiUrl.'/wp/v2/posts', [
             'search' => $keyword,

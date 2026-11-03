@@ -16,7 +16,25 @@ class GeminiProvider implements AIProviderInterface
     public function complete(AIRequestDTO $request): AIResponseDTO
     {
         $startTime = microtime(true);
-        $model = $request->model ?: config('ai.providers.gemini.default_model', 'gemini-2.5-flash');
+        $modelMap = [
+            'gpt-4o' => 'gemini-1.5-pro',
+            'gpt-4' => 'gemini-1.5-pro',
+            'gpt-4o-mini' => 'gemini-1.5-flash',
+            'gpt-3.5-turbo' => 'gemini-1.5-flash',
+            'claude-3-opus-20240229' => 'gemini-1.5-pro',
+            'claude-3-opus' => 'gemini-1.5-pro',
+            'claude-3-sonnet-20240229' => 'gemini-1.5-flash',
+            'claude-3-haiku-20240307' => 'gemini-1.5-flash',
+            'claude-3-5-sonnet' => 'gemini-1.5-pro',
+        ];
+
+        $rawModel = $request->model;
+        if (! $rawModel || isset($modelMap[$rawModel]) || str_starts_with((string) $rawModel, 'gpt-') || str_starts_with((string) $rawModel, 'claude-')) {
+            $model = $modelMap[$rawModel] ?? config('ai.providers.gemini.default_model', 'gemini-2.5-flash');
+        } else {
+            $model = $rawModel;
+        }
+
         $apiKey = config('ai.providers.gemini.api_key');
 
         try {
@@ -29,10 +47,14 @@ class GeminiProvider implements AIProviderInterface
                     }
 
                     $fallbackResponse = $this->sendGenerateRequest($fallbackModel, $request, $apiKey);
+                    $response = $fallbackResponse;
 
                     if ($fallbackResponse->successful()) {
                         $model = $fallbackModel;
-                        $response = $fallbackResponse;
+                        break;
+                    }
+
+                    if ($fallbackResponse->status() === 429) {
                         break;
                     }
                 }
@@ -88,7 +110,7 @@ class GeminiProvider implements AIProviderInterface
     {
         return Http::timeout(120)
             ->withOptions(['verify' => config('ai.http.verify_ssl', true)])
-            ->retry(2, 500)
+            ->retry(2, 500, null, false)
             ->post("https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key={$apiKey}", [
                 'system_instruction' => [
                     'parts' => [

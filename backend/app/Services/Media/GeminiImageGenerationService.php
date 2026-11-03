@@ -5,6 +5,8 @@ namespace App\Services\Media;
 use App\Jobs\Media\DownloadImageJob;
 use App\Models\Article;
 use App\Models\MediaAsset;
+use App\Services\Billing\CreditLedgerService;
+use App\Services\Cost\CostTrackingService;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -14,8 +16,13 @@ class GeminiImageGenerationService
 {
     public function __construct(
         protected StockImageSearchService $stockSearch,
-        protected ImageOptimizationService $optimizer
-    ) {}
+        protected ImageOptimizationService $optimizer,
+        protected ?CostTrackingService $costTracking = null,
+        protected ?CreditLedgerService $creditLedger = null
+    ) {
+        $this->costTracking = $this->costTracking ?? app(CostTrackingService::class);
+        $this->creditLedger = $this->creditLedger ?? app(CreditLedgerService::class);
+    }
 
     public function ensureInlineImages(Article $article): int
     {
@@ -65,6 +72,7 @@ class GeminiImageGenerationService
                     'source_url' => $image['url'],
                 ],
                 [
+                    'workspace_id' => $article->workspace_id,
                     'campaign_id' => $article->campaign_id,
                     'source_type' => 'external_url',
                     'alt_text' => $image['alt'] ?: ($article->focus_keyword ?: $article->title),
@@ -94,6 +102,12 @@ class GeminiImageGenerationService
         $apiKey = config('ai.providers.gemini.api_key');
         if (! $apiKey) {
             throw new RuntimeException('GEMINI_API_KEY is missing for image generation.');
+        }
+
+        $imageCredits = (int) config('ai_costs.credits.image_generation', 5);
+
+        if ($this->creditLedger && $article->workspace_id) {
+            $this->creditLedger->checkCredits($article->workspace_id, $imageCredits);
         }
 
         $model = config('ai.image_generation.model', 'imagen-4.0-generate-001');
@@ -139,6 +153,7 @@ class GeminiImageGenerationService
 
         MediaAsset::create([
             'tenant_id' => $article->tenant_id,
+            'workspace_id' => $article->workspace_id,
             'campaign_id' => $article->campaign_id,
             'article_id' => $article->id,
             'source_type' => 'ai_generated',
@@ -161,6 +176,34 @@ class GeminiImageGenerationService
                 'optimized' => $image['optimized'],
             ],
         ]);
+
+        $imageCredits = (int) config('ai_costs.credits.image_generation', 5);
+
+        if ($this->costTracking) {
+            $this->costTracking->logUsage([
+                'tenant_id' => $article->tenant_id,
+                'workspace_id' => $article->workspace_id,
+                'campaign_id' => $article->campaign_id,
+                'article_id' => $article->id,
+                'job_type' => 'image_generation',
+                'provider' => 'gemini',
+                'model' => $model,
+                'cost_usd' => 0.03,
+                'credits_charged' => $imageCredits,
+                'status' => 'success',
+            ]);
+        }
+
+        if ($this->creditLedger && $article->workspace_id) {
+            $this->creditLedger->deductCredits(
+                $article->workspace_id,
+                $imageCredits,
+                'article_image',
+                $article->id,
+                sprintf('deduct:%d:article_image:%d:%s', $article->workspace_id, $article->id, Str::slug(Str::limit($prompt, 30))),
+                ['job' => 'image_generation', 'model' => $model]
+            );
+        }
 
         return 1;
     }

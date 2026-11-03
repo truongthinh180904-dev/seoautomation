@@ -394,20 +394,25 @@ class CreditLedgerService
 
     /**
      * Cấp credit theo chu kỳ hoặc khuyến mãi (Idempotent).
+     * Hỗ trợ cả tên tham số $source hoặc $sourceType (tương thích ngược).
      * Nếu $resetPrevious = true, sẽ thu hồi/expire toàn bộ credit còn dư của chu kỳ trước (Carryover = false).
      */
     public function grantCredits(
         Workspace|int $workspace,
         int $amount,
-        CreditGrantSource $source,
-        CarbonInterface $expiresAt,
+        CreditGrantSource $source = CreditGrantSource::SUBSCRIPTION_CYCLE,
+        ?CarbonInterface $expiresAt = null,
         ?Subscription $subscription = null,
         ?PaymentOrder $order = null,
         ?User $actor = null,
         ?string $idempotencyKey = null,
         ?string $note = null,
-        bool $resetPrevious = false
+        bool $resetPrevious = false,
+        ?CreditGrantSource $sourceType = null
     ): CreditGrant {
+        $source = $sourceType ?? $source;
+        $expiresAt = $expiresAt ?? now()->addMonth();
+
         $workspaceId = $workspace instanceof Workspace ? $workspace->id : $workspace;
         $key = $idempotencyKey ?? sprintf(
             'grant:%d:%s:%s',

@@ -4,6 +4,7 @@ namespace App\Services\Article;
 
 use App\Models\Article;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class ArticlePipelineService
 {
@@ -47,6 +48,11 @@ class ArticlePipelineService
         return $this->writeStep($article, $step, 'failed', null, $error);
     }
 
+    public function cancel(Article $article, ?string $reason = null): Article
+    {
+        return $this->writeStep($article, 'cancelled', 'cancelled', $reason ?: 'Tác vụ đã bị hủy.');
+    }
+
     private function writeStep(
         Article $article,
         string $step,
@@ -54,39 +60,42 @@ class ArticlePipelineService
         ?string $message = null,
         ?string $error = null
     ): Article {
-        $article->refresh();
+        return DB::transaction(function () use ($article, $step, $status, $message, $error) {
+            /** @var Article $lockedArticle */
+            $lockedArticle = Article::whereKey($article->id)->lockForUpdate()->first() ?? $article;
 
-        $pipeline = $article->pipeline_status ?: [
-            'current' => $step,
-            'steps' => $this->baseSteps(),
-        ];
+            $pipeline = $lockedArticle->pipeline_status ?: [
+                'current' => $step,
+                'steps' => $this->baseSteps(),
+            ];
 
-        $pipeline['steps'] = $pipeline['steps'] ?? $this->baseSteps();
-        $pipeline['steps'][$step] = array_merge(
-            $pipeline['steps'][$step] ?? $this->baseStep($step),
-            [
-                'status' => $status,
-                'message' => $message,
-                'error' => $error,
-                'updated_at' => $this->now(),
-            ]
-        );
+            $pipeline['steps'] = $pipeline['steps'] ?? $this->baseSteps();
+            $pipeline['steps'][$step] = array_merge(
+                $pipeline['steps'][$step] ?? $this->baseStep($step),
+                [
+                    'status' => $status,
+                    'message' => $message,
+                    'error' => $error,
+                    'updated_at' => $this->now(),
+                ]
+            );
 
-        if ($status === 'running' && empty($pipeline['steps'][$step]['started_at'])) {
-            $pipeline['steps'][$step]['started_at'] = $this->now();
-        }
+            if ($status === 'running' && empty($pipeline['steps'][$step]['started_at'])) {
+                $pipeline['steps'][$step]['started_at'] = $this->now();
+            }
 
-        if (in_array($status, ['completed', 'failed'], true)) {
-            $pipeline['steps'][$step]['finished_at'] = $this->now();
-        }
+            if (in_array($status, ['completed', 'failed', 'cancelled'], true)) {
+                $pipeline['steps'][$step]['finished_at'] = $this->now();
+            }
 
-        $pipeline['current'] = $status === 'failed' ? $step : $this->currentStep($pipeline['steps'], $step, $status);
-        $pipeline['last_error'] = $error;
-        $pipeline['updated_at'] = $this->now();
+            $pipeline['current'] = in_array($status, ['failed', 'cancelled'], true) ? $step : $this->currentStep($pipeline['steps'], $step, $status);
+            $pipeline['last_error'] = $error;
+            $pipeline['updated_at'] = $this->now();
 
-        $article->forceFill(['pipeline_status' => $pipeline])->save();
+            $lockedArticle->forceFill(['pipeline_status' => $pipeline])->save();
 
-        return $article->refresh();
+            return $lockedArticle;
+        });
     }
 
     private function currentStep(array $steps, string $step, string $status): string

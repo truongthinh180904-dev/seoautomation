@@ -29,13 +29,14 @@ class SerpResearchAgent extends BaseAgent
         $keyword = $context['keyword'] ?? null;
         $keywordId = $context['keyword_id'] ?? null;
         $tenantId = $context['tenant_id'] ?? null;
+        $workspaceId = $context['workspace_id'] ?? null;
 
         if (! $keyword || ! $keywordId || ! $tenantId) {
             throw new \InvalidArgumentException('Missing required context: keyword, keyword_id, tenant_id');
         }
 
         // 1. Call SerpResearchService
-        $serpResults = $this->serpResearchService->search($keyword, $tenantId);
+        $serpResults = $this->serpResearchService->search($keyword, $tenantId, 'vi', $keywordId, $workspaceId);
 
         // 2. For each result: create SerpResult model record
         foreach ($serpResults as $dto) {

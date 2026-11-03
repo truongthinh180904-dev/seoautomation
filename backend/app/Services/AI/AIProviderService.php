@@ -13,8 +13,8 @@ use App\Models\AILog;
 use App\Providers\AI\Contracts\AIProviderInterface;
 use App\Services\Cost\CostTrackingService;
 use App\Services\Notifications\NotificationService;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Redis;
 
 class AIProviderService
 {
@@ -27,6 +27,7 @@ class AIProviderService
     protected array $providerRateLimits = [
         'openai' => ['max' => 50, 'window' => 60],
         'anthropic' => ['max' => 40, 'window' => 60],
+        'gemini' => ['max' => 60, 'window' => 60],
     ];
 
     public function __construct(
@@ -129,17 +130,21 @@ class AIProviderService
     }
 
     /**
-     * Check if provider has exceeded Redis-tracked rate limit window.
+     * Check if provider has exceeded tracked rate limit window.
      */
     protected function isProviderRateLimited(string $providerKey): bool
     {
         $blockedKey = "ai_provider:blocked:{$providerKey}";
 
-        return (bool) Redis::connection('cache')->exists($blockedKey);
+        try {
+            return (bool) Cache::has($blockedKey);
+        } catch (\Throwable $e) {
+            return false;
+        }
     }
 
     /**
-     * Increment usage counter for provider in Redis (sliding window).
+     * Increment usage counter for provider (sliding window).
      */
     protected function incrementProviderUsage(string $providerKey): void
     {
@@ -149,27 +154,40 @@ class AIProviderService
         }
 
         $usageKey = "ai_provider:usage:{$providerKey}";
-        $redis = Redis::connection('cache');
 
-        $current = (int) $redis->incr($usageKey);
-        if ($current === 1) {
-            $redis->expire($usageKey, $limits['window']);
-        }
+        try {
+            if (! Cache::has($usageKey)) {
+                Cache::put($usageKey, 1, $limits['window']);
+                $current = 1;
+            } else {
+                $current = (int) Cache::increment($usageKey);
+            }
 
-        // If usage exceeds soft limit, preemptively back off
-        if ($current >= $limits['max']) {
-            $this->markProviderRateLimitedInRedis($providerKey, ttl: 30);
+            if ($current >= $limits['max']) {
+                $this->markProviderRateLimited($providerKey, 30);
+            }
+        } catch (\Throwable $e) {
+            // Non-fatal if cache store fails
         }
     }
 
     /**
-     * Mark provider as blocked in Redis for TTL seconds (received 429 from API).
+     * Mark provider as blocked for TTL seconds (e.g. received 429 from API).
      */
-    protected function markProviderRateLimitedInRedis(string $providerKey, int $ttl = 60): void
+    protected function markProviderRateLimited(string $providerKey, int $ttl = 60): void
     {
         $blockedKey = "ai_provider:blocked:{$providerKey}";
-        Redis::connection('cache')->setex($blockedKey, $ttl, 1);
-        Log::warning("AIProviderService: {$providerKey} marked as rate-limited in Redis for {$ttl}s.");
+        try {
+            Cache::put($blockedKey, true, $ttl);
+        } catch (\Throwable $e) {
+            Log::warning("AIProviderService: Could not set cache rate limit for {$providerKey}: ".$e->getMessage());
+        }
+        Log::warning("AIProviderService: {$providerKey} marked as rate-limited for {$ttl}s.");
+    }
+
+    protected function markProviderRateLimitedInRedis(string $providerKey, int $ttl = 60): void
+    {
+        $this->markProviderRateLimited($providerKey, $ttl);
     }
 
     protected function alertAdmin(AIRequestDTO $request, string $errorMsg, ?\Throwable $lastException): void
@@ -245,6 +263,7 @@ class AIProviderService
 
         $this->costTrackingService->logUsage([
             'tenant_id' => $request->tenantId,
+            'workspace_id' => $request->workspaceId,
             'article_id' => $request->articleId,
             'keyword_id' => $request->keywordId,
             'job_type' => $request->agentType->value,
@@ -267,6 +286,7 @@ class AIProviderService
 
         $this->costTrackingService->logUsage([
             'tenant_id' => $request->tenantId,
+            'workspace_id' => $request->workspaceId,
             'article_id' => $request->articleId,
             'keyword_id' => $request->keywordId,
             'job_type' => $request->agentType->value,

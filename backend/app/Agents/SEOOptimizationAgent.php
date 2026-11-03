@@ -40,6 +40,7 @@ class SEOOptimizationAgent extends BaseAgent
             articleId: $context['article_id'] ?? null,
             keywordId: $context['keyword_id'] ?? null,
             promptVersion: $promptData['version'],
+            workspaceId: $context['workspace_id'] ?? null,
         );
 
         $response = $this->callAI($request);

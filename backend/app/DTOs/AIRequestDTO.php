@@ -10,14 +10,15 @@ class AIRequestDTO extends Data
     public function __construct(
         public string $systemPrompt,
         public string $userPrompt,
-        public string $model,
-        public AgentType $agentType,
-        public int $tenantId,
+        public string $model = '',
+        public ?AgentType $agentType = null,
+        public int $tenantId = 0,
         public int $maxTokens = 4000,
         public float $temperature = 0.7,
         public ?int $articleId = null,
         public ?int $keywordId = null,
         public ?string $promptVersion = null,
+        public ?int $workspaceId = null,
     ) {}
 
     public function toHash(): string

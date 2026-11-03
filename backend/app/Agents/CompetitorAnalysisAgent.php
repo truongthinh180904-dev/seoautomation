@@ -50,6 +50,7 @@ class CompetitorAnalysisAgent extends BaseAgent
             'keyword_id' => $keywordId,
             'content' => $crawlData['raw_text'],
             'tenant_id' => $tenantId,
+            'workspace_id' => $context['workspace_id'] ?? null,
         ]);
 
         $semanticData = $analysisResult->success ? $analysisResult->data : [];

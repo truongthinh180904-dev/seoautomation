@@ -8,6 +8,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Schema;
 
 class QueueStatusController extends Controller
@@ -80,6 +81,15 @@ class QueueStatusController extends Controller
 
     private function pendingCount(string $queue): int
     {
+        $connection = config('queue.default');
+        if ($connection === 'redis') {
+            try {
+                return (int) Queue::connection('redis')->size($queue);
+            } catch (\Throwable) {
+                // Fallback to database check
+            }
+        }
+
         if (! Schema::hasTable('jobs')) {
             return 0;
         }

@@ -5,6 +5,7 @@ namespace App\Services\Keyword;
 use Exception;
 use Illuminate\Http\UploadedFile;
 use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Shared\Date;
 
 class KeywordParserService
 {
@@ -136,7 +137,17 @@ class KeywordParserService
             ];
 
             if ($colMap['scheduled_at'] !== -1 && ! empty($row[$colMap['scheduled_at']])) {
-                $parsedRow['scheduled_at'] = date('Y-m-d H:i:s', strtotime((string) $row[$colMap['scheduled_at']]));
+                $rawDate = $row[$colMap['scheduled_at']];
+                if (is_numeric($rawDate) && (float) $rawDate > 1000) {
+                    try {
+                        $parsedRow['scheduled_at'] = Date::excelToDateTimeObject((float) $rawDate)->format('Y-m-d H:i:s');
+                    } catch (\Throwable) {
+                        $parsedRow['scheduled_at'] = null;
+                    }
+                } else {
+                    $ts = strtotime((string) $rawDate);
+                    $parsedRow['scheduled_at'] = ($ts && $ts > 0) ? date('Y-m-d H:i:s', $ts) : null;
+                }
             }
 
             if (empty($parsedRow['wordpress_site_id'])) {

@@ -7,7 +7,10 @@ use App\Jobs\Publishing\PublishToWordPressJob;
 use App\Models\Article;
 use App\Services\Article\ArticlePipelineService;
 use App\Services\Media\GeminiImageGenerationService;
+use App\Traits\BelongsToTenant;
+use App\Traits\BelongsToWorkspace;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -15,7 +18,7 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
-class GenerateArticleImagesJob implements ShouldQueue
+class GenerateArticleImagesJob implements ShouldBeUnique, ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
@@ -24,6 +27,13 @@ class GenerateArticleImagesJob implements ShouldQueue
     public array $backoff = [120, 300];
 
     public int $timeout = 600;
+
+    public int $uniqueFor = 600;
+
+    public function uniqueId(): string
+    {
+        return 'article_images_'.$this->articleId;
+    }
 
     public function __construct(public int $articleId)
     {
@@ -37,7 +47,16 @@ class GenerateArticleImagesJob implements ShouldQueue
             return;
         }
 
+        if (data_get($article->pipeline_status, 'current') === 'cancelled' || $article->status === ArticleStatus::FAILED) {
+            Log::info("GenerateArticleImagesJob aborted: Article #{$article->id} was cancelled or failed.");
+
+            return;
+        }
+
         try {
+            BelongsToTenant::setExecutionContext($article->tenant_id);
+            BelongsToWorkspace::setExecutionContext($article->workspace_id);
+
             $pipeline->start($article, 'media_download', 'AI đang tạo ảnh minh họa còn thiếu.');
             $created = $generator->ensureInlineImages($article);
 
@@ -58,6 +77,9 @@ class GenerateArticleImagesJob implements ShouldQueue
             ]);
 
             $pipeline->fail($article, 'media_download', 'AI image generation failed: '.$exception->getMessage());
+        } finally {
+            BelongsToTenant::setExecutionContext(null);
+            BelongsToWorkspace::setExecutionContext(null);
         }
     }
 }

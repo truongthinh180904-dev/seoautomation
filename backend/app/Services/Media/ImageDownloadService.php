@@ -3,6 +3,7 @@
 namespace App\Services\Media;
 
 use App\Models\MediaAsset;
+use App\Services\Security\UrlSafetyValidator;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use RuntimeException;
@@ -17,6 +18,10 @@ class ImageDownloadService
     {
         if (! $asset->source_url) {
             throw new RuntimeException('Media asset source URL is empty.');
+        }
+
+        if (! UrlSafetyValidator::isSafeUrl($asset->source_url)) {
+            throw new RuntimeException('Image download rejected: unsafe or restricted URL (SSRF protection).');
         }
 
         $response = Http::withOptions([

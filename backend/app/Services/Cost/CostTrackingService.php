@@ -5,6 +5,7 @@ namespace App\Services\Cost;
 use App\DTOs\QuotaCheckResultDTO;
 use App\Models\AiUsageLog;
 use App\Models\Article;
+use App\Models\Keyword;
 use App\Models\SubscriptionPlan;
 use App\Models\TenantSubscription;
 use App\Models\UsageRecord;
@@ -36,6 +37,19 @@ class CostTrackingService
 
         if (! $workspaceId && $articleId) {
             $workspaceId = Article::query()->whereKey($articleId)->value('workspace_id');
+        }
+
+        $keywordId = $data['keyword_id'] ?? null;
+        if (! $workspaceId && $keywordId) {
+            $keyword = Keyword::find($keywordId);
+            $workspaceId = $keyword?->workspace_id;
+            if (! $campaignId && $keyword?->campaign_id) {
+                $campaignId = $keyword->campaign_id;
+            }
+        }
+
+        if (! $workspaceId && ! empty($data['tenant_id'])) {
+            $workspaceId = Workspace::where('legacy_tenant_id', $data['tenant_id'])->value('id');
         }
 
         $log = AiUsageLog::create([

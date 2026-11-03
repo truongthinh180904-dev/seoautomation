@@ -262,7 +262,7 @@ return [
                 'minProcesses' => 2,
                 'maxProcesses' => 5,
                 'tries' => 2,
-                'timeout' => 60,
+                'timeout' => 600,
                 'memory' => 128,
             ],
             'supervisor-default' => [
@@ -292,7 +292,7 @@ return [
                 'balance' => 'false',
                 'processes' => 3,
                 'tries' => 3,
-                'timeout' => 300,
+                'timeout' => 600,
             ],
         ],
     ],

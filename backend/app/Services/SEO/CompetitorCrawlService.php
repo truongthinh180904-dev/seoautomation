@@ -2,6 +2,7 @@
 
 namespace App\Services\SEO;
 
+use App\Services\Security\UrlSafetyValidator;
 use DOMDocument;
 use DOMXPath;
 use Illuminate\Support\Facades\Http;
@@ -18,6 +19,10 @@ class CompetitorCrawlService
 
     public function crawl(string $url): array
     {
+        if (! UrlSafetyValidator::isSafeUrl($url)) {
+            throw new \InvalidArgumentException("URL {$url} is unsafe or restricted (SSRF protection).");
+        }
+
         $userAgent = $this->userAgents[array_rand($this->userAgents)];
 
         try {
@@ -71,7 +76,9 @@ class CompetitorCrawlService
         $body = $dom->getElementsByTagName('body')->item(0);
         $textContent = $body ? trim($body->textContent) : '';
         $textContent = preg_replace('/\s+/', ' ', $textContent);
-        $wordCount = str_word_count(strip_tags($textContent));
+        $stripped = trim(strip_tags($textContent));
+        $words = preg_split('/\s+/u', $stripped, -1, PREG_SPLIT_NO_EMPTY);
+        $wordCount = is_array($words) ? count($words) : 0;
 
         // Identify FAQs (heuristic)
         $faqs = [];

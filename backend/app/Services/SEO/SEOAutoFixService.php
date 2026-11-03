@@ -38,6 +38,7 @@ class SEOAutoFixService
                     'keyword' => $keyword,
                     'article_content' => $article->content,
                     'tenant_id' => $article->tenant_id,
+                    'workspace_id' => $article->workspace_id,
                     'keyword_id' => $article->keyword_id,
                     'article_id' => $article->id,
                 ];

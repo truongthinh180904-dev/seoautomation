@@ -4,17 +4,20 @@ namespace App\Services\Media;
 
 use App\Jobs\Media\DownloadImageJob;
 use App\Models\Article;
+use App\Models\Campaign;
 use App\Models\Keyword;
 use App\Models\MediaAsset;
+use App\Models\Workspace;
 
 class MediaParserService
 {
-    public function createAssetsFromKeywordRows(array $rows, int $tenantId, ?int $campaignId = null): int
+    public function createAssetsFromKeywordRows(array $rows, int $tenantId, ?int $campaignId = null, ?int $workspaceId = null): int
     {
         $created = 0;
 
         foreach ($rows as $row) {
             $rowCampaignId = $row['campaign_id'] ?? $campaignId;
+            $rowWorkspaceId = $row['workspace_id'] ?? $workspaceId;
             $meta = $row['meta'] ?? [];
 
             if (! empty($meta['featured_image_url'])) {
@@ -23,7 +26,8 @@ class MediaParserService
                     campaignId: $rowCampaignId,
                     sourceUrl: $meta['featured_image_url'],
                     altText: $row['keyword'] ?? null,
-                    metadata: ['role' => 'featured', 'keyword' => $row['keyword'] ?? null]
+                    metadata: ['role' => 'featured', 'keyword' => $row['keyword'] ?? null],
+                    workspaceId: $rowWorkspaceId
                 );
             }
 
@@ -34,7 +38,8 @@ class MediaParserService
                     sourceUrl: $image['url'],
                     altText: $image['alt'] ?: ($row['keyword'] ?? null),
                     caption: $image['caption'],
-                    metadata: ['role' => 'inline', 'keyword' => $row['keyword'] ?? null]
+                    metadata: ['role' => 'inline', 'keyword' => $row['keyword'] ?? null],
+                    workspaceId: $rowWorkspaceId
                 );
             }
         }
@@ -53,7 +58,8 @@ class MediaParserService
                 campaignId: $keyword->campaign_id,
                 sourceUrl: $meta['featured_image_url'],
                 altText: $keyword->keyword,
-                metadata: ['role' => 'featured', 'keyword' => $keyword->keyword]
+                metadata: ['role' => 'featured', 'keyword' => $keyword->keyword],
+                workspaceId: $keyword->workspace_id
             );
         }
 
@@ -64,7 +70,8 @@ class MediaParserService
                 sourceUrl: $image['url'],
                 altText: $image['alt'] ?: $keyword->keyword,
                 caption: $image['caption'],
-                metadata: ['role' => 'inline', 'keyword' => $keyword->keyword]
+                metadata: ['role' => 'inline', 'keyword' => $keyword->keyword],
+                workspaceId: $keyword->workspace_id
             );
         }
 
@@ -83,7 +90,8 @@ class MediaParserService
                 sourceUrl: $plan['featured_image_url'],
                 altText: $article->focus_keyword ?: $article->title,
                 metadata: ['role' => 'featured', 'keyword' => $article->focus_keyword],
-                articleId: $article->id
+                articleId: $article->id,
+                workspaceId: $article->workspace_id
             );
         }
 
@@ -95,7 +103,8 @@ class MediaParserService
                 altText: $image['alt'] ?: ($article->focus_keyword ?: $article->title),
                 caption: $image['caption'],
                 metadata: ['role' => 'inline', 'keyword' => $article->focus_keyword],
-                articleId: $article->id
+                articleId: $article->id,
+                workspaceId: $article->workspace_id
             );
         }
 
@@ -109,7 +118,8 @@ class MediaParserService
         ?string $altText = null,
         ?string $caption = null,
         array $metadata = [],
-        ?int $articleId = null
+        ?int $articleId = null,
+        ?int $workspaceId = null
     ): int {
         if (! filter_var($sourceUrl, FILTER_VALIDATE_URL)) {
             return 0;
@@ -124,8 +134,19 @@ class MediaParserService
             ->first();
 
         if (! $asset) {
+            if (! $workspaceId && $articleId) {
+                $workspaceId = Article::query()->whereKey($articleId)->value('workspace_id');
+            }
+            if (! $workspaceId && $campaignId) {
+                $workspaceId = Campaign::query()->whereKey($campaignId)->value('workspace_id');
+            }
+            if (! $workspaceId && $tenantId) {
+                $workspaceId = Workspace::where('legacy_tenant_id', $tenantId)->value('id');
+            }
+
             $asset = MediaAsset::create([
                 'tenant_id' => $tenantId,
+                'workspace_id' => $workspaceId,
                 'campaign_id' => $campaignId,
                 'article_id' => $articleId,
                 'source_url' => $sourceUrl,

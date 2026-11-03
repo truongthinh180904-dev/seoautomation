@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Enums\ArticleStatus;
 use App\Enums\KeywordStatus;
 use App\Events\ArticleApproved;
+use App\Exceptions\InsufficientCreditsException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\GenerateArticleRequest;
 use App\Http\Requests\ReviewArticleActionRequest;
@@ -14,15 +15,19 @@ use App\Jobs\AI\GenerateOutlineJob;
 use App\Jobs\Media\GenerateArticleImagesJob;
 use App\Jobs\Publishing\PublishToWordPressJob;
 use App\Models\MediaAsset;
+use App\Models\Workspace;
 use App\Repositories\Contracts\ArticleRepositoryInterface;
 use App\Repositories\Contracts\KeywordRepositoryInterface;
 use App\Services\Article\ArticleContentFormatter;
 use App\Services\Article\ArticlePipelineService;
+use App\Services\Billing\CreditLedgerService;
 use App\Services\Cost\CostTrackingService;
 use App\Services\Media\MediaParserService;
+use App\Services\Queue\TaskService;
 use App\Services\SEO\SEOAutoFixService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class ArticleController extends Controller
@@ -34,7 +39,8 @@ class ArticleController extends Controller
         protected ArticlePipelineService $pipeline,
         protected MediaParserService $mediaParser,
         protected ArticleContentFormatter $formatter,
-        protected SEOAutoFixService $autoFixService
+        protected SEOAutoFixService $autoFixService,
+        protected TaskService $taskService
     ) {}
 
     public function index(Request $request)
@@ -123,6 +129,21 @@ class ArticleController extends Controller
             abort(404);
         }
 
+        $currentWorkspace = $request->attributes->get('current_workspace');
+        if ($currentWorkspace && $article->workspace_id && $article->workspace_id !== $currentWorkspace->id) {
+            abort(404);
+        }
+
+        $workspace = $currentWorkspace
+            ?: ($article->workspace_id ? Workspace::where('id', $article->workspace_id)->where('legacy_tenant_id', $request->user()->tenant_id)->first() : null)
+            ?: ($request->user()->default_workspace_id ? Workspace::where('id', $request->user()->default_workspace_id)->where('legacy_tenant_id', $request->user()->tenant_id)->first() : null);
+        $quota = $workspace ? $this->costTracking->checkWorkspaceQuota($workspace) : $this->costTracking->checkQuota($request->user()->tenant_id);
+        if (! $quota->canProceed) {
+            return response()->json([
+                'message' => $quota->message ?? 'AI quota exceeded for SEO auto-fix.',
+            ], 402);
+        }
+
         return (new ArticleResource($this->autoFixService->autoFix($article)))->additional([
             'message' => 'SEO auto-fix applied.',
         ]);
@@ -177,6 +198,42 @@ class ArticleController extends Controller
             abort(404);
         }
 
+        $currentWorkspace = $request->attributes->get('current_workspace');
+        if ($currentWorkspace && $article->workspace_id && $article->workspace_id !== $currentWorkspace->id) {
+            abort(404);
+        }
+
+        $workspace = $currentWorkspace
+            ?: ($article->workspace_id ? Workspace::where('id', $article->workspace_id)->where('legacy_tenant_id', $request->user()->tenant_id)->first() : null)
+            ?: ($request->user()->default_workspace_id ? Workspace::where('id', $request->user()->default_workspace_id)->where('legacy_tenant_id', $request->user()->tenant_id)->first() : null);
+        $workspaceId = $workspace?->id ?: ($article->workspace_id ?: $request->user()->default_workspace_id);
+
+        $imageCreditsCost = (int) config('ai_costs.credits.image_generation', 5);
+        $imageStrategy = $article->campaign?->settings['image_source'] ?? $article->media_plan['image_source'] ?? config('ai.image_generation.source_strategy', 'hybrid');
+        $aiImageEnabled = config('ai.image_generation.enabled', true);
+
+        if ($aiImageEnabled && in_array($imageStrategy, ['ai', 'hybrid'], true)) {
+            $targetWorkspace = $workspaceId ?: $article->workspace_id;
+            if ($targetWorkspace && app()->bound(CreditLedgerService::class)) {
+                $creditService = app(CreditLedgerService::class);
+                try {
+                    $creditService->checkCredits($targetWorkspace, $imageCreditsCost);
+                } catch (InsufficientCreditsException $e) {
+                    return response()->json([
+                        'message' => 'Số dư credit không đủ để sinh ảnh AI.',
+                        'required' => $imageCreditsCost,
+                    ], 402);
+                }
+            } else {
+                $quota = $workspace ? $this->costTracking->checkWorkspaceQuota($workspace) : $this->costTracking->checkQuota($request->user()->tenant_id);
+                if (! $quota->canProceed) {
+                    return response()->json([
+                        'message' => $quota->message ?? 'AI quota exceeded for image generation.',
+                    ], 402);
+                }
+            }
+        }
+
         GenerateArticleImagesJob::dispatch($article->id)->onQueue('imports');
 
         return response()->json([
@@ -228,10 +285,24 @@ class ArticleController extends Controller
     public function generate(GenerateArticleRequest $request): JsonResponse
     {
         $tenantId = $request->user()->tenant_id;
-        $workspace = $request->attributes->get('current_workspace');
-        $workspaceId = $workspace?->id ?: $request->user()->default_workspace_id;
         $validated = $request->validated();
-        $quota = $this->costTracking->checkQuota($tenantId);
+
+        $keyword = $this->keywords->findByIdForTenant($validated['keyword_id'], $tenantId);
+        if (! $keyword) {
+            abort(404);
+        }
+
+        $currentWorkspace = $request->attributes->get('current_workspace');
+        if ($currentWorkspace && $keyword->workspace_id && $keyword->workspace_id !== $currentWorkspace->id) {
+            abort(404);
+        }
+
+        $workspace = $currentWorkspace
+            ?: ($keyword->workspace_id ? Workspace::where('id', $keyword->workspace_id)->where('legacy_tenant_id', $tenantId)->first() : null)
+            ?: ($request->user()->default_workspace_id ? Workspace::where('id', $request->user()->default_workspace_id)->where('legacy_tenant_id', $tenantId)->first() : null);
+        $workspaceId = $workspace?->id ?: ($keyword->workspace_id ?: $request->user()->default_workspace_id);
+
+        $quota = $workspace ? $this->costTracking->checkWorkspaceQuota($workspace) : $this->costTracking->checkQuota($tenantId);
 
         if (! $quota->canProceed) {
             return response()->json([
@@ -240,69 +311,81 @@ class ArticleController extends Controller
             ], 402);
         }
 
-        $keyword = $this->keywords->findByIdForTenant($validated['keyword_id'], $tenantId);
+        $article = DB::transaction(function () use ($tenantId, $workspaceId, $validated, $keyword, $request) {
+            $existingArticle = $this->repository->findByKeywordIdForTenant($keyword->id, $tenantId);
 
-        if (! $keyword) {
-            abort(404);
-        }
-
-        $article = $this->repository->findByKeywordIdForTenant($keyword->id, $tenantId);
-
-        if (! $article) {
-            $keywordMeta = $keyword->meta ?? [];
-            $article = $this->repository->create([
-                'tenant_id' => $tenantId,
-                'workspace_id' => $workspaceId ?: $keyword->workspace_id,
-                'keyword_id' => $keyword->id,
-                'campaign_id' => $validated['campaign_id'] ?? $keyword->campaign_id,
-                'wordpress_site_id' => $validated['wordpress_site_id'] ?? $keyword->wordpress_site_id,
-                'user_id' => $request->user()->id,
-                'title' => 'Bài viết: '.$keyword->keyword,
-                'slug' => Str::slug($keyword->keyword),
-                'focus_keyword' => $keyword->keyword,
-                'featured_image_url' => $keywordMeta['featured_image_url'] ?? null,
-                'media_plan' => array_filter([
+            if (! $existingArticle) {
+                $keywordMeta = $keyword->meta ?? [];
+                $article = $this->repository->create([
+                    'tenant_id' => $tenantId,
+                    'workspace_id' => $workspaceId ?: $keyword->workspace_id,
+                    'keyword_id' => $keyword->id,
+                    'campaign_id' => $validated['campaign_id'] ?? $keyword->campaign_id,
+                    'wordpress_site_id' => $validated['wordpress_site_id'] ?? $keyword->wordpress_site_id,
+                    'user_id' => $request->user()->id,
+                    'title' => 'Bài viết: '.$keyword->keyword,
+                    'slug' => Str::slug($keyword->keyword),
+                    'focus_keyword' => $keyword->keyword,
                     'featured_image_url' => $keywordMeta['featured_image_url'] ?? null,
-                    'image_urls' => $keywordMeta['image_urls'] ?? null,
-                    'internal_links' => $keywordMeta['internal_links'] ?? null,
-                    'image_generation_prompt' => $keywordMeta['image_generation_prompt'] ?? null,
-                    'image_search_query' => $keywordMeta['image_search_query'] ?? null,
-                    'image_source' => $keywordMeta['image_source'] ?? config('ai.image_generation.source_strategy', 'hybrid'),
-                    'inline_image_count' => $keywordMeta['inline_image_count'] ?? config('ai.image_generation.default_inline_count', 3),
-                ]),
-                'wp_tag_names' => ! empty($keywordMeta['wp_tag_names'])
-                    ? array_values(array_filter(array_map('trim', explode(',', str_replace('|', ',', (string) $keywordMeta['wp_tag_names'])))))
-                    : null,
-                'wp_slug' => $keywordMeta['wp_slug'] ?? null,
-                'excerpt' => $keywordMeta['wp_excerpt'] ?? null,
-                'status' => ArticleStatus::DRAFT,
-            ]);
-        } else {
-            $keywordMeta = $keyword->meta ?? [];
-            $article->update([
-                'status' => ArticleStatus::DRAFT,
-                'review_notes' => null,
-                'rejection_reason' => null,
-                'media_plan' => array_merge($article->media_plan ?? [], array_filter([
-                    'featured_image_url' => $keywordMeta['featured_image_url'] ?? null,
-                    'image_urls' => $keywordMeta['image_urls'] ?? null,
-                    'internal_links' => $keywordMeta['internal_links'] ?? null,
-                    'image_generation_prompt' => $keywordMeta['image_generation_prompt'] ?? null,
-                    'image_search_query' => $keywordMeta['image_search_query'] ?? null,
-                    'image_source' => $keywordMeta['image_source'] ?? null,
-                    'inline_image_count' => $keywordMeta['inline_image_count'] ?? null,
-                ])),
-            ]);
-            $article->refresh();
-        }
+                    'media_plan' => array_filter([
+                        'featured_image_url' => $keywordMeta['featured_image_url'] ?? null,
+                        'image_urls' => $keywordMeta['image_urls'] ?? null,
+                        'internal_links' => $keywordMeta['internal_links'] ?? null,
+                        'image_generation_prompt' => $keywordMeta['image_generation_prompt'] ?? null,
+                        'image_search_query' => $keywordMeta['image_search_query'] ?? null,
+                        'image_source' => $keywordMeta['image_source'] ?? config('ai.image_generation.source_strategy', 'hybrid'),
+                        'inline_image_count' => $keywordMeta['inline_image_count'] ?? config('ai.image_generation.default_inline_count', 3),
+                    ]),
+                    'wp_tag_names' => ! empty($keywordMeta['wp_tag_names'])
+                        ? array_values(array_filter(array_map('trim', explode(',', str_replace('|', ',', (string) $keywordMeta['wp_tag_names'])))))
+                        : null,
+                    'wp_slug' => $keywordMeta['wp_slug'] ?? null,
+                    'excerpt' => $keywordMeta['wp_excerpt'] ?? null,
+                    'status' => ArticleStatus::DRAFT,
+                ]);
+            } else {
+                $keywordMeta = $keyword->meta ?? [];
+                $existingArticle->update([
+                    'status' => ArticleStatus::DRAFT,
+                    'review_notes' => null,
+                    'rejection_reason' => null,
+                    'media_plan' => array_merge($existingArticle->media_plan ?? [], array_filter([
+                        'featured_image_url' => $keywordMeta['featured_image_url'] ?? null,
+                        'image_urls' => $keywordMeta['image_urls'] ?? null,
+                        'internal_links' => $keywordMeta['internal_links'] ?? null,
+                        'image_generation_prompt' => $keywordMeta['image_generation_prompt'] ?? null,
+                        'image_search_query' => $keywordMeta['image_search_query'] ?? null,
+                        'image_source' => $keywordMeta['image_source'] ?? null,
+                        'inline_image_count' => $keywordMeta['inline_image_count'] ?? null,
+                    ])),
+                ]);
+                $article = $existingArticle->fresh();
+            }
 
-        $this->pipeline->reset($article);
-        $this->pipeline->start($article, 'queued', 'Đang chờ queue worker nhận job.');
+            $this->pipeline->reset($article);
+            $this->pipeline->start($article, 'queued', 'Đang chờ queue worker nhận job.');
 
-        $this->attachKeywordMediaToArticle($keyword, $article);
+            $this->attachKeywordMediaToArticle($keyword, $article);
+
+            if ($workspaceId) {
+                $this->taskService->createTask([
+                    'workspace_id' => $workspaceId,
+                    'campaign_id' => $article->campaign_id,
+                    'keyword_id' => $keyword->id,
+                    'article_id' => $article->id,
+                    'triggered_by' => $request->user()->id,
+                    'type' => 'full_article_pipeline',
+                    'current_step' => 'queued',
+                    'credits_reserved' => (int) config('ai_costs.credits.standard_article', 20),
+                ]);
+            }
+
+            $keyword->update(['status' => KeywordStatus::PROCESSING]);
+
+            return $article;
+        });
 
         GenerateOutlineJob::dispatch($keyword->id, $article->id)->onQueue('ai-writing');
-        $keyword->update(['status' => KeywordStatus::PROCESSING]);
 
         return response()->json([
             'message' => 'AI article generation queued.',

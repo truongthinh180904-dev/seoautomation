@@ -61,11 +61,16 @@ class WordPressPublishService
 
         $apiUrl = rtrim($site->api_url, '/');
         $postType = trim($dto->postType ?: 'post', '/');
+        $endpoint = match ($postType) {
+            'post' => '/wp/v2/posts',
+            'page' => '/wp/v2/pages',
+            default => str_ends_with($postType, 's') ? "/wp/v2/{$postType}" : "/wp/v2/{$postType}s",
+        };
 
         $response = $this->wordpressHttp()->withHeaders([
             'Authorization' => 'Basic '.$auth,
             'Content-Type' => 'application/json',
-        ])->post($apiUrl."/wp/v2/{$postType}s", $body);
+        ])->post($apiUrl.$endpoint, $body);
 
         if ($response->successful()) {
             $data = $response->json();

@@ -22,6 +22,7 @@ use App\Http\Controllers\Api\V1\MediaAssetController;
 use App\Http\Controllers\Api\V1\NotificationController;
 use App\Http\Controllers\Api\V1\QueueStatusController;
 use App\Http\Controllers\Api\V1\ScheduleController;
+use App\Http\Controllers\Api\V1\TaskController;
 use App\Http\Controllers\Api\V1\WebsiteController;
 use App\Http\Controllers\Api\V1\WordPressSiteController;
 use App\Http\Controllers\Api\V1\WorkspaceController;
@@ -105,6 +106,7 @@ Route::prefix('v1')->group(function () {
 
             Route::post('articles/{id}/retry', [ArticleController::class, 'retry']);
             Route::post('articles/{id}/auto-fix', [ArticleController::class, 'autoFix']);
+            Route::post('articles/{id}/images', [ArticleController::class, 'generateImages']);
             Route::post('articles/{id}/generate-images', [ArticleController::class, 'generateImages']);
             Route::post('articles/{id}/approve-publish', [ArticleController::class, 'approveAndPublish']);
 
@@ -117,6 +119,11 @@ Route::prefix('v1')->group(function () {
             Route::middleware('throttle:serp')->group(function () {
                 Route::post('keywords/{id}/serp', [KeywordController::class, 'serp']);
             });
+
+            // Tasks & Background Pipeline Execution
+            Route::get('tasks', [TaskController::class, 'index']);
+            Route::get('tasks/{id}', [TaskController::class, 'show']);
+            Route::post('tasks/{id}/cancel', [TaskController::class, 'cancel']);
 
             // Schedules
             Route::get('schedules', [ScheduleController::class, 'index']);

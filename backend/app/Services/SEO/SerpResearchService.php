@@ -14,14 +14,14 @@ class SerpResearchService
         protected CostTrackingService $costTracking
     ) {}
 
-    public function search(string $keyword, ?int $tenantId = null, string $language = 'vi'): array
+    public function search(string $keyword, ?int $tenantId = null, string $language = 'vi', ?int $keywordId = null, ?int $workspaceId = null): array
     {
         $cached = $this->cache->get($keyword, $language);
         if ($cached !== null) {
             return $cached;
         }
 
-        $results = (function () use ($keyword, $language, $tenantId) {
+        $results = (function () use ($keyword, $language, $tenantId, $keywordId, $workspaceId) {
             $apiKey = config('seo.serp_api_key');
 
             // Optionally bypass if no API key is set for local development
@@ -55,9 +55,11 @@ class SerpResearchService
                 throw new SerpApiException('SerpAPI Error: '.$response->body());
             }
 
-            if ($tenantId) {
+            if ($tenantId || $workspaceId) {
                 $this->costTracking->logUsage([
                     'tenant_id' => $tenantId,
+                    'workspace_id' => $workspaceId,
+                    'keyword_id' => $keywordId,
                     'job_type' => 'serp_lookup',
                     'provider' => 'serper',
                     'model' => 'serpapi',
@@ -86,7 +88,9 @@ class SerpResearchService
             return $dtos;
         })();
 
-        $this->cache->put($keyword, $results, $language);
+        if (config('seo.serp_api_key')) {
+            $this->cache->put($keyword, $results, $language);
+        }
 
         return $results;
     }

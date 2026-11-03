@@ -25,9 +25,13 @@ class InternalLinkingAgent extends BaseAgent
         }
 
         $postsSummary = json_encode($relatedPosts, JSON_UNESCAPED_UNICODE);
+        $contentLength = mb_strlen($articleContent);
+        $chunkLimit = 50000;
+        $contentChunk = $contentLength > $chunkLimit ? mb_substr($articleContent, 0, $chunkLimit) : $articleContent;
+        $tail = $contentLength > $chunkLimit ? mb_substr($articleContent, $chunkLimit) : '';
 
         $promptData = $this->promptBuilderService->build($this->getType(), [
-            'article_content' => mb_substr($articleContent, 0, 15000), // Protect token limit
+            'article_content' => $contentChunk,
             'related_posts' => $postsSummary,
         ], $tenantId);
 
@@ -42,6 +46,7 @@ class InternalLinkingAgent extends BaseAgent
             articleId: $context['article_id'] ?? null,
             keywordId: $context['keyword_id'] ?? null,
             promptVersion: $promptData['version'],
+            workspaceId: $context['workspace_id'] ?? null,
         );
 
         $response = $this->callAI($request);
@@ -54,7 +59,10 @@ class InternalLinkingAgent extends BaseAgent
             return AgentResultDTO::success($this->getType(), ['content' => $articleContent, 'links_added' => []]);
         }
 
-        $modifiedContent = $parsed['modified_content'] ?? $articleContent;
+        $modifiedContent = $parsed['modified_content'] ?? $contentChunk;
+        if ($tail !== '') {
+            $modifiedContent .= $tail;
+        }
         $linksAdded = $parsed['links_added'] ?? [];
 
         return AgentResultDTO::success(

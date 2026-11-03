@@ -60,6 +60,7 @@ class WritingAgent extends BaseAgent
             articleId: $context['article_id'] ?? null,
             keywordId: $context['keyword_id'] ?? null,
             promptVersion: $promptData['version'],
+            workspaceId: $context['workspace_id'] ?? null,
         );
 
         $response = $this->callAI($request);
@@ -97,7 +98,9 @@ class WritingAgent extends BaseAgent
 
         // Duplicate detection — compute hash and check against existing articles
         $detector = app(DuplicateDetectionService::class);
-        $contentHash = $detector->validateAndHash($htmlContent, $context['article_id'] ?? null);
+        $tenantId = $context['tenant_id'] ?? null;
+        $workspaceId = $context['workspace_id'] ?? null;
+        $contentHash = $detector->validateAndHash($htmlContent, $context['article_id'] ?? null, $tenantId, $workspaceId);
 
         return AgentResultDTO::success(
             agent: $this->getType(),
