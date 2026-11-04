@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\V1\Billing\PlanController;
 use App\Http\Controllers\Api\V1\Billing\SubscriptionController;
 use App\Http\Controllers\Api\V1\CampaignController;
 use App\Http\Controllers\Api\V1\KeywordController;
+use App\Http\Controllers\Api\V1\KeywordResearchController;
 use App\Http\Controllers\Api\V1\MediaAssetController;
 use App\Http\Controllers\Api\V1\NotificationController;
 use App\Http\Controllers\Api\V1\QueueStatusController;
@@ -93,6 +94,10 @@ Route::prefix('v1')->group(function () {
             Route::post('notifications/{id}/read', [NotificationController::class, 'markRead']);
 
             // Keywords
+            Route::get('keywords/research', [KeywordResearchController::class, 'research']);
+            Route::post('keywords/research', [KeywordResearchController::class, 'research']);
+            Route::post('keywords/cluster', [KeywordResearchController::class, 'cluster']);
+            Route::post('keywords/research/save', [KeywordResearchController::class, 'saveToCampaign']);
             Route::post('keywords/import/preview', [KeywordController::class, 'importPreview']);
             Route::post('keywords/import', [KeywordController::class, 'import']);
             Route::post('keywords/bulk-destroy', [KeywordController::class, 'bulkDestroy']);

@@ -515,13 +515,26 @@ get_task_test_cmd() {
         TASK-06) echo "cd backend && (composer dump-autoload -q || true) && ./vendor/bin/pint --test && php artisan test --filter=PipelineTest" ;;
         TASK-07) echo "cd frontend && npm install --no-audit --no-fund && npm run build" ;;
         TASK-08) echo "cd backend && (composer dump-autoload -q || true) && ./vendor/bin/pint --test && php artisan test && cd ../frontend && npm run build" ;;
+        P2.1)    echo "test -s PHASE_2_ARCHITECTURE_AUDIT.md && test -s qlpk-autonomous-framework/ROADMAP_P2.md" ;;
+        P2.2)    echo "cd backend && (composer dump-autoload -q || true) && ./vendor/bin/pint --test && php artisan test --filter=KeywordResearchTest" ;;
+        P2.3)    echo "cd backend && (composer dump-autoload -q || true) && ./vendor/bin/pint --test && php artisan test --filter=CompetitorAnalysisTest" ;;
+        P2.4)    echo "cd backend && (composer dump-autoload -q || true) && ./vendor/bin/pint --test && php artisan test --filter=TopicClusterTest" ;;
+        P2.5)    echo "cd backend && (composer dump-autoload -q || true) && ./vendor/bin/pint --test && php artisan test --filter=BrandKnowledgeTest" ;;
+        P2.6)    echo "cd backend && (composer dump-autoload -q || true) && ./vendor/bin/pint --test && php artisan test --filter=ContentStudioTest && cd ../frontend && npm run build" ;;
+        P2.7)    echo "cd backend && (composer dump-autoload -q || true) && ./vendor/bin/pint --test && php artisan test --filter=SeoScoringEngineTest" ;;
+        P2.8)    echo "cd backend && (composer dump-autoload -q || true) && ./vendor/bin/pint --test && php artisan test --filter=InternalLinkingTest" ;;
+        P2.9)    echo "cd backend && (composer dump-autoload -q || true) && ./vendor/bin/pint --test && php artisan test && cd ../frontend && npm run build" ;;
         *)       echo "false" ;;
     esac
 }
 
 is_task_done() {
     local task_id="$1"
-    grep -Eq "\|[[:space:]]*\*\*${task_id}\*\*[[:space:]]*\|.*\`DONE\`" "${FRAMEWORK_DIR}/PROGRESS.md"
+    local progress_file="${FRAMEWORK_DIR}/PROGRESS.md"
+    if [[ "${task_id}" == P2* ]] || [ "${PHASE:-1}" -eq 2 ]; then
+        progress_file="${FRAMEWORK_DIR}/PROGRESS_P2.md"
+    fi
+    grep -Eq "\|[[:space:]]*\*\*${task_id}\*\*[[:space:]]*\|.*\`DONE\`" "${progress_file}"
 }
 
 update_progress_status() {
@@ -533,6 +546,11 @@ update_progress_status() {
     local ts
     ts="$(date '+%Y-%m-%d %H:%M')"
     local progress_file="${FRAMEWORK_DIR}/PROGRESS.md"
+    local total_tasks=8
+    if [[ "${task_id}" == P2* ]] || [ "${PHASE:-1}" -eq 2 ]; then
+        progress_file="${FRAMEWORK_DIR}/PROGRESS_P2.md"
+        total_tasks=9
+    fi
 
     php -r '
         $file = $argv[1];
@@ -565,7 +583,8 @@ update_progress_status() {
         $testing = preg_match_all("/\| `(TESTING|REVIEWING)` \|/", $updated);
         $pending = preg_match_all("/\| `PENDING` \|/", $updated);
         $blocked = preg_match_all("/\| `(BLOCKED|FAILED)` \|/", $updated);
-        $total = 8;
+        $total = $done + $inProg + $testing + $pending + $blocked;
+        if ($total <= 0) $total = 8;
         $pct = fn($n) => round(($n / $total) * 100, 1) . "%";
         $updated = preg_replace("/(\*\*Đã hoàn thành \(DONE\)\*\* \| )\*\*\d+\*\* \| [0-9.]+%/", "$1**{$done}** | " . $pct($done), $updated);
         $updated = preg_replace("/(\*\*Đang xử lý \(IN_PROGRESS\)\*\* \| )\*\*\d+\*\* \| [0-9.]+%/", "$1**{$inProg}** | " . $pct($inProg), $updated);
@@ -597,9 +616,16 @@ execute_single_task() {
         local run_id="${session_run_id}_${task_id}_R${review_round}"
         update_progress_status "${task_id}" "IN_PROGRESS" "-" "-" "${review_round}"
 
+        local roadmap_name="ROADMAP.md"
+        local audit_name="PHASE_1_AUDIT.md"
+        if [[ "${task_id}" == P2* ]] || [ "${PHASE:-1}" -eq 2 ]; then
+            roadmap_name="ROADMAP_P2.md"
+            audit_name="PHASE_2_ARCHITECTURE_AUDIT.md"
+        fi
+
         local coder_prompt="Bạn là CODER Agent (${CODER_MODEL}) vận hành trong QLPK Safe Autonomous Framework.
 Thư mục gốc dự án (PROJECT_ROOT): \`${PROJECT_ROOT}\`
-Nhiệm vụ hiện tại: Triển khai trọn vẹn **${task_id}** theo đặc tả trong \`${PROJECT_ROOT}/qlpk-autonomous-framework/ROADMAP.md\` và báo cáo kiểm toán \`${PROJECT_ROOT}/PHASE_1_AUDIT.md\`.
+Nhiệm vụ hiện tại: Triển khai trọn vẹn **${task_id}** theo đặc tả trong \`${PROJECT_ROOT}/qlpk-autonomous-framework/${roadmap_name}\` và báo cáo kiểm toán \`${PROJECT_ROOT}/${audit_name}\`.
 
 QUY TẮC SỐ 0 — CHẾ ĐỘ HEADLESS (\`-p --mode accept-edits\`) [QUAN TRỌNG SỐNG CÒN]:
 - **TUYỆT ĐỐI CẤM GỌI \`run_command\` (bash/shell/terminal), \`ask_question\`, hoặc \`invoke_subagent\`!** Trong chế độ headless \`-p\`, bất kỳ lệnh gọi \`run_command\` nào cũng bị từ chối quyền \`command\` (\`auto-denied\`) và hủy toàn bộ lượt chạy ngay lập tức!
@@ -611,8 +637,8 @@ QUY TẮC SỐ 0 — CHẾ ĐỘ HEADLESS (\`-p --mode accept-edits\`) [QUAN TR�
   \`${PROJECT_ROOT}/qlpk-autonomous-framework/.agy-state/workspace-files.txt\`
 
 QUY TẮC NGHIỆP VỤ BẮT BUỘC:
-1. Dùng \`read_file\` đọc kỹ phần đặc tả của **${task_id}** trong \`${PROJECT_ROOT}/qlpk-autonomous-framework/ROADMAP.md\`, các cẩm nang trong \`${PROJECT_ROOT}/qlpk-autonomous-framework/skills/\`, checklist 14 tiêu chí trong \`${PROJECT_ROOT}/qlpk-autonomous-framework/REVIEWER.md\` và chi tiết lỗi/thiết kế trong \`${PROJECT_ROOT}/PHASE_1_AUDIT.md\`.
-2. **TUÂN THỦ TUYỆT ĐỐI \`allowed_files\`** của ${task_id} trong \`ROADMAP.md\`. Tuyệt đối KHÔNG sửa hoặc tạo bất kỳ file nào nằm ngoài \`allowed_files\` (cũng KHÔNG tự sửa \`PROGRESS.md\` hay \`reports/\`).
+1. Dùng \`read_file\` đọc kỹ phần đặc tả của **${task_id}** trong \`${PROJECT_ROOT}/qlpk-autonomous-framework/${roadmap_name}\`, các cẩm nang trong \`${PROJECT_ROOT}/qlpk-autonomous-framework/skills/\`, checklist 14 tiêu chí trong \`${PROJECT_ROOT}/qlpk-autonomous-framework/REVIEWER.md\` và chi tiết lỗi/thiết kế trong \`${PROJECT_ROOT}/${audit_name}\`.
+2. **TUÂN THỦ TUYỆT ĐỐI \`allowed_files\`** của ${task_id} trong \`${roadmap_name}\`. Tuyệt đối KHÔNG sửa hoặc tạo bất kỳ file nào nằm ngoài \`allowed_files\` (cũng KHÔNG tự sửa \`PROGRESS.md\` hay \`reports/\`).
 3. Mọi migration phải tương thích cả MySQL/PostgreSQL lẫn SQLite \`:memory:\` của PHPUnit (\`backend/phpunit.xml\`). Không xóa bảng hay phá vỡ logic đang chạy tốt.
 4. Giữ code chuẩn Laravel Pint (cho PHP) và TypeScript strict không có \`any\` (cho Next.js). Không để lại \`dd()\`, \`dump()\`, \`console.log()\`.
 5. KHÔNG tự chạy Pint/Composer/PHPUnit/NPM — ngay sau khi bạn hoàn tất sửa file, hệ thống Bash bên ngoài sẽ tự động chạy \`./vendor/bin/pint\` và lệnh kiểm thử thật: \`${test_cmd}\`.
@@ -740,7 +766,10 @@ run_autonomous_loop() {
     local tasks_completed=0
     local task_list="TASK-01 TASK-02 TASK-03 TASK-04 TASK-05 TASK-06 TASK-07 TASK-08"
 
-    if [ "${target_task}" != "ALL" ]; then
+    if [ "${PHASE:-1}" -eq 2 ] || [ "${target_task}" = "PHASE2" ] || [ "${target_task}" = "P2" ]; then
+        task_list="P2.1 P2.2 P2.3 P2.4 P2.5 P2.6 P2.7 P2.8 P2.9"
+        target_task="ALL"
+    elif [ "${target_task}" != "ALL" ]; then
         task_list="${target_task}"
     fi
 
@@ -756,7 +785,7 @@ run_autonomous_loop() {
         fi
 
         if is_task_done "${task_id}" && [ "${target_task}" = "ALL" ]; then
-            log_info "Skipping ${task_id} (already marked DONE in PROGRESS.md)."
+            log_info "Skipping ${task_id} (already marked DONE in progress tracking)."
             continue
         fi
 

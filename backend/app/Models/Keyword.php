@@ -45,12 +45,14 @@ class Keyword extends Model
         'template_version',
         'batch_id',
         'meta',
+        'lsi_keywords',
     ];
 
     protected $casts = [
         'status' => KeywordStatus::class,
         'search_intent' => 'string',
         'meta' => 'array',
+        'lsi_keywords' => 'array',
         'must_include_points' => 'array',
         'avoid_topics' => 'array',
         'reference_urls' => 'array',
