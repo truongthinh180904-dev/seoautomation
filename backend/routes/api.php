@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\V1\Billing\PlanController;
 use App\Http\Controllers\Api\V1\Billing\SubscriptionController;
 use App\Http\Controllers\Api\V1\CampaignController;
 use App\Http\Controllers\Api\V1\CompetitorAnalysisController;
+use App\Http\Controllers\Api\V1\ContentGapController;
 use App\Http\Controllers\Api\V1\KeywordController;
 use App\Http\Controllers\Api\V1\KeywordResearchController;
 use App\Http\Controllers\Api\V1\MediaAssetController;
@@ -25,6 +26,7 @@ use App\Http\Controllers\Api\V1\NotificationController;
 use App\Http\Controllers\Api\V1\QueueStatusController;
 use App\Http\Controllers\Api\V1\ScheduleController;
 use App\Http\Controllers\Api\V1\TaskController;
+use App\Http\Controllers\Api\V1\TopicClusterController;
 use App\Http\Controllers\Api\V1\WebsiteController;
 use App\Http\Controllers\Api\V1\WordPressSiteController;
 use App\Http\Controllers\Api\V1\WorkspaceController;
@@ -104,9 +106,24 @@ Route::prefix('v1')->group(function () {
             Route::post('keywords/bulk-destroy', [KeywordController::class, 'bulkDestroy']);
             Route::apiResource('keywords', KeywordController::class);
 
+            // Topic Clusters
+            Route::get('topic-clusters', [TopicClusterController::class, 'index']);
+            Route::post('topic-clusters', [TopicClusterController::class, 'store']);
+            Route::post('topic-clusters/generate-ai', [TopicClusterController::class, 'generateAi']);
+            Route::get('topic-clusters/{id}', [TopicClusterController::class, 'show']);
+            Route::put('topic-clusters/{id}', [TopicClusterController::class, 'update']);
+            Route::delete('topic-clusters/{id}', [TopicClusterController::class, 'destroy']);
+            Route::post('topic-clusters/{id}/assign-keywords', [TopicClusterController::class, 'assignKeywords']);
+            Route::post('topic-clusters/{id}/remove-keyword', [TopicClusterController::class, 'removeKeyword']);
+
             // Competitor & SERP Intelligence
             Route::get('competitor/serp-analysis', [CompetitorAnalysisController::class, 'serpAnalysis']);
             Route::post('competitor/serp-analysis', [CompetitorAnalysisController::class, 'serpAnalysis']);
+            Route::get('competitor/content-gaps', [ContentGapController::class, 'index']);
+            Route::post('competitor/content-gaps/analyze', [ContentGapController::class, 'analyze']);
+            Route::post('competitor/content-gaps/{id}/target', [ContentGapController::class, 'target']);
+            Route::post('competitor/content-gaps/{id}/ignore', [ContentGapController::class, 'ignore']);
+            Route::delete('competitor/content-gaps/{id}', [ContentGapController::class, 'destroy']);
 
             // Articles
             Route::get('articles', [ArticleController::class, 'index']);
