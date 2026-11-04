@@ -27,6 +27,7 @@ use App\Http\Controllers\Api\V1\MediaAssetController;
 use App\Http\Controllers\Api\V1\NotificationController;
 use App\Http\Controllers\Api\V1\QueueStatusController;
 use App\Http\Controllers\Api\V1\ScheduleController;
+use App\Http\Controllers\Api\V1\SeoScoringController;
 use App\Http\Controllers\Api\V1\TaskController;
 use App\Http\Controllers\Api\V1\TopicClusterController;
 use App\Http\Controllers\Api\V1\WebsiteController;
@@ -151,6 +152,8 @@ Route::prefix('v1')->group(function () {
 
             Route::post('articles/{id}/retry', [ArticleController::class, 'retry']);
             Route::post('articles/{id}/auto-fix', [ArticleController::class, 'autoFix']);
+            Route::post('articles/{id}/score-audit', [SeoScoringController::class, 'audit']);
+            Route::post('articles/score-audit', [SeoScoringController::class, 'auditLive']);
             Route::post('articles/{id}/images', [ArticleController::class, 'generateImages']);
             Route::post('articles/{id}/generate-images', [ArticleController::class, 'generateImages']);
             Route::post('articles/{id}/approve-publish', [ArticleController::class, 'approveAndPublish']);
