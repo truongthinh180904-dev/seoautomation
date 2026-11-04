@@ -21,6 +21,7 @@ use App\Http\Controllers\Api\V1\CampaignController;
 use App\Http\Controllers\Api\V1\CompetitorAnalysisController;
 use App\Http\Controllers\Api\V1\ContentGapController;
 use App\Http\Controllers\Api\V1\ContentStudioController;
+use App\Http\Controllers\Api\V1\InternalLinkController;
 use App\Http\Controllers\Api\V1\KeywordController;
 use App\Http\Controllers\Api\V1\KeywordResearchController;
 use App\Http\Controllers\Api\V1\MediaAssetController;
@@ -143,6 +144,16 @@ Route::prefix('v1')->group(function () {
             Route::get('content-studio/{id}/versions', [ContentStudioController::class, 'versions']);
             Route::post('content-studio/assist', [ContentStudioController::class, 'assist']);
             Route::post('content-studio/autosave', [ContentStudioController::class, 'autosave']);
+
+            // Internal Linking Intelligence & AI Images
+            Route::get('internal-links', [InternalLinkController::class, 'index']);
+            Route::get('internal-links/graph', [InternalLinkController::class, 'graph']);
+            Route::get('internal-links/orphans', [InternalLinkController::class, 'orphans']);
+            Route::post('internal-links/scan', [InternalLinkController::class, 'scan']);
+            Route::post('internal-links/{id}/accept', [InternalLinkController::class, 'accept']);
+            Route::post('internal-links/{id}/reject', [InternalLinkController::class, 'reject']);
+            Route::post('internal-links/{id}/apply', [InternalLinkController::class, 'apply']);
+            Route::post('internal-links/generate-image', [InternalLinkController::class, 'generateImage']);
 
             // Articles
             Route::get('articles', [ArticleController::class, 'index']);
