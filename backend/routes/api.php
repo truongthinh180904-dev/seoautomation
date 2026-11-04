@@ -16,6 +16,7 @@ use App\Http\Controllers\Api\V1\Billing\CreditController;
 use App\Http\Controllers\Api\V1\Billing\PaymentOrderController;
 use App\Http\Controllers\Api\V1\Billing\PlanController;
 use App\Http\Controllers\Api\V1\Billing\SubscriptionController;
+use App\Http\Controllers\Api\V1\BrandKnowledgeController;
 use App\Http\Controllers\Api\V1\CampaignController;
 use App\Http\Controllers\Api\V1\CompetitorAnalysisController;
 use App\Http\Controllers\Api\V1\ContentGapController;
@@ -124,6 +125,16 @@ Route::prefix('v1')->group(function () {
             Route::post('competitor/content-gaps/{id}/target', [ContentGapController::class, 'target']);
             Route::post('competitor/content-gaps/{id}/ignore', [ContentGapController::class, 'ignore']);
             Route::delete('competitor/content-gaps/{id}', [ContentGapController::class, 'destroy']);
+
+            // Brand Knowledge Base
+            Route::get('brand-knowledge', [BrandKnowledgeController::class, 'index']);
+            Route::post('brand-knowledge', [BrandKnowledgeController::class, 'store']);
+            Route::post('brand-knowledge/inject-context', [BrandKnowledgeController::class, 'injectContext']);
+            Route::post('brand-knowledge/validate-taboo', [BrandKnowledgeController::class, 'validateTaboo']);
+            Route::get('brand-knowledge/{id}', [BrandKnowledgeController::class, 'show']);
+            Route::put('brand-knowledge/{id}', [BrandKnowledgeController::class, 'update']);
+            Route::delete('brand-knowledge/{id}', [BrandKnowledgeController::class, 'destroy']);
+            Route::post('brand-knowledge/{id}/set-default', [BrandKnowledgeController::class, 'setDefault']);
 
             // Articles
             Route::get('articles', [ArticleController::class, 'index']);

@@ -13,7 +13,7 @@
 | Chỉ số | Giá trị | Tỷ lệ |
 | :--- | :---: | :---: |
 | **Tổng số nhóm Task Giai đoạn 2** | **9** | 100% |
-| **Đã hoàn thành (DONE)** | **4** | 44.4% |
+| **Đã hoàn thành (DONE)** | **5** | 55.6% |
 | **Đang xử lý (IN_PROGRESS)** | **0** | 0% |
 | **Đang kiểm tra (TESTING / REVIEWING)** | **0** | 0% |
 | **Đang chờ phê duyệt / Chưa bắt đầu (PENDING)** | **8** | 88.9% |
@@ -29,7 +29,7 @@
 | **Đợt 2** | **P2.2** | Keyword Research & Clustering Data Layer | **P0** | `DONE` | 0 | PASS | 1/3 | 2026-11-04 12:18 |
 | **Đợt 3** | **P2.3** | SERP & Competitor Intelligence Engine | **P0** | `DONE` | 0 | PASS | 1/3 | 2026-11-04 12:54 |
 | **Đợt 4** | **P2.4** | Topic Clusters & Content Gap Analysis | **P1** | `DONE` | 0 | PASS | 2/3 | 2026-11-04 13:24 |
-| **Đợt 5** | **P2.5** | Brand Knowledge Base & Context Injector | **P1** | `PENDING` | - | - | 0/3 | - |
+| **Đợt 5** | **P2.5** | Brand Knowledge Base & Context Injector | **P1** | `DONE` | 0 | PASS | 1/3 | 2026-11-04 13:40 |
 | **Đợt 6** | **P2.6** | AI Content Studio & Interactive Editor | **P0** | `PENDING` | - | - | 0/3 | - |
 | **Đợt 7** | **P2.7** | Content Quality & Real-Time SEO Scoring Engine | **P0** | `PENDING` | - | - | 0/3 | - |
 | **Đợt 8** | **P2.8** | Internal Linking Intelligence & AI Images | **P1** | `PENDING` | - | - | 0/3 | - |
