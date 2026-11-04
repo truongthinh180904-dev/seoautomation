@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\V1\Billing\PaymentOrderController;
 use App\Http\Controllers\Api\V1\Billing\PlanController;
 use App\Http\Controllers\Api\V1\Billing\SubscriptionController;
 use App\Http\Controllers\Api\V1\CampaignController;
+use App\Http\Controllers\Api\V1\CompetitorAnalysisController;
 use App\Http\Controllers\Api\V1\KeywordController;
 use App\Http\Controllers\Api\V1\KeywordResearchController;
 use App\Http\Controllers\Api\V1\MediaAssetController;
@@ -102,6 +103,10 @@ Route::prefix('v1')->group(function () {
             Route::post('keywords/import', [KeywordController::class, 'import']);
             Route::post('keywords/bulk-destroy', [KeywordController::class, 'bulkDestroy']);
             Route::apiResource('keywords', KeywordController::class);
+
+            // Competitor & SERP Intelligence
+            Route::get('competitor/serp-analysis', [CompetitorAnalysisController::class, 'serpAnalysis']);
+            Route::post('competitor/serp-analysis', [CompetitorAnalysisController::class, 'serpAnalysis']);
 
             // Articles
             Route::get('articles', [ArticleController::class, 'index']);
