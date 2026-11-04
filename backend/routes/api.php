@@ -20,6 +20,7 @@ use App\Http\Controllers\Api\V1\BrandKnowledgeController;
 use App\Http\Controllers\Api\V1\CampaignController;
 use App\Http\Controllers\Api\V1\CompetitorAnalysisController;
 use App\Http\Controllers\Api\V1\ContentGapController;
+use App\Http\Controllers\Api\V1\ContentStudioController;
 use App\Http\Controllers\Api\V1\KeywordController;
 use App\Http\Controllers\Api\V1\KeywordResearchController;
 use App\Http\Controllers\Api\V1\MediaAssetController;
@@ -135,6 +136,12 @@ Route::prefix('v1')->group(function () {
             Route::put('brand-knowledge/{id}', [BrandKnowledgeController::class, 'update']);
             Route::delete('brand-knowledge/{id}', [BrandKnowledgeController::class, 'destroy']);
             Route::post('brand-knowledge/{id}/set-default', [BrandKnowledgeController::class, 'setDefault']);
+
+            // AI Content Studio
+            Route::get('content-studio/{id}', [ContentStudioController::class, 'show']);
+            Route::get('content-studio/{id}/versions', [ContentStudioController::class, 'versions']);
+            Route::post('content-studio/assist', [ContentStudioController::class, 'assist']);
+            Route::post('content-studio/autosave', [ContentStudioController::class, 'autosave']);
 
             // Articles
             Route::get('articles', [ArticleController::class, 'index']);
