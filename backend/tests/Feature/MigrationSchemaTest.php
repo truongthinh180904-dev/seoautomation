@@ -37,6 +37,7 @@ use Database\Seeders\DatabaseSeeder;
 use Database\Seeders\PlanSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -547,8 +548,11 @@ class MigrationSchemaTest extends TestCase
 
     public function test_migration_rollback_runs_cleanly(): void
     {
-        // Verify rolling back all 15 new migrations
-        $exitCode = Artisan::call('migrate:rollback', ['--step' => 15]);
+        // Verify rolling back all new SaaS migrations
+        $step = DB::table('migrations')
+            ->where('migration', '>=', '2026_11_02_000001')
+            ->count();
+        $exitCode = Artisan::call('migrate:rollback', ['--step' => $step > 0 ? $step : 25]);
         $this->assertEquals(0, $exitCode, 'Artisan migrate:rollback should succeed with exit code 0.');
 
         // Verify tables dropped in rollback
