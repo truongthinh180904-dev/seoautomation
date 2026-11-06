@@ -524,6 +524,15 @@ get_task_test_cmd() {
         P2.7)    echo "cd backend && (composer dump-autoload -q || true) && ./vendor/bin/pint --test && php artisan test --filter=SeoScoringEngineTest" ;;
         P2.8)    echo "cd backend && (composer dump-autoload -q || true) && ./vendor/bin/pint --test && php artisan test --filter=InternalLinkingTest" ;;
         P2.9)    echo "cd backend && (composer dump-autoload -q || true) && ./vendor/bin/pint --test && php artisan test && cd ../frontend && npm run build" ;;
+        P2.5.1)  echo "cd frontend && npm run build" ;;
+        P2.5.2)  echo "cd backend && (composer dump-autoload -q || true) && ./vendor/bin/pint --test && php artisan test --filter=ConversationEngineTest" ;;
+        P2.5.3)  echo "cd backend && (composer dump-autoload -q || true) && ./vendor/bin/pint --test && php artisan test --filter=AiOrchestratorTest" ;;
+        P2.5.4)  echo "cd backend && (composer dump-autoload -q || true) && ./vendor/bin/pint --test && php artisan test --filter=SeoToolCallingTest" ;;
+        P2.5.5)  echo "cd backend && (composer dump-autoload -q || true) && ./vendor/bin/pint --test && php artisan test --filter=InChatContentInteractionTest && cd ../frontend && npm run build" ;;
+        P2.5.6)  echo "cd backend && (composer dump-autoload -q || true) && ./vendor/bin/pint --test && php artisan test --filter=ChatTaskProgressTest" ;;
+        P2.5.7)  echo "cd backend && (composer dump-autoload -q || true) && ./vendor/bin/pint --test && php artisan test --filter=ActionApprovalTest" ;;
+        P2.5.8)  echo "cd backend && (composer dump-autoload -q || true) && ./vendor/bin/pint --test && php artisan test --filter=ChatbotCreditCostTest" ;;
+        P2.5.9)  echo "cd backend && (composer dump-autoload -q || true) && ./vendor/bin/pint --test && php artisan test && cd ../frontend && npm run build" ;;
         *)       echo "false" ;;
     esac
 }
@@ -531,7 +540,9 @@ get_task_test_cmd() {
 is_task_done() {
     local task_id="$1"
     local progress_file="${FRAMEWORK_DIR}/PROGRESS.md"
-    if [[ "${task_id}" == P2* ]] || [ "${PHASE:-1}" -eq 2 ]; then
+    if [[ "${task_id}" == P2.5.* ]] || [ "${PHASE:-1}" = "2.5" ]; then
+        progress_file="${FRAMEWORK_DIR}/PROGRESS_P2_5.md"
+    elif [[ "${task_id}" == P2* ]] || [ "${PHASE:-1}" -eq 2 ]; then
         progress_file="${FRAMEWORK_DIR}/PROGRESS_P2.md"
     fi
     grep -Eq "\|[[:space:]]*\*\*${task_id}\*\*[[:space:]]*\|.*\`DONE\`" "${progress_file}"
@@ -547,7 +558,10 @@ update_progress_status() {
     ts="$(date '+%Y-%m-%d %H:%M')"
     local progress_file="${FRAMEWORK_DIR}/PROGRESS.md"
     local total_tasks=8
-    if [[ "${task_id}" == P2* ]] || [ "${PHASE:-1}" -eq 2 ]; then
+    if [[ "${task_id}" == P2.5.* ]] || [ "${PHASE:-1}" = "2.5" ]; then
+        progress_file="${FRAMEWORK_DIR}/PROGRESS_P2_5.md"
+        total_tasks=9
+    elif [[ "${task_id}" == P2* ]] || [ "${PHASE:-1}" -eq 2 ]; then
         progress_file="${FRAMEWORK_DIR}/PROGRESS_P2.md"
         total_tasks=9
     fi
@@ -618,7 +632,10 @@ execute_single_task() {
 
         local roadmap_name="ROADMAP.md"
         local audit_name="PHASE_1_AUDIT.md"
-        if [[ "${task_id}" == P2* ]] || [ "${PHASE:-1}" -eq 2 ]; then
+        if [[ "${task_id}" == P2.5.* ]] || [ "${PHASE:-1}" = "2.5" ]; then
+            roadmap_name="ROADMAP_P2_5.md"
+            audit_name="PHASE_2_5_ARCHITECTURE_AUDIT.md"
+        elif [[ "${task_id}" == P2* ]] || [ "${PHASE:-1}" -eq 2 ]; then
             roadmap_name="ROADMAP_P2.md"
             audit_name="PHASE_2_ARCHITECTURE_AUDIT.md"
         fi
@@ -766,7 +783,10 @@ run_autonomous_loop() {
     local tasks_completed=0
     local task_list="TASK-01 TASK-02 TASK-03 TASK-04 TASK-05 TASK-06 TASK-07 TASK-08"
 
-    if [ "${PHASE:-1}" -eq 2 ] || [ "${target_task}" = "PHASE2" ] || [ "${target_task}" = "P2" ]; then
+    if [ "${PHASE:-1}" = "2.5" ] || [ "${target_task}" = "PHASE2.5" ] || [ "${target_task}" = "P2.5" ]; then
+        task_list="P2.5.1 P2.5.2 P2.5.3 P2.5.4 P2.5.5 P2.5.6 P2.5.7 P2.5.8 P2.5.9"
+        target_task="ALL"
+    elif [ "${PHASE:-1}" -eq 2 ] || [ "${target_task}" = "PHASE2" ] || [ "${target_task}" = "P2" ]; then
         task_list="P2.1 P2.2 P2.3 P2.4 P2.5 P2.6 P2.7 P2.8 P2.9"
         target_task="ALL"
     elif [ "${target_task}" != "ALL" ]; then

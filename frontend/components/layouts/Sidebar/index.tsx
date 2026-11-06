@@ -7,6 +7,7 @@ import { ROUTES } from '@/lib/constants/routes';
 import { useAuthStore } from '@/stores/authStore';
 import { 
   LayoutDashboard, 
+  BotMessageSquare,
   Target,
   Key, 
   FileSpreadsheet,
@@ -25,6 +26,7 @@ import {
 
 const navItems = [
   { title: 'Dashboard', href: ROUTES.DASHBOARD.HOME, icon: LayoutDashboard },
+  { title: 'Aura Assistant', href: ROUTES.DASHBOARD.CHATBOT, icon: BotMessageSquare },
   { title: 'Gói cước & Credit', href: ROUTES.DASHBOARD.SUBSCRIPTION, icon: CreditCard },
   { title: 'Campaigns', href: ROUTES.DASHBOARD.CAMPAIGNS, icon: Target },
   { title: 'Keywords', href: ROUTES.DASHBOARD.KEYWORDS, icon: Key },
