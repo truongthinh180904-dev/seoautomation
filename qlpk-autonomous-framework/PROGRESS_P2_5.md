@@ -13,7 +13,7 @@
 | Chỉ số | Giá trị | Tỷ lệ |
 | :--- | :---: | :---: |
 | **Tổng số nhóm Task Giai đoạn 2.5** | **9** | 100% |
-| **Đã hoàn thành (DONE)** | **5** | 55.6% |
+| **Đã hoàn thành (DONE)** | **6** | 66.7% |
 | **Đang xử lý (IN_PROGRESS)** | **0** | 0% |
 | **Đang kiểm tra (TESTING / REVIEWING)** | **0** | 0% |
 | **Đang chờ thực hiện (PENDING)** | **9** | 100% |
@@ -30,7 +30,7 @@
 | **Đợt 3** | **P2.5.3** | AI Orchestrator (Intent & Planner) | **P0** | `DONE` | 0 | PASS | 1/3 | 2026-11-06 08:55 |
 | **Đợt 4** | **P2.5.4** | Tool Calling (Top 3 Competitors & Free Stock WebP) | **P0** | `DONE` | 0 | PASS | 1/3 | 2026-11-06 09:22 |
 | **Đợt 5** | **P2.5.5** | Content Interaction & Vision Media (In-Chat Vision) | **P1** | `DONE` | 0 | PASS | 1/3 | 2026-11-06 09:34 |
-| **Đợt 6** | **P2.5.6** | Task & Progress Streaming | **P1** | `PENDING` | - | - | 0/3 | - |
+| **Đợt 6** | **P2.5.6** | Task & Progress Streaming | **P1** | `DONE` | 0 | PASS | 2/3 | 2026-11-06 09:55 |
 | **Đợt 7** | **P2.5.7** | Approval & Action Control (Human-in-the-Loop) | **P0** | `PENDING` | - | - | 0/3 | - |
 | **Đợt 8** | **P2.5.8** | Credit & Cost Integration (Zero Loss) | **P0** | `PENDING` | - | - | 0/3 | - |
 | **Đợt 9** | **P2.5.9** | Security Audit, E2E Test & Reviewer Sign-Off | **P0** | `PENDING` | - | - | 0/3 | - |
