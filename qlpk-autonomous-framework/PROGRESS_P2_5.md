@@ -13,7 +13,7 @@
 | Chỉ số | Giá trị | Tỷ lệ |
 | :--- | :---: | :---: |
 | **Tổng số nhóm Task Giai đoạn 2.5** | **9** | 100% |
-| **Đã hoàn thành (DONE)** | **1** | 11.1% |
+| **Đã hoàn thành (DONE)** | **2** | 22.2% |
 | **Đang xử lý (IN_PROGRESS)** | **0** | 0% |
 | **Đang kiểm tra (TESTING / REVIEWING)** | **0** | 0% |
 | **Đang chờ thực hiện (PENDING)** | **9** | 100% |
@@ -26,7 +26,7 @@
 | Đợt | Mã Task | Tên Nhóm Task | Ưu tiên | Trạng thái | Test Exit | Review Verdict | Lần thử | Cập nhật lúc |
 | :---: | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
 | **Đợt 1** | **P2.5.1** | Chatbot Interface (Next.js UI & Image Upload) | **P0** | `DONE` | 0 | PASS | 1/3 | 2026-11-06 08:32 |
-| **Đợt 2** | **P2.5.2** | Conversation Engine (DB & Session Context) | **P0** | `PENDING` | - | - | 0/3 | - |
+| **Đợt 2** | **P2.5.2** | Conversation Engine (DB & Session Context) | **P0** | `DONE` | 0 | PASS | 1/3 | 2026-11-06 08:40 |
 | **Đợt 3** | **P2.5.3** | AI Orchestrator (Intent & Planner) | **P0** | `PENDING` | - | - | 0/3 | - |
 | **Đợt 4** | **P2.5.4** | Tool Calling (Top 3 Competitors & Free Stock WebP) | **P0** | `PENDING` | - | - | 0/3 | - |
 | **Đợt 5** | **P2.5.5** | Content Interaction & Vision Media (In-Chat Vision) | **P1** | `PENDING` | - | - | 0/3 | - |

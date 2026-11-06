@@ -21,6 +21,7 @@ use App\Http\Controllers\Api\V1\Billing\SubscriptionController;
 use App\Http\Controllers\Api\V1\BrandKnowledgeController;
 use App\Http\Controllers\Api\V1\BulkGenerationController;
 use App\Http\Controllers\Api\V1\CampaignController;
+use App\Http\Controllers\Api\V1\Chatbot\ConversationController;
 use App\Http\Controllers\Api\V1\CompetitorAnalysisController;
 use App\Http\Controllers\Api\V1\ContentGapController;
 use App\Http\Controllers\Api\V1\ContentStudioController;
@@ -290,6 +291,16 @@ Route::prefix('v1')->group(function () {
             Route::post('billing/orders/{id}/cancel', [PaymentOrderController::class, 'cancel']);
             Route::get('billing/credit-history', [CreditController::class, 'history']);
             Route::get('billing/balance', [CreditController::class, 'balance']);
+
+            // AI SEO Chatbot & Conversation Engine (Phase 2.5)
+            Route::get('conversations', [ConversationController::class, 'index']);
+            Route::post('conversations', [ConversationController::class, 'store']);
+            Route::get('conversations/{uuid}', [ConversationController::class, 'show']);
+            Route::put('conversations/{uuid}', [ConversationController::class, 'update']);
+            Route::delete('conversations/{uuid}', [ConversationController::class, 'destroy']);
+            Route::get('conversations/{uuid}/messages', [ConversationController::class, 'messages']);
+            Route::post('conversations/{uuid}/messages', [ConversationController::class, 'sendMessage']);
+            Route::post('conversations/{uuid}/clear', [ConversationController::class, 'clear']);
         });
 
         // Platform Admin Operations (Queue status backwards compatibility)
