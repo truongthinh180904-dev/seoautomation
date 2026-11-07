@@ -25,6 +25,7 @@ use App\Http\Controllers\Api\V1\Chatbot\ConversationController;
 use App\Http\Controllers\Api\V1\CompetitorAnalysisController;
 use App\Http\Controllers\Api\V1\ContentGapController;
 use App\Http\Controllers\Api\V1\ContentStudioController;
+use App\Http\Controllers\Api\V1\Integrations\Ga4IntegrationController;
 use App\Http\Controllers\Api\V1\Integrations\GoogleOAuthController;
 use App\Http\Controllers\Api\V1\Integrations\GscIntegrationController;
 use App\Http\Controllers\Api\V1\InternalLinkController;
@@ -107,6 +108,15 @@ Route::prefix('v1')->group(function () {
                 Route::post('disconnect', [GscIntegrationController::class, 'disconnect']);
                 Route::post('test', [GscIntegrationController::class, 'test']);
                 Route::post('query', [GscIntegrationController::class, 'query']);
+            });
+
+            // Google Analytics 4 (Phase 3.3)
+            Route::prefix('websites/{id}/ga4')->group(function () {
+                Route::get('properties', [Ga4IntegrationController::class, 'properties']);
+                Route::post('connect', [Ga4IntegrationController::class, 'connect']);
+                Route::post('disconnect', [Ga4IntegrationController::class, 'disconnect']);
+                Route::post('test', [Ga4IntegrationController::class, 'test']);
+                Route::post('query', [Ga4IntegrationController::class, 'query']);
             });
 
             // WordPress Sites
