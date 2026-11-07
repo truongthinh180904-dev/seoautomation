@@ -2,6 +2,7 @@
 
 use App\DTOs\AIResponseDTO;
 use App\Enums\AIProvider;
+use App\Events\SeoAnomalyDetectedEvent;
 use App\Http\Controllers\Api\V1\Admin\AdminCreditAdjustmentController;
 use App\Http\Controllers\Api\V1\Admin\AdminPaymentOrderController;
 use App\Http\Controllers\Api\V1\Admin\AdminWorkspaceController;
@@ -38,6 +39,7 @@ use App\Http\Controllers\Api\V1\NotificationController;
 use App\Http\Controllers\Api\V1\QueueStatusController;
 use App\Http\Controllers\Api\V1\ScheduleController;
 use App\Http\Controllers\Api\V1\SEO\RankTrackerController;
+use App\Http\Controllers\Api\V1\SEO\SeoAutomationController;
 use App\Http\Controllers\Api\V1\SEO\SeoIntelligenceController;
 use App\Http\Controllers\Api\V1\SeoScoringController;
 use App\Http\Controllers\Api\V1\TaskController;
@@ -45,6 +47,7 @@ use App\Http\Controllers\Api\V1\TopicClusterController;
 use App\Http\Controllers\Api\V1\WebsiteController;
 use App\Http\Controllers\Api\V1\WordPressSiteController;
 use App\Http\Controllers\Api\V1\WorkspaceController;
+use App\Listeners\SendSeoAlertNotification;
 use App\Services\AI\AIProviderService;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Console\Events\CommandFinished;
@@ -77,6 +80,8 @@ RateLimiter::for('ai_generation', function (Request $request) {
 RateLimiter::for('integrations', function (Request $request) {
     return Limit::perMinute(30)->by($request->user()?->id ?: $request->ip());
 });
+
+Event::listen(SeoAnomalyDetectedEvent::class, SendSeoAlertNotification::class);
 
 Route::prefix('v1')->group(function () {
 
@@ -338,6 +343,17 @@ Route::prefix('v1')->group(function () {
                 Route::post('{id}/dismiss', [SeoIntelligenceController::class, 'dismiss']);
                 Route::post('{id}/action', [SeoIntelligenceController::class, 'action']);
             });
+
+            // SEO Automation Engine & Rules (Phase 3.8)
+            Route::prefix('websites/{id}/automation-rules')->group(function () {
+                Route::get('/', [SeoAutomationController::class, 'getRules']);
+                Route::put('/', [SeoAutomationController::class, 'updateRules']);
+                Route::post('trigger', [SeoAutomationController::class, 'triggerSync']);
+            });
+            Route::get('websites/{id}/automation-rules', [SeoAutomationController::class, 'getRules']);
+            Route::put('websites/{id}/automation-rules', [SeoAutomationController::class, 'updateRules']);
+            Route::get('settings/automation-schedules', [SeoAutomationController::class, 'indexSchedules']);
+            Route::put('settings/automation-schedules', [SeoAutomationController::class, 'updateSchedules']);
 
             // AI Prompts
             Route::apiResource('ai-prompts', AIPromptController::class);

@@ -25,6 +25,42 @@ class Kernel extends ConsoleKernel
             ->withoutOverlapping(3)
             ->runInBackground()
             ->appendOutputTo(storage_path('logs/scheduler.log'));
+
+        // P3.8.1: Daily Google Search Console sync — 02:00 AM
+        $schedule->command('seo:sync-all --service=gsc')
+            ->dailyAt('02:00')
+            ->withoutOverlapping(60)
+            ->runInBackground()
+            ->appendOutputTo(storage_path('logs/scheduler.log'));
+
+        // P3.8.2: Daily Google Analytics 4 sync — 03:00 AM
+        $schedule->command('seo:sync-all --service=ga4')
+            ->dailyAt('03:00')
+            ->withoutOverlapping(60)
+            ->runInBackground()
+            ->appendOutputTo(storage_path('logs/scheduler.log'));
+
+        // P3.8.3: Daily Serper Rank Tracking — 04:00 AM
+        $schedule->command('seo:track-rankings')
+            ->dailyAt('04:00')
+            ->withoutOverlapping(60)
+            ->runInBackground()
+            ->appendOutputTo(storage_path('logs/scheduler.log'));
+
+        // P3.8.4: Daily SEO Intelligence Anomaly Scan — 05:00 AM
+        $schedule->command('seo:detect-anomalies')
+            ->dailyAt('05:00')
+            ->withoutOverlapping(60)
+            ->runInBackground()
+            ->appendOutputTo(storage_path('logs/scheduler.log'));
+    }
+
+    /**
+     * Public helper to allow feature tests to inspect registered schedule events.
+     */
+    public function defineSchedule(Schedule $schedule): void
+    {
+        $this->schedule($schedule);
     }
 
     /**
