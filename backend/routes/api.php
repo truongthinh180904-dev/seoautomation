@@ -26,6 +26,7 @@ use App\Http\Controllers\Api\V1\CompetitorAnalysisController;
 use App\Http\Controllers\Api\V1\ContentGapController;
 use App\Http\Controllers\Api\V1\ContentStudioController;
 use App\Http\Controllers\Api\V1\Integrations\GoogleOAuthController;
+use App\Http\Controllers\Api\V1\Integrations\GscIntegrationController;
 use App\Http\Controllers\Api\V1\InternalLinkController;
 use App\Http\Controllers\Api\V1\KeywordController;
 use App\Http\Controllers\Api\V1\KeywordResearchController;
@@ -98,6 +99,15 @@ Route::prefix('v1')->group(function () {
         Route::middleware('workspace')->group(function () {
             // Websites Management
             Route::apiResource('websites', WebsiteController::class);
+
+            // Google Search Console (Phase 3.2)
+            Route::prefix('websites/{id}/gsc')->group(function () {
+                Route::get('properties', [GscIntegrationController::class, 'properties']);
+                Route::post('connect', [GscIntegrationController::class, 'connect']);
+                Route::post('disconnect', [GscIntegrationController::class, 'disconnect']);
+                Route::post('test', [GscIntegrationController::class, 'test']);
+                Route::post('query', [GscIntegrationController::class, 'query']);
+            });
 
             // WordPress Sites
             Route::apiResource('wordpress-sites', WordPressSiteController::class);

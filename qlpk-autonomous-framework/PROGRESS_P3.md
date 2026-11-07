@@ -13,7 +13,7 @@
 | Chỉ số | Giá trị | Tỷ lệ |
 | :--- | :---: | :---: |
 | **Tổng số nhóm Task Giai đoạn 3** | **10** | 100% |
-| **Đã hoàn thành (DONE)** | **1** | 10% |
+| **Đã hoàn thành (DONE)** | **2** | 20% |
 | **Đang xử lý (IN_PROGRESS)** | **0** | 0% |
 | **Đang kiểm tra (TESTING / REVIEWING)** | **0** | 0% |
 | **Đang chờ thực hiện (PENDING)** | **10** | 100% |
@@ -26,7 +26,7 @@
 | Đợt | Mã Task | Tên Nhóm Task | Ưu tiên | Trạng thái | Test Exit | Review Verdict | Lần thử | Cập nhật lúc |
 | :---: | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
 | **Đợt 1** | **P3.1** | Integration Foundation & Architecture | **P0** | `DONE` | 0 | PASS | 1/3 | 2026-11-07 23:10 |
-| **Đợt 2** | **P3.2** | Google OAuth 2.0 & Search Console | **P0** | `PENDING` | - | - | 0/3 | - |
+| **Đợt 2** | **P3.2** | Google OAuth 2.0 & Search Console | **P0** | `DONE` | 0 | PASS | 1/3 | 2026-11-07 23:23 |
 | **Đợt 3** | **P3.3** | Google Analytics 4 Integration | **P0** | `PENDING` | - | - | 0/3 | - |
 | **Đợt 4** | **P3.4** | SEO Data Warehouse & Analytics Dashboard | **P0** | `PENDING` | - | - | 0/3 | - |
 | **Đợt 5** | **P3.5** | Rank Tracking với Serper.dev | **P0** | `PENDING` | - | - | 0/3 | - |
