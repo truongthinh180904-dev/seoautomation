@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\V1\Admin\AdminCreditAdjustmentController;
 use App\Http\Controllers\Api\V1\Admin\AdminPaymentOrderController;
 use App\Http\Controllers\Api\V1\Admin\AdminWorkspaceController;
 use App\Http\Controllers\Api\V1\AIPromptController;
+use App\Http\Controllers\Api\V1\Analytics\SeoPerformanceController;
 use App\Http\Controllers\Api\V1\AnalyticsController;
 use App\Http\Controllers\Api\V1\ArticleController;
 use App\Http\Controllers\Api\V1\Auth\ForgotPasswordController;
@@ -300,6 +301,12 @@ Route::prefix('v1')->group(function () {
             Route::get('analytics/keywords-daily', [AnalyticsController::class, 'keywordsDaily']);
             Route::get('analytics/failing-agents', [AnalyticsController::class, 'failingAgents']);
             Route::get('analytics/usage', [AnalyticsController::class, 'usage']);
+
+            // SEO Data Warehouse & Performance Analytics (Phase 3.4)
+            Route::get('analytics/seo/performance', [SeoPerformanceController::class, 'performance']);
+            Route::get('analytics/seo/top-queries', [SeoPerformanceController::class, 'topQueries']);
+            Route::get('analytics/seo/top-pages', [SeoPerformanceController::class, 'topPages']);
+            Route::post('analytics/seo/sync-now', [SeoPerformanceController::class, 'syncNow']);
 
             // AI Prompts
             Route::apiResource('ai-prompts', AIPromptController::class);
