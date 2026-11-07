@@ -25,6 +25,7 @@ use App\Http\Controllers\Api\V1\Chatbot\ConversationController;
 use App\Http\Controllers\Api\V1\CompetitorAnalysisController;
 use App\Http\Controllers\Api\V1\ContentGapController;
 use App\Http\Controllers\Api\V1\ContentStudioController;
+use App\Http\Controllers\Api\V1\Integrations\GoogleOAuthController;
 use App\Http\Controllers\Api\V1\InternalLinkController;
 use App\Http\Controllers\Api\V1\KeywordController;
 use App\Http\Controllers\Api\V1\KeywordResearchController;
@@ -65,6 +66,10 @@ RateLimiter::for('serp', function (Request $request) {
 
 RateLimiter::for('ai_generation', function (Request $request) {
     return Limit::perMinute(10)->by($request->user()?->id ?: $request->ip());
+});
+
+RateLimiter::for('integrations', function (Request $request) {
+    return Limit::perMinute(30)->by($request->user()?->id ?: $request->ip());
 });
 
 Route::prefix('v1')->group(function () {
@@ -301,6 +306,14 @@ Route::prefix('v1')->group(function () {
             Route::get('conversations/{uuid}/messages', [ConversationController::class, 'messages']);
             Route::post('conversations/{uuid}/messages', [ConversationController::class, 'sendMessage']);
             Route::post('conversations/{uuid}/clear', [ConversationController::class, 'clear']);
+
+            // Google Integrations & OAuth (Phase 3.1)
+            Route::middleware('throttle:integrations')->prefix('integrations/google')->group(function () {
+                Route::get('auth-url', [GoogleOAuthController::class, 'authUrl']);
+                Route::post('callback', [GoogleOAuthController::class, 'callback']);
+                Route::get('status', [GoogleOAuthController::class, 'status']);
+                Route::delete('{id}', [GoogleOAuthController::class, 'disconnect']);
+            });
         });
 
         // Platform Admin Operations (Queue status backwards compatibility)

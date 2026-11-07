@@ -533,14 +533,69 @@ get_task_test_cmd() {
         P2.5.7)  echo "cd backend && (composer dump-autoload -q || true) && ./vendor/bin/pint --test && php artisan test --filter=ActionApprovalTest" ;;
         P2.5.8)  echo "cd backend && (composer dump-autoload -q || true) && ./vendor/bin/pint --test && php artisan test --filter=ChatbotCreditCostTest" ;;
         P2.5.9)  echo "cd backend && (composer dump-autoload -q || true) && ./vendor/bin/pint --test && php artisan test && cd ../frontend && npm run build" ;;
+        P3.1)    echo "cd backend && (composer dump-autoload -q || true) && ./vendor/bin/pint --test && php artisan test --filter=IntegrationFoundationTest" ;;
+        P3.2)    echo "cd backend && (composer dump-autoload -q || true) && ./vendor/bin/pint --test && php artisan test --filter=GoogleSearchConsoleTest" ;;
+        P3.3)    echo "cd backend && (composer dump-autoload -q || true) && ./vendor/bin/pint --test && php artisan test --filter=GoogleAnalytics4Test" ;;
+        P3.4)    echo "cd backend && (composer dump-autoload -q || true) && ./vendor/bin/pint --test && php artisan test --filter=SeoDataWarehouseTest && cd ../frontend && npm run build" ;;
+        P3.5)    echo "cd backend && (composer dump-autoload -q || true) && ./vendor/bin/pint --test && php artisan test --filter=RankTrackingTest && cd ../frontend && npm run build" ;;
+        P3.6)    echo "cd backend && (composer dump-autoload -q || true) && ./vendor/bin/pint --test && php artisan test --filter=SeoIntelligenceTest" ;;
+        P3.7)    echo "cd backend && (composer dump-autoload -q || true) && ./vendor/bin/pint --test && php artisan test --filter=ContentRefreshOptimizationTest && cd ../frontend && npm run build" ;;
+        P3.8)    echo "cd backend && (composer dump-autoload -q || true) && ./vendor/bin/pint --test && php artisan test --filter=SeoAutomationSchedulerTest" ;;
+        P3.9)    echo "cd backend && (composer dump-autoload -q || true) && ./vendor/bin/pint --test && php artisan test --filter=ChatbotSeoAutomationToolTest" ;;
+        P3.10)   echo "cd backend && (composer dump-autoload -q || true) && ./vendor/bin/pint --test && php artisan test && cd ../frontend && npm run build" ;;
         *)       echo "false" ;;
+    esac
+}
+
+get_task_title() {
+    local task_id="$1"
+    case "${task_id}" in
+        P3.1)    echo "Integration Foundation & Architecture" ;;
+        P3.2)    echo "Google OAuth 2.0 & Search Console Integration" ;;
+        P3.3)    echo "Google Analytics 4 Integration" ;;
+        P3.4)    echo "SEO Data Warehouse & Analytics Dashboard" ;;
+        P3.5)    echo "Rank Tracking với Serper.dev" ;;
+        P3.6)    echo "SEO Intelligence Engine" ;;
+        P3.7)    echo "AI Content Refresh & Optimization" ;;
+        P3.8)    echo "SEO Automation Engine" ;;
+        P3.9)    echo "Chatbot & Human Approval Integration" ;;
+        P3.10)   echo "Security, Performance & Final Acceptance" ;;
+        P2.5.1)  echo "Chatbot Interface & Upload Image Dropzone" ;;
+        P2.5.2)  echo "Conversation Engine (DB & Session Context)" ;;
+        P2.5.3)  echo "AI Orchestrator (Intent & Planner)" ;;
+        P2.5.4)  echo "Tool Calling (Top 3 Competitors & Free Stock WebP)" ;;
+        P2.5.5)  echo "Content Interaction & Vision Media" ;;
+        P2.5.6)  echo "Task & Progress Streaming" ;;
+        P2.5.7)  echo "Approval & Action Control (Human-in-the-Loop)" ;;
+        P2.5.8)  echo "Credit & Cost Integration (Zero Loss)" ;;
+        P2.5.9)  echo "Security Audit, E2E Test Suite & Reviewer Sign-Off" ;;
+        P2.1)    echo "Architecture Audit & Foundation Blueprint" ;;
+        P2.2)    echo "Keyword Research Engine" ;;
+        P2.3)    echo "Competitor & SERP Intelligence" ;;
+        P2.4)    echo "Topic Clusters & Content Gap" ;;
+        P2.5)    echo "Brand Knowledge Base" ;;
+        P2.6)    echo "AI Content Studio & Lexical Editor" ;;
+        P2.7)    echo "SEO Scoring Engine" ;;
+        P2.8)    echo "Internal Linking Engine" ;;
+        P2.9)    echo "WordPress Publishing & E2E Acceptance" ;;
+        TASK-01) echo "Pre-implementation Audit & Tech Stack" ;;
+        TASK-02) echo "Database Schema & Multi-tenant Migrations" ;;
+        TASK-03) echo "Authentication & Multi-tenant Isolation" ;;
+        TASK-04) echo "Credit System & Billing Foundation" ;;
+        TASK-05) echo "Payment Gateways & Order Processing" ;;
+        TASK-06) echo "AI Generation Pipeline & Queue System" ;;
+        TASK-07) echo "Frontend Dashboard & Core UI Components" ;;
+        TASK-08) echo "End-to-End Integration & System Hardening" ;;
+        *)       echo "complete ${task_id} verified by QLPK" ;;
     esac
 }
 
 is_task_done() {
     local task_id="$1"
     local progress_file="${FRAMEWORK_DIR}/PROGRESS.md"
-    if [[ "${task_id}" == P2.5.* ]] || [ "${PHASE:-1}" = "2.5" ]; then
+    if [[ "${task_id}" == P3* ]] || [ "${PHASE:-1}" -eq 3 ]; then
+        progress_file="${FRAMEWORK_DIR}/PROGRESS_P3.md"
+    elif [[ "${task_id}" == P2.5.* ]] || [ "${PHASE:-1}" = "2.5" ]; then
         progress_file="${FRAMEWORK_DIR}/PROGRESS_P2_5.md"
     elif [[ "${task_id}" == P2* ]] || [ "${PHASE:-1}" -eq 2 ]; then
         progress_file="${FRAMEWORK_DIR}/PROGRESS_P2.md"
@@ -558,7 +613,10 @@ update_progress_status() {
     ts="$(date '+%Y-%m-%d %H:%M')"
     local progress_file="${FRAMEWORK_DIR}/PROGRESS.md"
     local total_tasks=8
-    if [[ "${task_id}" == P2.5.* ]] || [ "${PHASE:-1}" = "2.5" ]; then
+    if [[ "${task_id}" == P3* ]] || [ "${PHASE:-1}" -eq 3 ]; then
+        progress_file="${FRAMEWORK_DIR}/PROGRESS_P3.md"
+        total_tasks=10
+    elif [[ "${task_id}" == P2.5.* ]] || [ "${PHASE:-1}" = "2.5" ]; then
         progress_file="${FRAMEWORK_DIR}/PROGRESS_P2_5.md"
         total_tasks=9
     elif [[ "${task_id}" == P2* ]] || [ "${PHASE:-1}" -eq 2 ]; then
@@ -632,7 +690,10 @@ execute_single_task() {
 
         local roadmap_name="ROADMAP.md"
         local audit_name="PHASE_1_AUDIT.md"
-        if [[ "${task_id}" == P2.5.* ]] || [ "${PHASE:-1}" = "2.5" ]; then
+        if [[ "${task_id}" == P3* ]] || [ "${PHASE:-1}" -eq 3 ]; then
+            roadmap_name="ROADMAP_P3.md"
+            audit_name="PRE_PHASE_3_AUDIT_REPORT.md"
+        elif [[ "${task_id}" == P2.5.* ]] || [ "${PHASE:-1}" = "2.5" ]; then
             roadmap_name="ROADMAP_P2_5.md"
             audit_name="PHASE_2_5_ARCHITECTURE_AUDIT.md"
         elif [[ "${task_id}" == P2* ]] || [ "${PHASE:-1}" -eq 2 ]; then
@@ -752,7 +813,9 @@ ${changed_files}
             update_progress_status "${task_id}" "DONE" "0" "PASS" "${review_round}"
             cd "${PROJECT_ROOT}" || return 1
             git add -A
-            git commit -m "feat(${task_id}): complete ${task_id} verified by QLPK Anti-Fake-Done gate [${run_id}]" || log_warn "Nothing new to commit for ${task_id}"
+            local task_title
+            task_title="$(get_task_title "${task_id}")"
+            git commit -m "feat(${task_id}): ${task_title} [${run_id}]" || log_warn "Nothing new to commit for ${task_id}"
             log_info "Pushing completed ${task_id} up to remote branch origin/${AUTO_PUSH_BRANCH}..."
             if git push -u origin "HEAD:${AUTO_PUSH_BRANCH}"; then
                 log_success "PUSHED ${task_id} TO origin/${AUTO_PUSH_BRANCH} SUCCESSFULLY!"
@@ -783,7 +846,10 @@ run_autonomous_loop() {
     local tasks_completed=0
     local task_list="TASK-01 TASK-02 TASK-03 TASK-04 TASK-05 TASK-06 TASK-07 TASK-08"
 
-    if [ "${PHASE:-1}" = "2.5" ] || [ "${target_task}" = "PHASE2.5" ] || [ "${target_task}" = "P2.5" ]; then
+    if [ "${PHASE:-1}" = "3" ] || [ "${target_task}" = "PHASE3" ] || [ "${target_task}" = "P3" ]; then
+        task_list="P3.1 P3.2 P3.3 P3.4 P3.5 P3.6 P3.7 P3.8 P3.9 P3.10"
+        target_task="ALL"
+    elif [ "${PHASE:-1}" = "2.5" ] || [ "${target_task}" = "PHASE2.5" ] || [ "${target_task}" = "P2.5" ]; then
         task_list="P2.5.1 P2.5.2 P2.5.3 P2.5.4 P2.5.5 P2.5.6 P2.5.7 P2.5.8 P2.5.9"
         target_task="ALL"
     elif [ "${PHASE:-1}" -eq 2 ] || [ "${target_task}" = "PHASE2" ] || [ "${target_task}" = "P2" ]; then

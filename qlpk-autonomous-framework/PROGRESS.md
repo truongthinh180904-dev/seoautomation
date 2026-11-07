@@ -12,11 +12,11 @@
 | Chỉ số | Giá trị | Tỷ lệ |
 | :--- | :---: | :---: |
 | **Tổng số nhóm Task Giai đoạn 1** | **8** | 100% |
-| **Đã hoàn thành (DONE)** | **8** | 100% |
+| **Đã hoàn thành (DONE)** | **7** | 87.5% |
 | **Đang xử lý (IN_PROGRESS)** | **0** | 0% |
 | **Đang kiểm tra (TESTING / REVIEWING)** | **0** | 0% |
 | **Đang chờ xử lý (PENDING)** | **0** | 0% |
-| **Tạm dừng / Bị chặn (BLOCKED / FAILED)** | **0** | 0% |
+| **Tạm dừng / Bị chặn (BLOCKED / FAILED)** | **1** | 12.5% |
 
 ---
 
@@ -27,7 +27,7 @@
 | **Đợt 1** | **TASK-01** | Audit Code & Database Hiện Tại | **P0** | `DONE` | `0 (MD Verified)` | `PASS` | 1/3 | 2026-11-02 13:27 |
 | **Đợt 2** | **TASK-02** | Thiết Kế & Khởi Tạo Database SaaS Mới | **P0** | `DONE` | 0 | PASS | 2/3 | 2026-11-02 19:55 |
 | **Đợt 3** | **TASK-03** | Hoàn Thiện Tài Khoản, Workspace & Bảo Mật | **P0** | `DONE` | 0 | PASS | 3/3 | 2026-11-03 10:00 |
-| **Đợt 4** | **TASK-04** | Hệ Thống Gói Dịch Vụ & Credit Theo Tháng | **P0** | `DONE` | 0 | PASS | 1/3 | 2026-11-03 12:54 |
+| **Đợt 4** | **TASK-04** | Hệ Thống Gói Dịch Vụ & Credit Theo Tháng | **P0** | `FAILED` | 1 | FAIL | 3/3 | 2026-11-06 16:27 |
 | **Đợt 5** | **TASK-05** | Thanh Toán Thủ Công & Trang Quản Trị Admin | **P0** | `DONE` | 0 | PASS | 3/3 | 2026-11-03 14:06 |
 | **Đợt 6** | **TASK-06** | Hoàn Thiện Luồng Xử Lý AI & Tác Vụ Nền | **P0** | `DONE` | 0 | PASS | 2/3 | 2026-11-03 17:09 |
 | **Đợt 7** | **TASK-07** | Hoàn Thiện Giao Diện SaaS & Dashboard | **P1** | `DONE` | 0 | PASS | 3/3 | 2026-11-03 18:45 |

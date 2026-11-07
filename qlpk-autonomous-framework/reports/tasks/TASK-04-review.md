@@ -1,34 +1,87 @@
 # Task Review Report: TASK-04
 
-- **RUN_ID**: RUN_20261103_124333_TASK-04_R1
+- **RUN_ID**: RUN_20261103_115012_TASK-04_R3
 - **Task ID**: TASK-04
 - **Reviewer Model**: Gemini 4 Argon (Medium)
-- **Timestamp**: 2026-11-03 12:54:20
-- **OVERALL_REVIEW_RESULT**: PASS
+- **OVERALL_REVIEW_RESULT**: FAIL
 
 ## 14-Point Checklist Verification
-1. [x] **01. Scope Adherence (P0)**: PASS — Các file mã nguồn thay đổi ([ProcessCreditCyclesCommand.php](file:///Users/truongthinh/Documents/SaasAutoSeo/backend/app/Console/Commands/ProcessCreditCyclesCommand.php), [CreditLedgerService.php](file:///Users/truongthinh/Documents/SaasAutoSeo/backend/app/Services/Billing/CreditLedgerService.php), [SubscriptionService.php](file:///Users/truongthinh/Documents/SaasAutoSeo/backend/app/Services/Billing/SubscriptionService.php)) và toàn bộ các file thuộc phạm vi **TASK-04** ([ai_costs.php](file:///Users/truongthinh/Documents/SaasAutoSeo/backend/config/ai_costs.php), [PlanSeeder.php](file:///Users/truongthinh/Documents/SaasAutoSeo/backend/database/seeders/PlanSeeder.php), [CreditTest.php](file:///Users/truongthinh/Documents/SaasAutoSeo/backend/tests/Feature/CreditTest.php), [app.php](file:///Users/truongthinh/Documents/SaasAutoSeo/backend/bootstrap/app.php), DTOs, Exceptions, [CostTrackingService.php](file:///Users/truongthinh/Documents/SaasAutoSeo/backend/app/Services/Cost/CostTrackingService.php)) đều nằm chính xác trong danh sách `allowed_files` của [ROADMAP.md](file:///Users/truongthinh/Documents/SaasAutoSeo/qlpk-autonomous-framework/ROADMAP.md#L162-L172) (cùng file điều phối trạng thái [PROGRESS.md](file:///Users/truongthinh/Documents/SaasAutoSeo/qlpk-autonomous-framework/PROGRESS.md)).
-2. [x] **02. No Compilation/Syntax Errors (P0)**: PASS — Kiểm tra qua `./vendor/bin/pint --test` đạt PASS 100% trên 334 files PHP, mã nguồn chuẩn strict types PHP 8.3, không có lỗi cú pháp.
-3. [x] **03. Automated Test Proof (P0)**: PASS — Báo cáo [TASK-04-test.md](file:///Users/truongthinh/Documents/SaasAutoSeo/qlpk-autonomous-framework/reports/tasks/TASK-04-test.md) khớp chính xác `RUN_ID: RUN_20261103_124333_TASK-04_R1`, `Exit Code: 0` và `OVERALL_TEST_RESULT: PASS` với 17/17 test cases (94 assertions) trong [`CreditTest`](file:///Users/truongthinh/Documents/SaasAutoSeo/backend/tests/Feature/CreditTest.php#L41-L550).
-4. [x] **04. No Hardcoded Secrets (P0)**: PASS — Không có bất kỳ API key, mật khẩu hay thông tin nhạy cảm nào bị hardcode; cấu hình định mức đọc qua [ai_costs.php](file:///Users/truongthinh/Documents/SaasAutoSeo/backend/config/ai_costs.php).
-5. [x] **05. Database Migration Safety (P0)**: PASS — Không xóa bảng hay thay đổi phá hủy schema hiện tại; [`PlanSeeder`](file:///Users/truongthinh/Documents/SaasAutoSeo/backend/database/seeders/PlanSeeder.php#L10-L117) sử dụng `Plan::updateOrCreate` an toàn và idempotent cho đủ 4 gói (`Free`, `Basic`, `Pro`, `Business`) đúng thông số.
-6. [x] **06. Multi-Tenancy Isolation (P0)**: PASS — Toàn bộ thao tác cấp, giữ chỗ, trừ, hoàn, hết hạn credit và kiểm tra hạn mức bài viết/tác vụ đồng thời trong [`CreditLedgerService`](file:///Users/truongthinh/Documents/SaasAutoSeo/backend/app/Services/Billing/CreditLedgerService.php#L22-L814) và [`SubscriptionService`](file:///Users/truongthinh/Documents/SaasAutoSeo/backend/app/Services/Billing/SubscriptionService.php#L22-L317) đều gắn chặt với `workspace_id`.
-7. [x] **07. N+1 Query Prevention (P1)**: PASS — Các truy vấn quan hệ đều sử dụng eager loading `with(['plan', 'workspace'])` trong [`ProcessCreditCyclesCommand::handle`](file:///Users/truongthinh/Documents/SaasAutoSeo/backend/app/Console/Commands/ProcessCreditCyclesCommand.php#L42-L45) và `with('plan')` trong [`CreditLedgerService::getBalance`](file:///Users/truongthinh/Documents/SaasAutoSeo/backend/app/Services/Billing/CreditLedgerService.php#L50-L54), [`SubscriptionService::getActivePlan`](file:///Users/truongthinh/Documents/SaasAutoSeo/backend/app/Services/Billing/SubscriptionService.php#L35-L40); lọc workspace Free trực tiếp bằng `whereHas` ở tầng SQL.
-8. [x] **08. Database Transaction Integrity (P1)**: PASS — Mọi nghiệp vụ biến động số dư và gói cước (`reserveCredits`, `deductCredits`, `releaseCredits`, `refundCredits`, `grantCredits`, `adminAdjustCredits`, `expireGrant`, `ensureDailyFreeCredits`, `subscribe`, `renewCycle`) đều bọc trong `DB::transaction(...)` kết hợp khóa bi quan `lockForUpdate()` trên `CreditAccount` chống race condition và trừ âm số dư.
-9. [x] **09. Validation Strictness (P1)**: PASS — Backend kiểm soát chặt chẽ định mức credit từ server config (`ai_costs.credits.standard_article`), sử dụng Enums định kiểu nghiêm ngặt và Spatie Data DTO ([`CreditBalanceDTO`](file:///Users/truongthinh/Documents/SaasAutoSeo/backend/app/DTOs/CreditBalanceDTO.php#L8-L22), [`AIResponseDTO`](file:///Users/truongthinh/Documents/SaasAutoSeo/backend/app/DTOs/AIResponseDTO.php#L8-L60)), tuyệt đối không cho phép phía client tự quyết định lượng credit bị trừ.
-10. [x] **10. Error Handling & Typed Exceptions (P1)**: PASS — Triển khai đầy đủ typed exceptions ([`InsufficientCreditsException`](file:///Users/truongthinh/Documents/SaasAutoSeo/backend/app/Exceptions/InsufficientCreditsException.php#L7-L26) render HTTP 402, [`QuotaExceededException`](file:///Users/truongthinh/Documents/SaasAutoSeo/backend/app/Exceptions/QuotaExceededException.php#L7-L18) render HTTP 422 trong [app.php](file:///Users/truongthinh/Documents/SaasAutoSeo/backend/bootstrap/app.php#L58-L82), [`SubscriptionException`](file:///Users/truongthinh/Documents/SaasAutoSeo/backend/app/Exceptions/SubscriptionException.php#L7-L16)) và bọc `try-catch` kèm `Log::error` cô lập lỗi từng workspace trong [`ProcessCreditCyclesCommand`](file:///Users/truongthinh/Documents/SaasAutoSeo/backend/app/Console/Commands/ProcessCreditCyclesCommand.php#L48-L77).
-11. [x] **11. Atomic UI & Tailwind Standards (P1)**: PASS (N/A — Task thuần Backend Billing/Credit Engine, không tác động giao diện Next.js).
-12. [x] **12. Responsive Table & Layout (P2)**: PASS (N/A — Không có thay đổi UI/Table ở TASK-04).
-13. [x] **13. Double-Submit Protection (P2)**: PASS — Chống thực thi trùng lặp ở tầng Backend bằng `idempotency_key` duy nhất trên cả `credit_grants` lẫn `credit_transactions`, kết hợp `withoutOverlapping(10)` cho tiến trình lịch `credit:process-cycles` trong [app.php](file:///Users/truongthinh/Documents/SaasAutoSeo/backend/bootstrap/app.php#L52-L56).
-14. [x] **14. Clean Code & No Debug Leftovers (P2)**: PASS — Mã nguồn sạch, tách biệt rõ ràng theo Service/DTO pattern, không tồn tại `dd()`, `dump()`, `var_dump()`, `console.log()` hay đoạn mã chết.
+
+1. [ ] **Scope Adherence (Phạm vi file) [P0] - FAIL**:
+   - Danh sách `allowed_files` được cấp phép cho TASK-04 trong [`ROADMAP.md`](file:///Users/truongthinh/Documents/SaasAutoSeo/qlpk-autonomous-framework/ROADMAP.md#L162-L173):
+     - `backend/config/ai_costs.php`
+     - `backend/app/DTOs/*.php`
+     - `backend/app/Exceptions/**/*.php`
+     - `backend/app/Services/Billing/*.php`
+     - `backend/app/Services/Cost/*.php`
+     - `backend/app/Models/*.php`
+     - `backend/app/Console/Commands/*.php`
+     - `backend/bootstrap/app.php`
+     - `backend/database/seeders/*.php`
+     - `backend/tests/Feature/CreditTest.php`
+   - Đối chiếu với `git status` và `git diff` thực tế từ file [`.agy-state/TASK-04-diff.patch`](file:///Users/truongthinh/Documents/SaasAutoSeo/qlpk-autonomous-framework/.agy-state/TASK-04-diff.patch):
+     - **3 files bị sửa đổi (Modified)**:
+       - `HANDOVER_CONTEXT.md`
+       - `qlpk-autonomous-framework/PROGRESS.md`
+       - `qlpk-autonomous-framework/run-agy.sh`
+     - **10 files mới chưa theo dõi (Untracked)**:
+       - `PHASE_3_COST_AND_CREDIT_POLICY.md`
+       - `PHASE_3_DEPENDENCY_GRAPH.md`
+       - `PHASE_3_RISK_REGISTER.md`
+       - `PHASE_3_ROADMAP.md`
+       - `PHASE_3_TASK_BREAKDOWN.md`
+       - `PHASE_3_TEST_STRATEGY.md`
+       - `PRE_PHASE_3_AUDIT_REPORT.md`
+       - `PROJECT_CONTEXT_HANDOVER.md`
+       - `qlpk-autonomous-framework/PROGRESS_P3.md`
+       - `qlpk-autonomous-framework/ROADMAP_P3.md`
+     - **Phân tích vi phạm:** 100% các file xuất hiện trong `git diff / git status` hiện tại **hoàn toàn nằm ngoài danh sách `allowed_files`** của TASK-04. Đây là các tài liệu quy hoạch kiến trúc Phase 3 vừa được tạo mới. Không có bất kỳ file mã nguồn backend nào của TASK-04 nằm trong diff lần này (do code TASK-04 đã được commit trước đó). Nếu cấp PASS, script [`run-agy.sh`](file:///Users/truongthinh/Documents/SaasAutoSeo/qlpk-autonomous-framework/run-agy.sh#L812) sẽ thực hiện `git add -A` và đóng gói toàn bộ 13 file Phase 3 này vào một commit sai ngữ cảnh `feat(TASK-04): Credit System & Billing Foundation`. Theo quy tắc Anti-Fake-Done Tiêu chí 01: *"Nếu có file thừa $\rightarrow$ REJECT"*.
+2. [x] **No Compilation/Syntax Errors [P0] - PASS**: Code PHP được kiểm tra qua `vendor/bin/pint --test` hoàn toàn sạch, không có lỗi cú pháp.
+3. [x] **Automated Test Proof [P0] - PASS**: File [`reports/tasks/TASK-04-test.md`](file:///Users/truongthinh/Documents/SaasAutoSeo/qlpk-autonomous-framework/reports/tasks/TASK-04-test.md) có `OVERALL_TEST_RESULT: PASS`, `exit_code: 0`, khớp chính xác `RUN_ID: RUN_20261103_115012_TASK-04_R3` với 17/17 tests passed (94 assertions) trong [`CreditTest.php`](file:///Users/truongthinh/Documents/SaasAutoSeo/backend/tests/Feature/CreditTest.php).
+4. [x] **No Hardcoded Secrets [P0] - PASS**: Không có API token, secret keys hay mật khẩu nhạy cảm hardcode trong code.
+5. [x] **Database Migration Safety [P0] - PASS**: Không có lệnh `DROP TABLE` hay sửa đổi schema bất thường làm mất an toàn dữ liệu.
+6. [x] **Multi-Tenancy Isolation [P0] - PASS**: [`CreditLedgerService`](file:///Users/truongthinh/Documents/SaasAutoSeo/backend/app/Services/Billing/CreditLedgerService.php) và [`SubscriptionService`](file:///Users/truongthinh/Documents/SaasAutoSeo/backend/app/Services/Billing/SubscriptionService.php) phân lập dữ liệu chặt chẽ theo `workspace_id`.
+7. [x] **N+1 Query Prevention [P1] - PASS**: Các truy vấn quan hệ như `Subscription::with('plan')` sử dụng eager loading chuẩn mực.
+8. [x] **Database Transaction Integrity [P1] - PASS**: Các phương thức thay đổi số dư (`reserveCredits`, `deductCredits`, `releaseCredits`, `refundCredits`, `grantCredits`, `adminAdjustCredits`) đều bọc trong `DB::transaction()` kèm cơ chế khóa bi quan `lockForUpdate()` chống race condition.
+9. [x] **Validation Strictness [P1] - PASS**: Kiểm tra hạn mức chặt chẽ thông qua các method assertion ném ngoại lệ rõ ràng (`assertArticleLimitNotExceeded`, `assertConcurrencyLimitNotExceeded`).
+10. [x] **Error Handling & Typed Exceptions [P1] - PASS**: Sử dụng các typed exceptions chuyên biệt như [`InsufficientCreditsException`](file:///Users/truongthinh/Documents/SaasAutoSeo/backend/tests/Feature/CreditTest.php#L531-L549) (render mã HTTP 402) và [`QuotaExceededException`](file:///Users/truongthinh/Documents/SaasAutoSeo/backend/tests/Feature/CreditTest.php#L406).
+11. [x] **Atomic UI & Tailwind Standards [P1] - PASS**: Task backend pure logic, không can thiệp frontend UI.
+12. [x] **Responsive Table & Layout [P2] - PASS**: Không có giao diện bảng cần hiển thị.
+13. [x] **Double-Submit Protection [P2] - PASS**: Toàn bộ thao tác credit đều áp dụng cơ chế khóa Idempotency Key (`idempotency_key` trên `CreditGrant` và `CreditTransaction`) chống trừ hoặc cấp trùng lặp.
+14. [x] **Clean Code & No Debug Leftovers [P2] - PASS**: Không phát hiện `dd()`, `dump()`, `var_dump()` hay log rác debug.
+
+---
+
+## Danh Sách File Cần Xử Lý Trước Khi Nghiệm Thu
+
+Để đạt chuẩn Scope Adherence, các file tài liệu quy hoạch Phase 3 và cập nhật framework cần được xử lý riêng rẽ khỏi chu trình của TASK-04:
+
+1. **Commit riêng hoặc stash các file quy hoạch Phase 3 trước khi trigger lại vòng lặp:**
+   - `PHASE_3_COST_AND_CREDIT_POLICY.md`
+   - `PHASE_3_DEPENDENCY_GRAPH.md`
+   - `PHASE_3_RISK_REGISTER.md`
+   - `PHASE_3_ROADMAP.md`
+   - `PHASE_3_TASK_BREAKDOWN.md`
+   - `PHASE_3_TEST_STRATEGY.md`
+   - `PRE_PHASE_3_AUDIT_REPORT.md`
+   - `PROJECT_CONTEXT_HANDOVER.md`
+   - `HANDOVER_CONTEXT.md`
+   - `qlpk-autonomous-framework/PROGRESS_P3.md`
+   - `qlpk-autonomous-framework/ROADMAP_P3.md`
+   - `qlpk-autonomous-framework/run-agy.sh`
+2. **Khôi phục trạng thái chuẩn của TASK-04:**
+   - Trong [`qlpk-autonomous-framework/PROGRESS.md`](file:///Users/truongthinh/Documents/SaasAutoSeo/qlpk-autonomous-framework/PROGRESS.md#L30), TASK-04 vốn đã hoàn thành đạt chuẩn `DONE` (Pass 17/17 tests) từ ngày 2026-11-03. Cần khôi phục về trạng thái `DONE` và chuyển sang thực thi các task Phase 3 tương ứng (`./run-agy.sh run PHASE3` hoặc `P3.1`).
+
+---
 
 ## Review Verdict JSON
+
 ```json
 {
   "task_id": "TASK-04",
-  "run_id": "RUN_20261103_124333_TASK-04_R1",
-  "verdict": "PASS",
-  "checklist_score": "14/14",
-  "notes": "TASK-04 đáp ứng trọn vẹn toàn bộ yêu cầu nghiệp vụ gói cước, chu kỳ cấp/hết hạn credit không cộng dồn, cơ chế reserve/deduct/release/refund có khóa lockForUpdate + idempotency_key và vượt qua đầy đủ 14/14 tiêu chí Anti-Fake-Done với Pint & 17/17 Pest/PHPUnit tests PASS."
+  "run_id": "RUN_20261103_115012_TASK-04_R3",
+  "verdict": "FAIL",
+  "checklist_score": "13/14",
+  "notes": "VI PHẠM P0 TIÊU CHÍ 01 (Scope Adherence): Thư mục làm việc chứa 13 file thừa thuộc tài liệu quy hoạch Phase 3 (PHASE_3_*.md, HANDOVER_CONTEXT.md, run-agy.sh) hoàn toàn nằm ngoài danh sách allowed_files của TASK-04. Cần commit riêng tài liệu Phase 3 hoặc stash trước để tránh git add -A commit nhầm vào TASK-04."
 }
 ```
