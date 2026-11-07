@@ -37,6 +37,7 @@ use App\Http\Controllers\Api\V1\NotificationController;
 use App\Http\Controllers\Api\V1\QueueStatusController;
 use App\Http\Controllers\Api\V1\ScheduleController;
 use App\Http\Controllers\Api\V1\SEO\RankTrackerController;
+use App\Http\Controllers\Api\V1\SEO\SeoIntelligenceController;
 use App\Http\Controllers\Api\V1\SeoScoringController;
 use App\Http\Controllers\Api\V1\TaskController;
 use App\Http\Controllers\Api\V1\TopicClusterController;
@@ -317,6 +318,16 @@ Route::prefix('v1')->group(function () {
                 Route::get('keywords/{id}/history', [RankTrackerController::class, 'history']);
                 Route::post('keywords/{id}/refresh', [RankTrackerController::class, 'refresh']);
                 Route::get('summary', [RankTrackerController::class, 'summary']);
+            });
+
+            // SEO Intelligence & Opportunity Engine (Phase 3.6)
+            Route::prefix('seo-insights')->group(function () {
+                Route::get('/', [SeoIntelligenceController::class, 'index']);
+                Route::get('summary', [SeoIntelligenceController::class, 'summary']);
+                Route::post('scan', [SeoIntelligenceController::class, 'scan']);
+                Route::get('{id}', [SeoIntelligenceController::class, 'show']);
+                Route::post('{id}/dismiss', [SeoIntelligenceController::class, 'dismiss']);
+                Route::post('{id}/action', [SeoIntelligenceController::class, 'action']);
             });
 
             // AI Prompts
