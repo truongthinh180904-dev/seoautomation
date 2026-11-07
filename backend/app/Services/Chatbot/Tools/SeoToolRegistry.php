@@ -8,9 +8,14 @@ use App\Services\Chatbot\Tools\Adapters\AiImageToolAdapter;
 use App\Services\Chatbot\Tools\Adapters\BulkGenerationAdapter;
 use App\Services\Chatbot\Tools\Adapters\CompetitorAnalysisAdapter;
 use App\Services\Chatbot\Tools\Adapters\ContentGapAdapter;
+use App\Services\Chatbot\Tools\Adapters\ContentRefreshToolAdapter;
 use App\Services\Chatbot\Tools\Adapters\ContentStudioWriteAdapter;
+use App\Services\Chatbot\Tools\Adapters\Ga4ToolAdapter;
+use App\Services\Chatbot\Tools\Adapters\GscToolAdapter;
 use App\Services\Chatbot\Tools\Adapters\InternalLinksAdapter;
 use App\Services\Chatbot\Tools\Adapters\KeywordResearchAdapter;
+use App\Services\Chatbot\Tools\Adapters\RankTrackerToolAdapter;
+use App\Services\Chatbot\Tools\Adapters\SeoIntelligenceToolAdapter;
 use App\Services\Chatbot\Tools\Adapters\SeoScoreAdapter;
 use App\Services\Chatbot\Tools\Adapters\StockImageToolAdapter;
 use App\Services\Chatbot\Tools\Adapters\TopicClusterAdapter;
@@ -44,6 +49,11 @@ class SeoToolRegistry
         AiImageToolAdapter::class,
         BulkGenerationAdapter::class,
         WordPressPublishAdapter::class,
+        GscToolAdapter::class,
+        Ga4ToolAdapter::class,
+        RankTrackerToolAdapter::class,
+        SeoIntelligenceToolAdapter::class,
+        ContentRefreshToolAdapter::class,
     ];
 
     public function __construct(array $initialTools = [])

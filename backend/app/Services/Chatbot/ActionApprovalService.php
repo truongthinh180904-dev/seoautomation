@@ -16,6 +16,7 @@ use App\Models\Workspace;
 use App\Services\Billing\CreditLedgerService;
 use App\Services\Bulk\BulkGenerationService;
 use App\Services\Chatbot\Tools\SeoToolRegistry;
+use App\Services\SEO\Optimization\ContentRefreshService;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -95,14 +96,28 @@ class ActionApprovalService
      */
     public function approveAction(
         string|ChatPendingAction $action,
-        Workspace $workspace,
-        User $actor
+        Workspace|User $workspace,
+        ?User $actor = null
     ): array {
-        $pendingAction = $action instanceof ChatPendingAction
-            ? $action
-            : ChatPendingAction::where('workspace_id', $workspace->id)
-                ->where('uuid', $action)
-                ->firstOrFail();
+        if ($workspace instanceof User) {
+            $actor = $workspace;
+            $pendingAction = $action instanceof ChatPendingAction
+                ? $action
+                : ChatPendingAction::where('uuid', $action)->firstOrFail();
+
+            $workspace = Workspace::findOrFail($pendingAction->workspace_id);
+            $action = $pendingAction;
+        } else {
+            $pendingAction = $action instanceof ChatPendingAction
+                ? $action
+                : ChatPendingAction::where('workspace_id', $workspace->id)
+                    ->where('uuid', $action)
+                    ->firstOrFail();
+
+            if ($actor === null) {
+                $actor = $pendingAction->user ?? User::find($pendingAction->user_id);
+            }
+        }
 
         if ($pendingAction->workspace_id !== $workspace->id) {
             throw new ModelNotFoundException('Không tìm thấy yêu cầu xác nhận trong Không gian làm việc này.');
@@ -155,7 +170,23 @@ class ActionApprovalService
             // 4. Kích hoạt thực thi nghiệp vụ tương ứng
             $executionResult = $this->dispatchActionExecution($pendingAction, $workspace, $actor);
 
+            $actionData = [
+                'id' => $pendingAction->id,
+                'uuid' => $pendingAction->uuid,
+                'action_id' => $pendingAction->uuid,
+                'action_name' => $pendingAction->action_name,
+                'status' => 'approved',
+                'reviewed_at' => $pendingAction->reviewed_at?->toIso8601String(),
+                'credits_deducted' => $pendingAction->estimated_credits,
+                'target_entity_type' => $pendingAction->target_entity_type,
+                'target_entity_id' => $pendingAction->target_entity_id,
+                'payload' => $pendingAction->action_payload,
+            ];
+
             return [
+                'success' => true,
+                'message' => 'Hành động đã được phê duyệt và kích hoạt thành công.',
+                'action' => $actionData,
                 'action_id' => $pendingAction->uuid,
                 'action_name' => $pendingAction->action_name,
                 'status' => 'approved',
@@ -176,15 +207,32 @@ class ActionApprovalService
      */
     public function rejectAction(
         string|ChatPendingAction $action,
-        Workspace $workspace,
-        User $actor,
+        Workspace|User $workspace,
+        User|string|null $actorOrReason = null,
         ?string $reason = null
     ): array {
-        $pendingAction = $action instanceof ChatPendingAction
-            ? $action
-            : ChatPendingAction::where('workspace_id', $workspace->id)
-                ->where('uuid', $action)
-                ->firstOrFail();
+        if ($workspace instanceof User) {
+            $actor = $workspace;
+            $reason = is_string($actorOrReason) ? $actorOrReason : $reason;
+
+            $pendingAction = $action instanceof ChatPendingAction
+                ? $action
+                : ChatPendingAction::where('uuid', $action)->firstOrFail();
+
+            $workspace = Workspace::findOrFail($pendingAction->workspace_id);
+            $action = $pendingAction;
+        } else {
+            $actor = $actorOrReason instanceof User ? $actorOrReason : null;
+            $pendingAction = $action instanceof ChatPendingAction
+                ? $action
+                : ChatPendingAction::where('workspace_id', $workspace->id)
+                    ->where('uuid', $action)
+                    ->firstOrFail();
+
+            if ($actor === null) {
+                $actor = $pendingAction->user ?? User::find($pendingAction->user_id);
+            }
+        }
 
         if ($pendingAction->workspace_id !== $workspace->id) {
             throw new ModelNotFoundException('Không tìm thấy yêu cầu xác nhận trong Không gian làm việc này.');
@@ -212,7 +260,20 @@ class ActionApprovalService
             $pendingAction->message?->update(['status' => 'cancelled']);
         }
 
+        $actionData = [
+            'id' => $pendingAction->id,
+            'uuid' => $pendingAction->uuid,
+            'action_id' => $pendingAction->uuid,
+            'action_name' => $pendingAction->action_name,
+            'status' => 'rejected',
+            'reason' => $reason,
+            'reviewed_at' => $pendingAction->reviewed_at?->toIso8601String(),
+        ];
+
         return [
+            'success' => true,
+            'message' => 'Hành động đã bị từ chối / hủy bỏ.',
+            'action' => $actionData,
             'action_id' => $pendingAction->uuid,
             'action_name' => $pendingAction->action_name,
             'status' => 'rejected',
@@ -310,6 +371,7 @@ class ActionApprovalService
 
         $toolName = match ($name) {
             'publish_to_wordpress', 'wordpress_publish' => 'wordpress_publish',
+            'push_update_wordpress', 'update_wordpress_post', 'update_to_wordpress' => 'update_wordpress_post',
             'start_bulk_generation', 'bulk_generation' => 'bulk_generation',
             default => $name,
         };
@@ -320,6 +382,32 @@ class ActionApprovalService
                 'status' => 'dispatched_to_queue',
                 'credits_deducted' => $pendingAction->estimated_credits,
                 'payload' => $payload,
+            ];
+        }
+
+        // Xử lý phê duyệt cập nhật bài viết lên WordPress (Human-in-the-Loop cho Phase 3)
+        if ($toolName === 'update_wordpress_post') {
+            $articleId = (int) ($payload['article_id'] ?? 0);
+            /** @var Article $article */
+            $article = Article::where('workspace_id', $workspace->id)->findOrFail($articleId);
+
+            /** @var ContentRefreshService $refreshService */
+            $refreshService = app(ContentRefreshService::class);
+            $result = $refreshService->pushUpdateToWordPress(
+                $article,
+                $workspace,
+                array_merge($payload, ['confirm' => true]),
+                $actor
+            );
+
+            return [
+                'tool' => 'update_wordpress_post',
+                'action' => 'push_update_wordpress',
+                'article_id' => $article->id,
+                'article_title' => $article->title,
+                'wordpress_post_id' => $result['post_id'] ?? $article->wordpress_post_id,
+                'url' => $result['url'] ?? $article->wordpress_post_url,
+                'status' => 'published',
             ];
         }
 
@@ -385,8 +473,14 @@ class ActionApprovalService
      */
     protected function calculateEstimatedCredits(string $actionName, array $payload): int
     {
-        if (in_array($actionName, ['publish_to_wordpress', 'wordpress_publish'], true)) {
-            return 0; // Xuất bản WordPress thuần túy không tiêu tốn credit
+        if (in_array($actionName, [
+            'publish_to_wordpress',
+            'wordpress_publish',
+            'push_update_wordpress',
+            'update_wordpress_post',
+            'update_to_wordpress',
+        ], true)) {
+            return 0; // Xuất bản hoặc cập nhật WordPress thuần túy không tiêu tốn credit
         }
 
         if (in_array($actionName, ['bulk_generation', 'start_bulk_generation'], true)) {

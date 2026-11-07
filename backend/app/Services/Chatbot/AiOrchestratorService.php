@@ -7,6 +7,7 @@ use App\DTOs\Chatbot\UserIntentDTO;
 use App\Models\BrandKnowledgeBase;
 use App\Models\Conversation;
 use App\Models\Website;
+use App\Models\Workspace;
 use App\Services\Brand\BrandKnowledgeService;
 use Illuminate\Support\Str;
 
@@ -84,6 +85,48 @@ class AiOrchestratorService
             'estimated_credits' => 0,
             'is_sensitive' => true,
         ],
+        'gsc_query' => [
+            'name' => 'Tra cứu Google Search Console',
+            'description' => 'Tra cứu số liệu Clicks, Impressions, CTR, Vị trí trung bình, Top Queries và Top Pages từ Google Search Console (0 credit, tức thì).',
+            'estimated_credits' => 0,
+            'is_sensitive' => false,
+        ],
+        'gsc_performance' => [
+            'name' => 'Tra cứu Google Search Console',
+            'description' => 'Tra cứu số liệu Clicks, Impressions, CTR, Vị trí trung bình, Top Queries và Top Pages từ Google Search Console (0 credit, tức thì).',
+            'estimated_credits' => 0,
+            'is_sensitive' => false,
+        ],
+        'ga4_query' => [
+            'name' => 'Tra cứu Google Analytics 4',
+            'description' => 'Tra cứu số liệu Sessions, Active Users, Engagement Rate, Thời lượng phiên trung bình và Conversions theo Landing Page từ GA4 (0 credit, tức thì).',
+            'estimated_credits' => 0,
+            'is_sensitive' => false,
+        ],
+        'ga4_traffic' => [
+            'name' => 'Tra cứu Google Analytics 4',
+            'description' => 'Tra cứu số liệu Sessions, Active Users, Engagement Rate, Thời lượng phiên trung bình và Conversions theo Landing Page từ GA4 (0 credit, tức thì).',
+            'estimated_credits' => 0,
+            'is_sensitive' => false,
+        ],
+        'rank_tracker' => [
+            'name' => 'Kiểm tra Thứ hạng Từ khóa (Rank Tracker)',
+            'description' => 'Kiểm tra thứ hạng từ khóa mục tiêu trong Top 100 Google SERP, biến động tăng/giảm vị trí và lịch sử thứ hạng theo ngày (0 credit, tức thì).',
+            'estimated_credits' => 0,
+            'is_sensitive' => false,
+        ],
+        'seo_intelligence' => [
+            'name' => 'Phát hiện Cơ hội & Bất thường SEO (SEO Intelligence)',
+            'description' => 'Tự động phân tích và giải thích 6 dạng bất thường & cơ hội SEO (Tụt hạng, Tụt traffic, CTR thấp, Striking Distance, Cannibalization) kèm điểm tiềm năng Opportunity Score (0 credit, tức thì).',
+            'estimated_credits' => 0,
+            'is_sensitive' => false,
+        ],
+        'content_refresh' => [
+            'name' => 'Làm mới & Tối ưu Bài viết Cũ (AI Content Refresh)',
+            'description' => 'Thu thập bối cảnh GSC/GA4/Rank để AI đề xuất làm mới bài viết cũ, tạo bản so sánh Diff Trước/Sau 2 cột, nâng điểm SEO và chuẩn bị phê duyệt xuất bản WordPress.',
+            'estimated_credits' => 2,
+            'is_sensitive' => false,
+        ],
     ];
 
     public function __construct(
@@ -105,8 +148,11 @@ class AiOrchestratorService
      * Xây dựng System Prompt định hình vai trò Senior SEO Specialist & Content Strategist,
      * nhúng mô tả năng lực của 10 công cụ SEO và nạp kiến thức thương hiệu BrandKnowledgeBase.
      */
-    public function buildSystemPrompt(?Website $website = null, ?BrandKnowledgeBase $brandKnowledge = null): string
+    public function buildSystemPrompt(Website|Workspace|null $website = null, ?BrandKnowledgeBase $brandKnowledge = null): string
     {
+        $workspace = $website instanceof Workspace ? $website : ($website instanceof Website ? $website->workspace : null);
+        $websiteModel = $website instanceof Website ? $website : ($workspace ? $workspace->websites()->first() : null);
+
         $lines = [];
 
         // 1. Định vị vai trò & Nguyên tắc Senior SEO
@@ -121,6 +167,7 @@ class AiOrchestratorService
         $lines[] = '2. Xử lý ảnh 3 tầng: Ưu tiên số 1 là ảnh người dùng gửi kèm (đọc hiểu bằng Gemini Vision để ghim đúng H2/H3); Ưu tiên số 2 là tìm ảnh stock 100% không bản quyền (Pexels/Unsplash); Ưu tiên số 3 là AI Gemini render. Mọi ảnh đều bắt buộc nén WebP < 150KB và có thẻ ALT chuẩn SEO.';
         $lines[] = '3. An toàn Credit (Zero Loss): Minh bạch về chi phí credit của từng công cụ. Không bao giờ tự ý kích hoạt các hành động nhạy cảm hoặc tiêu tốn credit lớn mà không có sự xác nhận của người dùng (Human-in-the-Loop).';
         $lines[] = '4. Giao tiếp chuyên nghiệp: Trả lời tự tin, súc tích, có cấu trúc rõ ràng. Nếu người dùng đưa ra yêu cầu mơ hồ hoặc thiếu dữ kiện quan trọng, luôn lịch sự đặt câu hỏi làm rõ trước khi hành động.';
+        $lines[] = '5. SEO Automation & Intelligence (Phase 3): Tận dụng dữ liệu thực tế từ Google Search Console (clicks, imp, CTR), GA4 (sessions, users), Rank Tracking (thứ hạng Top 100) và SEO Intelligence Heuristics để chủ động giải thích, tư vấn chiến lược và đề xuất làm mới bài viết cũ (Content Refresh). Khi người dùng đồng ý cập nhật bài viết lên WordPress, luôn yêu cầu xác nhận qua Thẻ Phê Duyệt (Human-in-the-Loop).';
         $lines[] = '';
 
         // 3. Danh sách công cụ tích hợp sẵn (Tools Registry)
@@ -141,10 +188,10 @@ class AiOrchestratorService
         $lines[] = '### BRAND KNOWLEDGE & EDITORIAL CONTEXT:';
         if ($brandKnowledge) {
             $lines[] = $this->formatBrandKnowledge($brandKnowledge);
-        } elseif ($website) {
-            $lines[] = sprintf('- Website mục tiêu: %s (%s)', $website->name, $website->url ?: $website->domain);
-            if (! empty($website->brand_voice_summary)) {
-                $lines[] = '- Tóm tắt nhận diện thương hiệu: '.$website->brand_voice_summary;
+        } elseif ($websiteModel) {
+            $lines[] = sprintf('- Website mục tiêu: %s (%s)', $websiteModel->name, $websiteModel->url ?: $websiteModel->domain);
+            if (! empty($websiteModel->brand_voice_summary)) {
+                $lines[] = '- Tóm tắt nhận diện thương hiệu: '.$websiteModel->brand_voice_summary;
             } else {
                 $lines[] = '- Lưu ý: Website này chưa cấu hình Brand Knowledge Base riêng. Hãy áp dụng văn phong chuẩn SEO chuyên nghiệp, tự nhiên.';
             }
@@ -185,9 +232,10 @@ class AiOrchestratorService
     /**
      * Lập kế hoạch thực thi nhiều bước (Multi-step Execution Plan) dựa trên UserIntentDTO và Website.
      */
-    public function generateExecutionPlan(UserIntentDTO $intent, ?Website $website = null): ExecutionPlanDTO
+    public function generateExecutionPlan(UserIntentDTO $intent, Website|Workspace|null $website = null): ExecutionPlanDTO
     {
         $planId = (string) Str::uuid();
+        $targetWebsite = $website instanceof Website ? $website : ($website instanceof Workspace ? $website->websites()->first() : null);
 
         // Nếu ý định bị thiếu dữ liệu và cần làm rõ, kế hoạch dừng lại ở trạng thái chờ người dùng
         if ($intent->needsClarification) {
@@ -411,10 +459,179 @@ class AiOrchestratorService
                 ];
                 break;
 
+            case 'content_refresh':
+                $articleId = (int) $intent->getParameter('article_id', 0);
+                $title = "Kế hoạch làm mới bài viết cũ #{$articleId} (AI Content Refresh)";
+                $summary = 'Thu thập từ khóa GSC, đề xuất tiêu đề, bổ sung đề mục H2/H3 và tính toán điểm SEO trước/sau.';
+                $steps = [
+                    [
+                        'step_number' => 1,
+                        'tool' => 'content_refresh',
+                        'action' => 'plan',
+                        'description' => "Phân tích Search Intent còn thiếu và sinh đề xuất làm mới cho bài viết #{$articleId}.",
+                        'params' => ['article_id' => $articleId],
+                        'status' => 'pending',
+                        'estimated_credits' => 2,
+                        'requires_approval' => false,
+                    ],
+                ];
+                break;
+
+            case 'gsc_query':
+            case 'gsc_performance':
+            case 'gsc_analytics':
+                $title = 'Kế hoạch tra cứu hiệu suất tìm kiếm Google Search Console';
+                $summary = 'Truy xuất số liệu Clicks, Impressions, CTR và Top Queries từ Search Console.';
+                $steps = [
+                    [
+                        'step_number' => 1,
+                        'tool' => 'gsc_query',
+                        'action' => (string) $intent->getParameter('action', $intent->getParameter('query_type', 'overview')),
+                        'description' => 'Tra cứu dữ liệu Search Console cho website mục tiêu.',
+                        'params' => $intent->parameters,
+                        'status' => 'pending',
+                        'estimated_credits' => 0,
+                        'requires_approval' => false,
+                    ],
+                ];
+                break;
+
+            case 'ga4_query':
+            case 'ga4_traffic':
+            case 'ga4_analytics':
+                $title = 'Kế hoạch tra cứu lưu lượng truy cập Google Analytics 4';
+                $summary = 'Truy xuất số liệu Sessions, Active Users và Top Landing Pages từ GA4.';
+                $steps = [
+                    [
+                        'step_number' => 1,
+                        'tool' => 'ga4_query',
+                        'action' => (string) $intent->getParameter('action', $intent->getParameter('query_type', 'overview')),
+                        'description' => 'Tra cứu dữ liệu truy cập và tương tác GA4.',
+                        'params' => $intent->parameters,
+                        'status' => 'pending',
+                        'estimated_credits' => 0,
+                        'requires_approval' => false,
+                    ],
+                ];
+                break;
+
+            case 'rank_tracker':
+                $title = 'Kế hoạch kiểm tra thứ hạng từ khóa (Rank Tracker)';
+                $summary = 'Tra cứu vị trí xếp hạng Top 100 và lịch sử biến động thứ hạng.';
+                $steps = [
+                    [
+                        'step_number' => 1,
+                        'tool' => 'rank_tracker',
+                        'action' => (string) $intent->getParameter('action', 'summary'),
+                        'description' => 'Kiểm tra thứ hạng từ khóa mục tiêu của website.',
+                        'params' => $intent->parameters,
+                        'status' => 'pending',
+                        'estimated_credits' => 0,
+                        'requires_approval' => false,
+                    ],
+                ];
+                break;
+
+            case 'seo_intelligence':
+                $title = 'Kế hoạch phát hiện cơ hội & cảnh báo SEO Intelligence';
+                $summary = 'Quét dữ liệu heuristics để phát hiện các bài viết tụt traffic hoặc có cơ hội tăng trưởng.';
+                $steps = [
+                    [
+                        'step_number' => 1,
+                        'tool' => 'seo_intelligence',
+                        'action' => (string) $intent->getParameter('action', 'summary'),
+                        'description' => 'Quét cảnh báo bất thường và chấm điểm tiềm năng Opportunity Score.',
+                        'params' => $intent->parameters,
+                        'status' => 'pending',
+                        'estimated_credits' => 0,
+                        'requires_approval' => false,
+                    ],
+                ];
+                break;
+
             default:
-                $title = 'Trao đổi chiến lược SEO';
-                $summary = 'Hỏi đáp kiến thức SEO hoặc giải thích kết quả.';
-                $steps = [];
+                $rawLower = mb_strtolower($intent->rawQuery ?: (string) $intent->getParameter('query', ''), 'UTF-8');
+                if (str_contains($rawLower, 'clicks') || str_contains($rawLower, 'search console') || str_contains($rawLower, 'gsc') || str_contains($rawLower, 'lượt click') || str_contains($rawLower, 'lượt hiển thị') || str_contains($rawLower, 'impressions')) {
+                    $title = 'Tra cứu dữ liệu Google Search Console';
+                    $summary = 'Truy xuất các chỉ số Clicks, Impressions, CTR và Top Queries từ Search Console.';
+                    $steps = [
+                        [
+                            'step_number' => 1,
+                            'tool' => 'gsc_query',
+                            'action' => str_contains($rawLower, 'từ khóa') || str_contains($rawLower, 'query') ? 'top_queries' : 'overview',
+                            'description' => 'Tra cứu số liệu Search Console cho website mục tiêu.',
+                            'params' => ['website_id' => $targetWebsite?->id],
+                            'status' => 'pending',
+                            'estimated_credits' => 0,
+                            'requires_approval' => false,
+                        ],
+                    ];
+                } elseif (str_contains($rawLower, 'ga4') || str_contains($rawLower, 'analytics') || str_contains($rawLower, 'truy cập') || str_contains($rawLower, 'sessions') || str_contains($rawLower, 'landing page')) {
+                    $title = 'Tra cứu lưu lượng truy cập Google Analytics 4';
+                    $summary = 'Truy xuất số liệu Sessions, Active Users và Top Landing Pages từ GA4.';
+                    $steps = [
+                        [
+                            'step_number' => 1,
+                            'tool' => 'ga4_query',
+                            'action' => str_contains($rawLower, 'landing page') || str_contains($rawLower, 'trang') ? 'top_landing_pages' : 'overview',
+                            'description' => 'Tra cứu lượt truy cập và người dùng GA4.',
+                            'params' => ['website_id' => $targetWebsite?->id],
+                            'status' => 'pending',
+                            'estimated_credits' => 0,
+                            'requires_approval' => false,
+                        ],
+                    ];
+                } elseif (str_contains($rawLower, 'top mấy') || str_contains($rawLower, 'thứ hạng') || str_contains($rawLower, 'xếp hạng') || str_contains($rawLower, 'ranking') || str_contains($rawLower, 'rank')) {
+                    $title = 'Kiểm tra thứ hạng từ khóa mục tiêu';
+                    $summary = 'Tra cứu vị trí xếp hạng Top 100 và lịch sử biến động từ khóa.';
+                    $steps = [
+                        [
+                            'step_number' => 1,
+                            'tool' => 'rank_tracker',
+                            'action' => 'summary',
+                            'description' => 'Kiểm tra biến động thứ hạng từ khóa của website.',
+                            'params' => ['website_id' => $targetWebsite?->id],
+                            'status' => 'pending',
+                            'estimated_credits' => 0,
+                            'requires_approval' => false,
+                        ],
+                    ];
+                } elseif (str_contains($rawLower, 'tụt traffic') || str_contains($rawLower, 'bất thường') || str_contains($rawLower, 'cảnh báo') || str_contains($rawLower, 'cơ hội') || str_contains($rawLower, 'anomaly') || str_contains($rawLower, 'decay')) {
+                    $title = 'Phân tích cơ hội & bất thường SEO Intelligence';
+                    $summary = 'Quét và phát hiện các bài viết tụt hạng, sụt giảm lưu lượng hoặc có cơ hội bứt phá.';
+                    $steps = [
+                        [
+                            'step_number' => 1,
+                            'tool' => 'seo_intelligence',
+                            'action' => 'summary',
+                            'description' => 'Quét toàn diện 6 loại bất thường và chấm điểm tiềm năng.',
+                            'params' => ['website_id' => $targetWebsite?->id],
+                            'status' => 'pending',
+                            'estimated_credits' => 0,
+                            'requires_approval' => false,
+                        ],
+                    ];
+                } elseif (str_contains($rawLower, 'tối ưu lại bài') || str_contains($rawLower, 'làm mới bài') || str_contains($rawLower, 'refresh') || str_contains($rawLower, 'tối ưu bài')) {
+                    $title = 'Kế hoạch làm mới & tối ưu nội dung (AI Content Refresh)';
+                    $summary = 'Bổ sung Search Intent mới từ GSC, nâng điểm SEO và tạo bản Diff Preview.';
+                    $articleId = (int) $intent->getParameter('article_id', 0);
+                    $steps = [
+                        [
+                            'step_number' => 1,
+                            'tool' => 'content_refresh',
+                            'action' => 'plan',
+                            'description' => 'Tự động tạo kế hoạch làm mới nội dung bài viết và hiển thị so sánh Diff.',
+                            'params' => ['article_id' => $articleId],
+                            'status' => 'pending',
+                            'estimated_credits' => 2,
+                            'requires_approval' => false,
+                        ],
+                    ];
+                } else {
+                    $title = 'Trao đổi chiến lược SEO';
+                    $summary = 'Hỏi đáp kiến thức SEO hoặc giải thích kết quả.';
+                    $steps = [];
+                }
                 break;
         }
 
@@ -430,13 +647,15 @@ class AiOrchestratorService
             clarificationNeeded: false,
             clarificationMessage: null,
             contextMetadata: [
-                'website_id' => $website?->id,
-                'website_name' => $website?->name,
+                'website_id' => $targetWebsite?->id,
+                'website_name' => $targetWebsite?->name,
                 'parameters' => $intent->parameters,
             ]
         );
 
         $plan->recalculateTotalCredits();
+        $plan->primaryTool = $steps[0]['tool'] ?? null;
+        $plan->requiresHumanConfirmation = $requiresApproval;
 
         return $plan;
     }

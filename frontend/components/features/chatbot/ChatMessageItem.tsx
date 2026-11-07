@@ -16,6 +16,11 @@ import {
   Maximize2,
   AlertCircle,
   ExternalLink,
+  TrendingUp,
+  BarChart3,
+  Search,
+  Lightbulb,
+  RefreshCw,
 } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -59,6 +64,31 @@ export interface ChatMessage {
     wordCount?: number;
     creditCost?: number;
     targetWebsite?: string;
+    gscData?: {
+      clicks?: number;
+      impressions?: number;
+      ctr?: number;
+      position?: number;
+      dateRange?: string;
+    };
+    rankData?: {
+      keyword?: string;
+      position?: number | null;
+      changeLabel?: string;
+      bestPosition?: number | null;
+    };
+    insightData?: {
+      title?: string;
+      severity?: 'info' | 'warning' | 'critical';
+      opportunityScore?: number;
+      suggestedAction?: string;
+    };
+    diffData?: {
+      scoreBefore?: number;
+      scoreAfter?: number;
+      scoreDelta?: number;
+      wordCountDelta?: number;
+    };
   };
 }
 
@@ -564,6 +594,174 @@ export function ChatMessageItem({
                   className="h-full bg-primary transition-all duration-300 rounded-full"
                   style={{ width: `${message.metadata.taskProgress}%` }}
                 />
+              </div>
+            </div>
+          )}
+
+          {/* Rich Metadata Card: GSC Performance Widget */}
+          {message.metadata?.gscData && (
+            <div className="mt-3 space-y-2 rounded-xl border border-sky-200 bg-sky-50/50 p-3 text-slate-800 dark:border-sky-900 dark:bg-sky-950/40 dark:text-sky-200">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-sky-700 dark:text-sky-300">
+                  <BarChart3 className="h-4 w-4" />
+                  <span>Google Search Console Data</span>
+                </div>
+                {message.metadata.gscData.dateRange && (
+                  <span className="text-[10px] text-muted-foreground">
+                    {message.metadata.gscData.dateRange}
+                  </span>
+                )}
+              </div>
+              <div className="grid grid-cols-2 gap-2 pt-1 sm:grid-cols-4">
+                <div className="rounded-lg bg-background/80 p-2 border border-sky-100 dark:border-sky-900/60">
+                  <div className="text-[10px] text-muted-foreground">Clicks</div>
+                  <div className="text-sm font-bold text-foreground">
+                    {message.metadata.gscData.clicks?.toLocaleString() ?? 0}
+                  </div>
+                </div>
+                <div className="rounded-lg bg-background/80 p-2 border border-sky-100 dark:border-sky-900/60">
+                  <div className="text-[10px] text-muted-foreground">Impressions</div>
+                  <div className="text-sm font-bold text-foreground">
+                    {message.metadata.gscData.impressions?.toLocaleString() ?? 0}
+                  </div>
+                </div>
+                <div className="rounded-lg bg-background/80 p-2 border border-sky-100 dark:border-sky-900/60">
+                  <div className="text-[10px] text-muted-foreground">CTR TB</div>
+                  <div className="text-sm font-bold text-foreground">
+                    {typeof message.metadata.gscData.ctr === 'number'
+                      ? `${(message.metadata.gscData.ctr * 100).toFixed(1)}%`
+                      : '0%'}
+                  </div>
+                </div>
+                <div className="rounded-lg bg-background/80 p-2 border border-sky-100 dark:border-sky-900/60">
+                  <div className="text-[10px] text-muted-foreground">Vị trí TB</div>
+                  <div className="text-sm font-bold text-foreground">
+                    {typeof message.metadata.gscData.position === 'number'
+                      ? message.metadata.gscData.position.toFixed(1)
+                      : 'N/A'}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Rich Metadata Card: Rank Tracker Widget */}
+          {message.metadata?.rankData && (
+            <div className="mt-3 space-y-2 rounded-xl border border-indigo-200 bg-indigo-50/50 p-3 text-slate-800 dark:border-indigo-900 dark:bg-indigo-950/40 dark:text-indigo-200">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-indigo-700 dark:text-indigo-300">
+                  <TrendingUp className="h-4 w-4" />
+                  <span>Xếp hạng từ khóa</span>
+                </div>
+                {message.metadata.rankData.changeLabel && (
+                  <Badge variant="outline" className="text-[10px] border-indigo-200 bg-indigo-100/60 text-indigo-800 dark:text-indigo-200">
+                    {message.metadata.rankData.changeLabel}
+                  </Badge>
+                )}
+              </div>
+              <div className="flex items-center justify-between rounded-lg bg-background/80 p-2.5 border border-indigo-100 dark:border-indigo-900/60">
+                <div className="space-y-0.5">
+                  <span className="text-[11px] text-muted-foreground">Từ khóa theo dõi</span>
+                  <div className="text-xs font-bold text-foreground">
+                    {message.metadata.rankData.keyword || 'Chưa xác định'}
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="text-right">
+                    <span className="text-[10px] text-muted-foreground">Hiện tại</span>
+                    <div className="text-sm font-extrabold text-indigo-600 dark:text-indigo-400">
+                      {message.metadata.rankData.position ? `#${message.metadata.rankData.position}` : 'N/A'}
+                    </div>
+                  </div>
+                  {message.metadata.rankData.bestPosition && (
+                    <div className="text-right border-l pl-3 border-border">
+                      <span className="text-[10px] text-muted-foreground">Tốt nhất</span>
+                      <div className="text-xs font-semibold text-muted-foreground">
+                        #{message.metadata.rankData.bestPosition}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Rich Metadata Card: SEO Intelligence Widget */}
+          {message.metadata?.insightData && (
+            <div className="mt-3 space-y-2 rounded-xl border border-amber-200 bg-amber-50/40 p-3 text-slate-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-800 dark:text-amber-300">
+                  <Lightbulb className="h-4 w-4 text-amber-600" />
+                  <span>Cơ hội SEO thông minh</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  {message.metadata.insightData.opportunityScore !== undefined && (
+                    <Badge variant="outline" className="text-[10px] bg-amber-100/70 text-amber-800 border-amber-300">
+                      Điểm: {message.metadata.insightData.opportunityScore}/100
+                    </Badge>
+                  )}
+                  {message.metadata.insightData.severity && (
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        'text-[10px] uppercase font-bold',
+                        message.metadata.insightData.severity === 'critical'
+                          ? 'border-rose-300 bg-rose-100 text-rose-800'
+                          : message.metadata.insightData.severity === 'warning'
+                          ? 'border-amber-300 bg-amber-100 text-amber-800'
+                          : 'border-blue-300 bg-blue-100 text-blue-800'
+                      )}
+                    >
+                      {message.metadata.insightData.severity}
+                    </Badge>
+                  )}
+                </div>
+              </div>
+              {message.metadata.insightData.title && (
+                <div className="text-xs font-bold text-foreground">
+                  {message.metadata.insightData.title}
+                </div>
+              )}
+              {message.metadata.insightData.suggestedAction && (
+                <p className="text-[11px] leading-relaxed text-muted-foreground bg-background/70 p-2 rounded-lg border border-amber-100 dark:border-amber-900/50">
+                  <strong className="text-foreground">Đề xuất: </strong>
+                  {message.metadata.insightData.suggestedAction}
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Rich Metadata Card: Content Refresh Diff Widget */}
+          {message.metadata?.diffData && (
+            <div className="mt-3 space-y-2 rounded-xl border border-emerald-200 bg-emerald-50/50 p-3 text-slate-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+                  <RefreshCw className="h-4 w-4" />
+                  <span>Kết quả làm mới nội dung (Content Refresh)</span>
+                </div>
+                {message.metadata.diffData.scoreDelta !== undefined && (
+                  <Badge variant="outline" className="text-[10px] bg-emerald-100 text-emerald-800 border-emerald-300 font-bold">
+                    +{message.metadata.diffData.scoreDelta} Điểm SEO
+                  </Badge>
+                )}
+              </div>
+              <div className="grid grid-cols-2 gap-2 pt-1">
+                <div className="rounded-lg bg-background/80 p-2 border border-emerald-100 dark:border-emerald-900/60">
+                  <div className="text-[10px] text-muted-foreground">Điểm SEO ước tính</div>
+                  <div className="text-xs font-bold text-foreground flex items-center gap-1 mt-0.5">
+                    <span className="text-muted-foreground">{message.metadata.diffData.scoreBefore ?? 0}</span>
+                    <span>→</span>
+                    <span className="text-emerald-600 dark:text-emerald-400 font-extrabold">{message.metadata.diffData.scoreAfter ?? 0}/100</span>
+                  </div>
+                </div>
+                <div className="rounded-lg bg-background/80 p-2 border border-emerald-100 dark:border-emerald-900/60">
+                  <div className="text-[10px] text-muted-foreground">Chênh lệch số từ</div>
+                  <div className="text-xs font-bold text-foreground mt-0.5">
+                    {message.metadata.diffData.wordCountDelta !== undefined
+                      ? `${message.metadata.diffData.wordCountDelta >= 0 ? '+' : ''}${message.metadata.diffData.wordCountDelta} từ`
+                      : '0 từ'}
+                  </div>
+                </div>
               </div>
             </div>
           )}

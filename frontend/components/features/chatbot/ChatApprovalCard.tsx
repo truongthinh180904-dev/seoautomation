@@ -82,6 +82,12 @@ export function ChatApprovalCard({
       case 'publish_to_wordpress':
       case 'wordpress_publish':
         return 'Xuất bản bài viết lên WordPress';
+      case 'push_update_wordpress':
+      case 'update_wordpress_post':
+      case 'update_to_wordpress':
+        return 'Xác nhận cập nhật bài viết lên WordPress';
+      case 'content_refresh':
+        return 'Phê duyệt làm mới bài viết cũ (AI Refresh)';
       case 'start_bulk_generation':
       case 'bulk_generation':
         return 'Sản xuất nội dung hàng loạt (Bulk)';
