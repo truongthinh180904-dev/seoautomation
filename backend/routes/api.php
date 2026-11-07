@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\V1\Admin\AdminWorkspaceController;
 use App\Http\Controllers\Api\V1\AIPromptController;
 use App\Http\Controllers\Api\V1\Analytics\SeoPerformanceController;
 use App\Http\Controllers\Api\V1\AnalyticsController;
+use App\Http\Controllers\Api\V1\Article\ContentOptimizationController;
 use App\Http\Controllers\Api\V1\ArticleController;
 use App\Http\Controllers\Api\V1\Auth\ForgotPasswordController;
 use App\Http\Controllers\Api\V1\Auth\LoginController;
@@ -275,6 +276,14 @@ Route::prefix('v1')->group(function () {
             Route::post('articles/{id}/images', [ArticleController::class, 'generateImages']);
             Route::post('articles/{id}/generate-images', [ArticleController::class, 'generateImages']);
             Route::post('articles/{id}/approve-publish', [ArticleController::class, 'approveAndPublish']);
+
+            // AI Content Refresh & Optimization (Phase 3.7)
+            Route::prefix('articles/{id}')->group(function () {
+                Route::post('optimization-plan', [ContentOptimizationController::class, 'generatePlan']);
+                Route::get('diff-preview', [ContentOptimizationController::class, 'diffPreview']);
+                Route::post('apply-optimization', [ContentOptimizationController::class, 'applyOptimization']);
+                Route::post('push-update-wordpress', [ContentOptimizationController::class, 'pushUpdateWordPress']);
+            });
 
             // AI Generation endpoints
             Route::middleware('throttle:ai_generation')->group(function () {

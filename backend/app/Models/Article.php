@@ -66,6 +66,9 @@ class Article extends Model
         'approval_required',
         'approved_at',
         'duplicate_check_hash',
+        'last_optimized_at',
+        'optimization_notes',
+        'pre_optimization_score',
     ];
 
     protected $hidden = [
@@ -88,6 +91,8 @@ class Article extends Model
         'published_at' => 'datetime',
         'approved_at' => 'datetime',
         'approval_required' => 'boolean',
+        'last_optimized_at' => 'datetime',
+        'pre_optimization_score' => 'integer',
         'word_count' => 'integer',
         'seo_score' => 'integer',
         'readability_score' => 'integer',
@@ -173,6 +178,11 @@ class Article extends Model
     public function usageRecords(): HasMany
     {
         return $this->hasMany(UsageRecord::class);
+    }
+
+    public function seoInsights(): HasMany
+    {
+        return $this->hasMany(SeoIntelligenceInsight::class);
     }
 
     public function generateReviewToken(): string
