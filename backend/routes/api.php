@@ -36,6 +36,7 @@ use App\Http\Controllers\Api\V1\MediaAssetController;
 use App\Http\Controllers\Api\V1\NotificationController;
 use App\Http\Controllers\Api\V1\QueueStatusController;
 use App\Http\Controllers\Api\V1\ScheduleController;
+use App\Http\Controllers\Api\V1\SEO\RankTrackerController;
 use App\Http\Controllers\Api\V1\SeoScoringController;
 use App\Http\Controllers\Api\V1\TaskController;
 use App\Http\Controllers\Api\V1\TopicClusterController;
@@ -307,6 +308,16 @@ Route::prefix('v1')->group(function () {
             Route::get('analytics/seo/top-queries', [SeoPerformanceController::class, 'topQueries']);
             Route::get('analytics/seo/top-pages', [SeoPerformanceController::class, 'topPages']);
             Route::post('analytics/seo/sync-now', [SeoPerformanceController::class, 'syncNow']);
+
+            // Rank Tracking (Phase 3.5)
+            Route::prefix('rank-tracker')->group(function () {
+                Route::get('keywords', [RankTrackerController::class, 'index']);
+                Route::post('keywords', [RankTrackerController::class, 'store']);
+                Route::delete('keywords/{id}', [RankTrackerController::class, 'destroy']);
+                Route::get('keywords/{id}/history', [RankTrackerController::class, 'history']);
+                Route::post('keywords/{id}/refresh', [RankTrackerController::class, 'refresh']);
+                Route::get('summary', [RankTrackerController::class, 'summary']);
+            });
 
             // AI Prompts
             Route::apiResource('ai-prompts', AIPromptController::class);
