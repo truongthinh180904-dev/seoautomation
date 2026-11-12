@@ -276,9 +276,32 @@ SYS;
                 'theo từ khóa',
                 'với từ khóa',
                 'cho từ khóa',
+                'từ khóa',
                 'chủ đề',
                 'về',
+                'tạo bài viết nháp cho',
+                'tạo bài viết mới',
+                'tạo bài viết',
+                'viết bài chuẩn seo',
+                'viết bài seo',
+                'viết một bài',
+                'viết 1 bài',
+                'viết bài',
+                'soạn bài',
+                'tạo bài',
             ]);
+        }
+
+        // Loại bỏ các từ chỉ hành động chung nếu bị trích nhầm làm từ khóa
+        if ($keyword && in_array(mb_strtolower(trim($keyword), 'UTF-8'), [
+            'đi', 'mới', 'nháp', 'nháp ngay', 'nháp ngay bây giờ', 'ngay', 'ngay bây giờ', 'cho tôi', 'giúp tôi', 'seo', 'chuẩn seo',
+        ], true)) {
+            $keyword = null;
+        }
+
+        // Kế thừa từ khóa gần nhất trong hội thoại nếu người dùng xác nhận "tạo bài viết nháp ngay bây giờ"
+        if (empty($keyword) && ! empty($context['last_keyword'])) {
+            $keyword = (string) $context['last_keyword'];
         }
 
         $wordCount = $this->extractWordCount($input);

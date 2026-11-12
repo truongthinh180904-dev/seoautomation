@@ -4,6 +4,9 @@ namespace App\Services\SEO;
 
 use App\Models\Article;
 use App\Models\QualityReport;
+use App\Services\Quality\ContentQualityScoringService;
+use Illuminate\Support\Facades\Schema;
+use Throwable;
 
 class ArticleQualityReportService
 {
@@ -73,10 +76,45 @@ class ArticleQualityReportService
             'generated_at' => now(),
         ]);
 
-        $article->update([
-            'quality_report' => $report->toArray(),
-            'seo_score' => $report->total_score,
-        ]);
+        $qualityReportArray = $report->toArray();
+        $finalSeoScore = $report->total_score;
+
+        try {
+            if (app()->bound(ContentQualityScoringService::class)) {
+                $engineEvaluation = app(ContentQualityScoringService::class)->evaluateAndPackage($article, true);
+                $qualityReportArray['content_quality_scoring'] = $engineEvaluation['scoring'];
+                $qualityReportArray['review_pipeline_4_roles'] = $engineEvaluation['review_pipeline'];
+                $qualityReportArray['schema_markup'] = $engineEvaluation['schema_markup'];
+                $qualityReportArray['output_package_19_fields'] = $engineEvaluation['output_package_19_fields'];
+
+                // Đồng bộ critical errors từ Critical Error Gate nếu có
+                if (! empty($engineEvaluation['scoring']['critical_errors'])) {
+                    $qualityReportArray['blocking_errors'] = array_values(array_unique(array_merge(
+                        $qualityReportArray['blocking_errors'] ?? [],
+                        $engineEvaluation['scoring']['critical_errors']
+                    )));
+                }
+                $finalSeoScore = (int) ($engineEvaluation['scoring']['total_score'] ?? $report->total_score);
+            }
+        } catch (Throwable) {
+            // Giữ an toàn cho báo cáo cơ bản nếu có lỗi ngoại lệ
+        }
+
+        $updatePayload = [
+            'quality_report' => $qualityReportArray,
+            'seo_score' => $finalSeoScore,
+        ];
+
+        try {
+            if (Schema::hasColumn('articles', 'schema_markup') && isset($qualityReportArray['schema_markup'])) {
+                $updatePayload['schema_markup'] = $qualityReportArray['schema_markup'];
+                $updatePayload['review_pipeline_report'] = $qualityReportArray['review_pipeline_4_roles'] ?? null;
+                $updatePayload['gate_status'] = $qualityReportArray['content_quality_scoring']['gate_status'] ?? 'PASS';
+            }
+        } catch (Throwable) {
+        }
+
+        $article->update($updatePayload);
 
         return $report;
     }

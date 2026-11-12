@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Bot,
   User,
@@ -22,7 +22,7 @@ import {
   Lightbulb,
   RefreshCw,
 } from 'lucide-react';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
@@ -62,6 +62,8 @@ export interface ChatMessage {
     articleTitle?: string;
     seoScore?: number;
     wordCount?: number;
+    inlineImageCount?: number;
+    lengthTier?: string;
     creditCost?: number;
     targetWebsite?: string;
     gscData?: {
@@ -99,13 +101,39 @@ interface ChatMessageItemProps {
   onRejectAction?: (actionId?: string) => void;
 }
 
-// Helper to render inline markdown styles (**bold**, *italic*, `code`, [link](url))
-function renderInlineMarkdown(text: string): React.ReactNode {
+// Helper to render inline markdown styles (**bold**, *italic*, `code`, [link](url), ![img](url))
+function renderInlineMarkdown(
+  text: string,
+  onImageClick?: (url: string) => void
+): React.ReactNode {
   // Regex to split by markdown tokens
-  const parts = text.split(/(\*\*.*?\*\*|\*.*?\*|`.*?`|\[.*?\]\(.*?\))/g);
+  const parts = text.split(
+    /(!\[.*?\]\(.*?\)|\*\*.*?\*\*|\*.*?\*|`.*?`|\[.*?\]\(.*?\))/g
+  );
 
   return parts.map((part, index) => {
     if (!part) return null;
+
+    const imgMatch = part.match(/^!\[(.*?)\]\((.*?)\)$/);
+    if (imgMatch) {
+      const alt = imgMatch[1] || 'Hình ảnh';
+      const src = imgMatch[2];
+      return (
+        <span
+          key={index}
+          className="inline-block my-1.5 cursor-pointer overflow-hidden rounded-lg border border-sky-200 shadow-2xs hover:opacity-95 transition-opacity"
+          onClick={() => onImageClick?.(src)}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={src}
+            alt={alt}
+            className="max-h-64 rounded-lg object-cover"
+            loading="lazy"
+          />
+        </span>
+      );
+    }
 
     if (part.startsWith('**') && part.endsWith('**') && part.length >= 4) {
       return (
@@ -232,7 +260,91 @@ function MarkdownTable({ lines }: { lines: string[] }) {
   );
 }
 
-function RichContentRenderer({ content }: { content: string }) {
+const ALLOWED_HTML_TAGS = new Set([
+  'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'P', 'BR', 'HR', 'STRONG', 'B', 'EM', 'I', 'U', 'S', 'MARK', 'SPAN',
+  'UL', 'OL', 'LI', 'TABLE', 'THEAD', 'TBODY', 'TFOOT', 'TR', 'TH', 'TD', 'CAPTION',
+  'BLOCKQUOTE', 'FIGURE', 'FIGCAPTION', 'IMG', 'A', 'DIV', 'SECTION', 'CODE', 'PRE', 'SUP', 'SUB',
+]);
+const ALLOWED_HTML_ATTRS = new Set(['src', 'alt', 'href', 'title', 'colspan', 'rowspan', 'target', 'rel', 'loading', 'width', 'height']);
+
+/** Lọc HTML an toàn bằng DOMParser: chỉ giữ thẻ/thuộc tính nội dung, loại script, style, event handler, javascript: URL. */
+function sanitizeArticleHtml(html: string): string {
+  if (typeof window === 'undefined') return '';
+  const doc = new DOMParser().parseFromString(`<div>${html}</div>`, 'text/html');
+  const root = doc.body.firstElementChild;
+  if (!root) return '';
+
+  const walk = (el: Element) => {
+    Array.from(el.children).forEach((child) => {
+      if (!ALLOWED_HTML_TAGS.has(child.tagName)) {
+        if (['SCRIPT', 'STYLE', 'IFRAME', 'OBJECT', 'EMBED', 'FORM', 'INPUT', 'BUTTON'].includes(child.tagName)) {
+          child.remove();
+        } else {
+          // Giữ nội dung chữ bên trong, bỏ thẻ lạ
+          child.replaceWith(...Array.from(child.childNodes));
+        }
+        return;
+      }
+      Array.from(child.attributes).forEach((attr) => {
+        const name = attr.name.toLowerCase();
+        const value = attr.value.trim().toLowerCase();
+        if (!ALLOWED_HTML_ATTRS.has(name) || ((name === 'src' || name === 'href') && value.startsWith('javascript:'))) {
+          child.removeAttribute(attr.name);
+        }
+      });
+      if (child.tagName === 'A') {
+        child.setAttribute('target', '_blank');
+        child.setAttribute('rel', 'noopener noreferrer');
+      }
+      walk(child);
+    });
+  };
+  walk(root);
+  return root.innerHTML;
+}
+
+const ARTICLE_HTML_CLASSES =
+  'my-2 max-w-none text-xs md:text-sm leading-relaxed text-foreground [&_h1]:text-lg [&_h1]:font-extrabold [&_h1]:mt-4 [&_h1]:mb-2 [&_h2]:text-base [&_h2]:font-bold [&_h2]:mt-5 [&_h2]:mb-2 [&_h2]:border-b [&_h2]:pb-1 [&_h3]:text-sm [&_h3]:font-bold [&_h3]:mt-3 [&_h3]:mb-1 [&_p]:my-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:my-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:my-2 [&_li]:my-1 [&_strong]:font-semibold [&_a]:text-primary [&_a]:underline [&_blockquote]:border-l-4 [&_blockquote]:border-primary/50 [&_blockquote]:pl-3 [&_blockquote]:italic [&_table]:w-full [&_table]:my-3 [&_table]:border-collapse [&_table]:text-xs [&_th]:border [&_th]:border-border [&_th]:bg-muted/70 [&_th]:p-2 [&_th]:text-left [&_th]:font-semibold [&_td]:border [&_td]:border-border [&_td]:p-2 [&_td]:align-top [&_figure]:my-4 [&_figure]:text-center [&_figcaption]:mt-1.5 [&_figcaption]:text-xs [&_figcaption]:italic [&_figcaption]:text-muted-foreground [&_img]:mx-auto [&_img]:w-full [&_img]:max-h-[460px] [&_img]:rounded-xl [&_img]:object-cover [&_img]:shadow-xs [&_img]:cursor-zoom-in';
+
+function ArticleHtmlBlock({ html, onImageClick }: { html: string; onImageClick?: (url: string) => void }) {
+  const [safeHtml, setSafeHtml] = useState('');
+  useEffect(() => {
+    setSafeHtml(sanitizeArticleHtml(html));
+  }, [html]);
+
+  return (
+    <div className="overflow-x-auto">
+      <div
+        className={ARTICLE_HTML_CLASSES}
+        onClick={(e) => {
+          const target = e.target as HTMLElement;
+          if (target.tagName === 'IMG') onImageClick?.((target as HTMLImageElement).src);
+        }}
+        dangerouslySetInnerHTML={{ __html: safeHtml }}
+      />
+    </div>
+  );
+}
+
+const HTML_BLOCK_TAGS = ['table', 'thead', 'tbody', 'tr', 'ul', 'ol', 'figure', 'div', 'blockquote', 'section', 'p'];
+
+/** Độ sâu thẻ khối còn mở trong một đoạn HTML (để biết khối HTML đã kết thúc chưa). */
+function htmlOpenDepth(text: string): number {
+  let depth = 0;
+  for (const tag of HTML_BLOCK_TAGS) {
+    depth += (text.match(new RegExp(`<${tag}(?:\\s[^>]*)?>`, 'gi')) || []).length;
+    depth -= (text.match(new RegExp(`</${tag}>`, 'gi')) || []).length;
+  }
+  return depth;
+}
+
+function RichContentRenderer({
+  content,
+  onImageClick,
+}: {
+  content: string;
+  onImageClick?: (url: string) => void;
+}) {
   const lines = content.split('\n');
   const elements: React.ReactNode[] = [];
 
@@ -245,6 +357,27 @@ function RichContentRenderer({ content }: { content: string }) {
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
+
+    // Gom trọn một khối HTML nhiều dòng (bài viết SEO, bảng giá, figure ảnh) để render một lần, không lộ thẻ
+    if (!inCodeBlock && /^\s*<\/?[a-z][a-z0-9]*(?:\s[^>]*)?\/?>/i.test(line)) {
+      const htmlLines: string[] = [line];
+      let depth = htmlOpenDepth(line);
+      while (i + 1 < lines.length) {
+        const next = lines[i + 1];
+        const nextIsHtml = /^\s*<\/?[a-z][a-z0-9]*(?:\s[^>]*)?\/?>/i.test(next);
+        if (depth <= 0 && !nextIsHtml && next.trim() !== '') break;
+        if (depth <= 0 && next.trim() === '') {
+          // Dòng trống: chỉ tiếp tục nếu dòng kế tiếp vẫn là HTML
+          const after = lines[i + 2];
+          if (after === undefined || !/^\s*<\/?[a-z]/i.test(after)) break;
+        }
+        i++;
+        htmlLines.push(next);
+        depth += htmlOpenDepth(next);
+      }
+      elements.push(<ArticleHtmlBlock key={`htmlblock-${i}`} html={htmlLines.join('\n')} onImageClick={onImageClick} />);
+      continue;
+    }
 
     // Check for fenced code block toggle
     if (line.trim().startsWith('```')) {
@@ -293,11 +426,55 @@ function RichContentRenderer({ content }: { content: string }) {
       continue;
     }
 
+    // Horizontal Rule
+    if (line.trim() === '---' || line.trim() === '***') {
+      elements.push(<hr key={`hr-${i}`} className="my-3 border-border/80" />);
+      continue;
+    }
+
+    // Markdown Image on its own line: ![alt](url)
+    const imgMatch = line.trim().match(/^!\[(.*?)\]\((.*?)\)$/);
+    if (imgMatch) {
+      const alt = imgMatch[1] || 'Hình ảnh minh họa bài viết';
+      const src = imgMatch[2];
+      elements.push(
+        <div
+          key={`img-block-${i}`}
+          className="my-3 overflow-hidden rounded-xl border border-sky-100 bg-gradient-to-b from-sky-50/40 to-white shadow-2xs dark:border-sky-900/60 dark:from-sky-950/20 dark:to-background"
+        >
+          <div
+            className="group/article-img relative cursor-pointer overflow-hidden"
+            onClick={() => onImageClick?.(src)}
+            title="Bấm để phóng to xem hình ảnh sắc nét"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={src}
+              alt={alt}
+              className="w-full max-h-[420px] object-cover transition-transform duration-300 group-hover/article-img:scale-[1.02]"
+              loading="lazy"
+            />
+            <div className="absolute inset-0 bg-slate-900/30 opacity-0 group-hover/article-img:opacity-100 transition-opacity flex items-center justify-center">
+              <span className="bg-slate-900/80 text-white text-xs font-semibold px-3.5 py-1.5 rounded-full flex items-center gap-1.5 backdrop-blur-xs shadow-md">
+                <Maximize2 className="w-3.5 h-3.5" /> Phóng to xem ảnh gốc
+              </span>
+            </div>
+          </div>
+          {alt && (
+            <div className="px-3 py-2 text-center text-xs text-muted-foreground bg-muted/20 border-t border-border/40 font-medium">
+              📷 {alt}
+            </div>
+          )}
+        </div>
+      );
+      continue;
+    }
+
     // Headers
     if (line.startsWith('#### ')) {
       elements.push(
         <h4 key={`h4-${i}`} className="mt-3 mb-1 text-xs font-bold tracking-tight text-foreground">
-          {renderInlineMarkdown(line.slice(5))}
+          {renderInlineMarkdown(line.slice(5), onImageClick)}
         </h4>
       );
       continue;
@@ -305,7 +482,7 @@ function RichContentRenderer({ content }: { content: string }) {
     if (line.startsWith('### ')) {
       elements.push(
         <h3 key={`h3-${i}`} className="mt-3.5 mb-1.5 text-sm font-bold tracking-tight text-foreground">
-          {renderInlineMarkdown(line.slice(4))}
+          {renderInlineMarkdown(line.slice(4), onImageClick)}
         </h3>
       );
       continue;
@@ -313,7 +490,7 @@ function RichContentRenderer({ content }: { content: string }) {
     if (line.startsWith('## ')) {
       elements.push(
         <h2 key={`h2-${i}`} className="mt-4 mb-2 text-base font-bold tracking-tight text-foreground border-b pb-1">
-          {renderInlineMarkdown(line.slice(3))}
+          {renderInlineMarkdown(line.slice(3), onImageClick)}
         </h2>
       );
       continue;
@@ -321,7 +498,7 @@ function RichContentRenderer({ content }: { content: string }) {
     if (line.startsWith('# ')) {
       elements.push(
         <h1 key={`h1-${i}`} className="mt-4 mb-2 text-lg font-extrabold tracking-tight text-foreground border-b pb-1">
-          {renderInlineMarkdown(line.slice(2))}
+          {renderInlineMarkdown(line.slice(2), onImageClick)}
         </h1>
       );
       continue;
@@ -334,7 +511,7 @@ function RichContentRenderer({ content }: { content: string }) {
           key={`quote-${i}`}
           className="my-2 border-l-3 border-primary/60 bg-muted/30 py-1.5 pl-3 pr-2 text-xs italic text-muted-foreground rounded-r"
         >
-          {renderInlineMarkdown(line.slice(2))}
+          {renderInlineMarkdown(line.slice(2), onImageClick)}
         </blockquote>
       );
       continue;
@@ -346,7 +523,7 @@ function RichContentRenderer({ content }: { content: string }) {
       elements.push(
         <div key={`li-${i}`} className="flex items-start gap-2 my-1 text-xs leading-relaxed text-foreground">
           <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary/70" />
-          <div className="flex-1">{renderInlineMarkdown(bulletText)}</div>
+          <div className="flex-1">{renderInlineMarkdown(bulletText, onImageClick)}</div>
         </div>
       );
       continue;
@@ -360,16 +537,22 @@ function RichContentRenderer({ content }: { content: string }) {
           <span className="font-semibold text-primary shrink-0 min-w-[16px] text-right">
             {numMatch[1]}.
           </span>
-          <div className="flex-1">{renderInlineMarkdown(numMatch[2])}</div>
+          <div className="flex-1">{renderInlineMarkdown(numMatch[2], onImageClick)}</div>
         </div>
       );
+      continue;
+    }
+
+    // Dòng chứa HTML nội tuyến (không bắt đầu bằng thẻ) -> vẫn render an toàn, không lộ thẻ
+    if (/<\/?(?:h[1-6]|p|table|thead|tbody|tr|th|td|ul|ol|li|div|blockquote|section|strong|b|em|i|figure|figcaption|img|br)[\s>/]/i.test(line)) {
+      elements.push(<ArticleHtmlBlock key={`html-${i}`} html={line} onImageClick={onImageClick} />);
       continue;
     }
 
     // Default paragraph
     elements.push(
       <p key={`p-${i}`} className="my-1 text-xs md:text-sm leading-relaxed text-foreground">
-        {renderInlineMarkdown(line)}
+        {renderInlineMarkdown(line, onImageClick)}
       </p>
     );
   }
@@ -430,9 +613,10 @@ export function ChatMessageItem({
             </AvatarFallback>
           </Avatar>
         ) : isAssistant ? (
-          <Avatar className="h-8 w-8 border border-purple-200 bg-gradient-to-tr from-purple-600 via-indigo-600 to-blue-500 text-white shadow-xs">
-            <AvatarFallback className="bg-transparent text-white">
-              <Sparkles className="h-4 w-4 animate-pulse" />
+          <Avatar className="h-8 w-8 border border-sky-200 bg-white shadow-2xs overflow-hidden">
+            <AvatarImage src="/logo.png" alt="Aura Logo" className="object-contain p-0.5" />
+            <AvatarFallback className="bg-gradient-to-tr from-sky-500 to-blue-600 text-white">
+              <Sparkles className="h-4 w-4" />
             </AvatarFallback>
           </Avatar>
         ) : (
@@ -503,7 +687,10 @@ export function ChatMessageItem({
               {message.content}
             </p>
           ) : (
-            <RichContentRenderer content={message.content} />
+            <RichContentRenderer
+              content={message.content}
+              onImageClick={(url) => setPreviewImage(url)}
+            />
           )}
 
           {/* Tool Calls Summary (Collapsible) */}
@@ -550,29 +737,61 @@ export function ChatMessageItem({
 
           {/* Rich Metadata Card: Article Preview */}
           {message.metadata?.articleTitle && (
-            <div className="mt-3 rounded-xl border border-blue-200 bg-blue-50/50 p-3 text-slate-800 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-200">
-              <div className="flex items-start justify-between gap-2">
+            <div className="mt-3 rounded-xl border border-sky-200 bg-gradient-to-br from-sky-50/90 to-white p-3.5 text-slate-800 shadow-2xs">
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2.5">
                 <div className="space-y-1">
-                  <div className="flex items-center gap-1.5 text-xs font-semibold text-blue-700 dark:text-blue-300">
-                    <FileText className="h-3.5 w-3.5" />
-                    <span>Bài viết đã khởi tạo</span>
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-sky-700">
+                    <FileText className="h-3.5 w-3.5 text-sky-600" />
+                    <span>Bài viết SEO đã khởi tạo thành công</span>
                   </div>
-                  <h4 className="text-sm font-bold text-foreground">
+                  <h4 className="text-sm font-extrabold text-slate-800 leading-snug">
                     {message.metadata.articleTitle}
                   </h4>
                 </div>
-                <div className="flex gap-1.5">
+                <div className="flex gap-1.5 shrink-0">
                   {message.metadata.seoScore !== undefined && (
-                    <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 text-xs">
+                    <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 text-xs font-bold">
                       SEO {message.metadata.seoScore}/100
                     </Badge>
                   )}
                   {message.metadata.wordCount !== undefined && (
-                    <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 text-xs">
+                    <Badge variant="outline" className="bg-sky-100/80 text-sky-800 border-sky-200 text-xs font-bold">
                       {message.metadata.wordCount} từ
                     </Badge>
                   )}
+                  {message.metadata.inlineImageCount !== undefined && (
+                    <Badge variant="outline" className="bg-indigo-50 text-indigo-700 border-indigo-200 text-xs font-bold">
+                      1 + {message.metadata.inlineImageCount} ảnh
+                    </Badge>
+                  )}
                 </div>
+              </div>
+              <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-sky-100 pt-2.5">
+                {message.metadata.articleId ? (
+                  <>
+                    <a
+                      href={`/articles/${message.metadata.articleId}/edit`}
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-sky-500 to-blue-600 px-3 py-1.5 text-xs font-bold text-white shadow-2xs hover:from-sky-600 hover:to-blue-700 transition-all"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5" />
+                      <span>Mở trong Content Studio (#{message.metadata.articleId})</span>
+                    </a>
+                    <a
+                      href={`/articles/${message.metadata.articleId}`}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-sky-200 bg-sky-50/70 px-3 py-1.5 text-xs font-semibold text-sky-800 hover:bg-sky-100 transition-colors"
+                    >
+                      <FileText className="h-3.5 w-3.5" />
+                      <span>Xem Chi Tiết Bài</span>
+                    </a>
+                  </>
+                ) : null}
+                <a
+                  href="/articles"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-sky-200 bg-white px-3 py-1.5 text-xs font-semibold text-sky-700 hover:bg-sky-50 transition-colors"
+                >
+                  <FileText className="h-3.5 w-3.5" />
+                  <span>Xem Kho Bài Viết</span>
+                </a>
               </div>
             </div>
           )}

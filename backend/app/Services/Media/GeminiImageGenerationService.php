@@ -31,6 +31,12 @@ class GeminiImageGenerationService
             return 0;
         }
 
+        // Lập kế hoạch hình ảnh (Featured + Inline) theo ngành nghề và cấu trúc H2/H3 (Section 8)
+        if (app()->bound(ImagePlannerService::class)) {
+            app(ImagePlannerService::class)->buildAndAttachPlan($article, $target);
+            $article->refresh();
+        }
+
         $existing = MediaAsset::query()
             ->where('article_id', $article->id)
             ->where('metadata->role', 'inline')
@@ -143,10 +149,15 @@ class GeminiImageGenerationService
         }
 
         $image = $this->optimizer->optimize($bytes, 'image/png');
+        $plannedItem = $this->findPlannedItemByPrompt($article, $prompt);
+        $seoSlug = ! empty($plannedItem['seo_filename'])
+            ? pathinfo((string) $plannedItem['seo_filename'], PATHINFO_FILENAME)
+            : Str::uuid()->toString();
         $path = sprintf(
-            'media/%d/ai-generated/%s.%s',
+            'media/%d/ai-generated/%s-%s.%s',
             $article->tenant_id,
-            Str::uuid()->toString(),
+            $seoSlug,
+            substr(Str::uuid()->toString(), 0, 8),
             $image['extension']
         );
         Storage::put($path, $image['contents']);
@@ -158,8 +169,8 @@ class GeminiImageGenerationService
             'article_id' => $article->id,
             'source_type' => 'ai_generated',
             'local_path' => $path,
-            'alt_text' => $article->focus_keyword ?: $article->title,
-            'caption' => $this->captionFromPrompt($prompt),
+            'alt_text' => $plannedItem['alt_text'] ?? ($article->focus_keyword ?: $article->title),
+            'caption' => $plannedItem['caption'] ?? $this->captionFromPrompt($prompt),
             'description' => $prompt,
             'status' => 'downloaded',
             'metadata' => [
@@ -168,6 +179,10 @@ class GeminiImageGenerationService
                 'provider' => 'gemini',
                 'model' => config('ai.image_generation.model'),
                 'prompt' => $prompt,
+                'seo_filename' => $plannedItem['seo_filename'] ?? basename($path),
+                'image_title' => $plannedItem['image_title'] ?? ($article->focus_keyword ?: $article->title),
+                'target_heading' => $plannedItem['target_heading'] ?? null,
+                'target_h2_index' => $plannedItem['target_h2_index'] ?? null,
                 'mime_type' => $image['mime_type'],
                 'size_bytes' => $image['size_bytes'],
                 'original_size_bytes' => $image['original_size_bytes'],
@@ -212,11 +227,32 @@ class GeminiImageGenerationService
     {
         $plan = $article->media_plan ?? [];
         $keywordMeta = $article->keyword?->meta ?? [];
-        $default = (int) config('ai.image_generation.default_inline_count', 3);
         $max = (int) config('ai.image_generation.max_inline_count', 10);
-        $target = (int) ($plan['inline_image_count'] ?? $keywordMeta['inline_image_count'] ?? $default);
 
-        return max(0, min($max, $target));
+        if (isset($plan['inline_image_count']) && is_numeric($plan['inline_image_count'])) {
+            return max(0, min($max, (int) $plan['inline_image_count']));
+        }
+
+        if (isset($keywordMeta['inline_image_count']) && is_numeric($keywordMeta['inline_image_count'])) {
+            return max(0, min($max, (int) $keywordMeta['inline_image_count']));
+        }
+
+        if (app()->bound(ImagePlannerService::class)) {
+            $wordCount = (int) ($article->word_count ?: str_word_count(strip_tags((string) $article->content)));
+            preg_match_all('/<h2[^>]*>/i', (string) $article->content, $h2Matches);
+            $h2Count = count($h2Matches[0] ?? []);
+            $lengthTier = (string) (
+                data_get($article->pipeline_status, 'content_brief.desired_length')
+                ?: data_get($article->outline, 'content_brief.desired_length')
+                ?: ''
+            );
+
+            return max(0, min($max, app(ImagePlannerService::class)->calculateOptimalInlineImageCount($wordCount, $h2Count, $lengthTier)));
+        }
+
+        $default = (int) config('ai.image_generation.default_inline_count', 3);
+
+        return max(0, min($max, $default));
     }
 
     protected function sourceStrategy(Article $article): string
@@ -242,6 +278,19 @@ class GeminiImageGenerationService
         $plan = $article->media_plan ?? [];
         $keyword = $article->focus_keyword ?: $article->keyword?->keyword ?: $article->title;
         $basePrompt = trim((string) ($plan['image_generation_prompt'] ?? $article->keyword?->meta['image_generation_prompt'] ?? ''));
+
+        if ($basePrompt === '' && ! empty($plan['image_plan']['inline_image_plans']) && is_array($plan['image_plan']['inline_image_plans'])) {
+            $plannedPrompts = [];
+            foreach (array_slice($plan['image_plan']['inline_image_plans'], 0, $count) as $item) {
+                if (! empty($item['prompt'])) {
+                    $plannedPrompts[] = (string) $item['prompt'];
+                }
+            }
+            if (count($plannedPrompts) === $count) {
+                return $plannedPrompts;
+            }
+        }
+
         $headings = $this->extractHeadings((string) $article->content);
         $prompts = [];
 
@@ -255,6 +304,24 @@ class GeminiImageGenerationService
         }
 
         return $prompts;
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    protected function findPlannedItemByPrompt(Article $article, string $prompt): ?array
+    {
+        $inlinePlans = data_get($article->media_plan, 'image_plan.inline_image_plans', []);
+        if (! is_array($inlinePlans)) {
+            return null;
+        }
+        foreach ($inlinePlans as $item) {
+            if (is_array($item) && ($item['prompt'] ?? '') === $prompt) {
+                return $item;
+            }
+        }
+
+        return $inlinePlans[0] ?? null;
     }
 
     protected function extractHeadings(string $html): array

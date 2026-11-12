@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\BrandKnowledgeRequest;
 use App\Models\Workspace;
 use App\Services\Brand\BrandKnowledgeService;
+use App\Services\Brand\IndustryProfileRegistry;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -16,8 +17,41 @@ use Throwable;
 class BrandKnowledgeController extends Controller
 {
     public function __construct(
-        protected BrandKnowledgeService $brandKnowledgeService
+        protected BrandKnowledgeService $brandKnowledgeService,
+        protected IndustryProfileRegistry $industryRegistry
     ) {}
+
+    /**
+     * GET /api/v1/brand-knowledge/industries
+     * Danh sách cấu hình tất cả Industry Profiles được hỗ trợ.
+     */
+    public function industries(): JsonResponse
+    {
+        return response()->json([
+            'success' => true,
+            'message' => 'Lấy danh sách hồ sơ ngành nghề (Industry Profiles) thành công.',
+            'data' => array_values($this->industryRegistry->allProfiles()),
+        ]);
+    }
+
+    /**
+     * POST /api/v1/brand-knowledge/detect-industry
+     * Tự động phân loại ngành nghề từ thông tin doanh nghiệp nhập vào.
+     */
+    public function detectIndustry(Request $request): JsonResponse
+    {
+        $industryKey = $this->industryRegistry->detectIndustry($request->all());
+        $profile = $this->industryRegistry->getProfile($industryKey);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Phân loại hồ sơ ngành nghề thành công.',
+            'data' => [
+                'industry_key' => $industryKey,
+                'industry_profile' => $profile,
+            ],
+        ]);
+    }
 
     /**
      * GET /api/v1/brand-knowledge

@@ -18,6 +18,9 @@ import {
   History,
   Info,
   Check,
+  Upload,
+  FolderTree,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -53,10 +56,21 @@ interface BatchListResponse {
   };
 }
 
+interface TopicClusterItem {
+  id: number;
+  topic: string;
+  pillar_keyword?: { id: number; keyword: string };
+  keywords?: Array<{ id: number; keyword: string }>;
+}
+
 export default function BulkGeneratorPage() {
   const [websites, setWebsites] = useState<WebsiteItem[]>([]);
   const [selectedWebsiteId, setSelectedWebsiteId] = useState<number | null>(null);
   const [isLoadingWebsites, setIsLoadingWebsites] = useState(true);
+
+  // Topic Clusters State
+  const [topicClusters, setTopicClusters] = useState<TopicClusterItem[]>([]);
+  const [isLoadingClusters, setIsLoadingClusters] = useState(false);
 
   // Form State
   const [batchName, setBatchName] = useState('');
@@ -103,6 +117,21 @@ export default function BulkGeneratorPage() {
     }
   }, [selectedWebsiteId]);
 
+  // Load topic clusters
+  const fetchTopicClusters = useCallback(async () => {
+    try {
+      setIsLoadingClusters(true);
+      const res = await get<ApiResponseEnvelope<TopicClusterItem[]>>('/topic-clusters');
+      if (res && res.data) {
+        setTopicClusters(res.data);
+      }
+    } catch {
+      // Silently catch
+    } finally {
+      setIsLoadingClusters(false);
+    }
+  }, []);
+
   // Load batch history
   const fetchBatchHistory = useCallback(async () => {
     try {
@@ -121,7 +150,86 @@ export default function BulkGeneratorPage() {
   useEffect(() => {
     fetchWebsites();
     fetchBatchHistory();
-  }, [fetchWebsites, fetchBatchHistory]);
+    fetchTopicClusters();
+  }, [fetchWebsites, fetchBatchHistory, fetchTopicClusters]);
+
+  const handleSelectCluster = (clusterId: number) => {
+    const cluster = topicClusters.find((c) => c.id === clusterId);
+    if (!cluster) return;
+
+    const list: string[] = [];
+    if (cluster.pillar_keyword?.keyword) {
+      list.push(cluster.pillar_keyword.keyword);
+    }
+    if (cluster.keywords && cluster.keywords.length > 0) {
+      cluster.keywords.forEach((k) => {
+        if (k.keyword && !list.includes(k.keyword)) {
+          list.push(k.keyword);
+        }
+      });
+    }
+
+    if (list.length > 0) {
+      setKeywordsText((prev) => {
+        const existing = prev.trim();
+        return existing ? `${existing}\n${list.join('\n')}` : list.join('\n');
+      });
+      if (!batchName) {
+        setBatchName(`Lô bài viết Cụm: ${cluster.topic}`);
+      }
+      toast.success(`Đã thêm ${list.length} từ khóa từ Cụm chủ đề "${cluster.topic}"`);
+    } else {
+      toast.info('Cụm chủ đề chưa có từ khóa con.');
+    }
+  };
+
+  const handleInsertSampleKeywords = () => {
+    const sample = [
+      'bọc răng sứ thẩm mỹ giá bao nhiêu',
+      'trồng răng implant toàn hàm all on 4',
+      'chi phí niềng răng trong suốt invisalign',
+      'dán sứ veneer không mài răng uy tín',
+      'cấy ghép răng implant có đau không',
+      'tẩy trắng răng bằng laser công nghệ cao',
+      'nhổ răng khôn số 8 không đau giá rẻ',
+      'chữa tủy răng công nghệ vi phẫu',
+      'viêm nha chu triệu chứng và cách điều trị',
+      'bảng giá dịch vụ nha khoa tổng quát 2026',
+    ];
+    setKeywordsText(sample.join('\n'));
+    if (!batchName) {
+      setBatchName('Lô bài viết SEO Mẫu - Nha Khoa 10 Bài');
+    }
+    toast.success('Đã tải 10 từ khóa chuẩn SEO nha khoa mẫu!');
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target?.result as string;
+      if (!text) return;
+
+      const lines = text
+        .split(/[\r\n]+/)
+        .map((l) => l.trim().replace(/^["']|["']$/g, '').split(/[,;\t]/)[0]?.trim())
+        .filter((l) => l && l.length > 2 && !l.toLowerCase().startsWith('keyword') && !l.toLowerCase().startsWith('từ khóa'));
+
+      if (lines.length > 0) {
+        setKeywordsText((prev) => {
+          const existing = prev.trim();
+          return existing ? `${existing}\n${lines.join('\n')}` : lines.join('\n');
+        });
+        toast.success(`Đã nhập thành công ${lines.length} từ khóa từ tệp ${file.name}`);
+      } else {
+        toast.error('Không tìm thấy từ khóa hợp lệ trong tệp.');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
 
   // Real-time polling for active batch
   useEffect(() => {
@@ -341,8 +449,8 @@ export default function BulkGeneratorPage() {
                     </div>
 
                     {/* Keywords Textarea */}
-                    <div className="space-y-1.5">
-                      <div className="flex justify-between items-center">
+                    <div className="space-y-2">
+                      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
                         <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1">
                           <FileText className="w-3.5 h-3.5 text-indigo-500" />
                           Danh sách từ khóa SEO (Mỗi từ khóa 1 dòng)
@@ -351,6 +459,55 @@ export default function BulkGeneratorPage() {
                           Đã nhập: <strong className="text-blue-600">{keywordCount}</strong> từ khóa
                         </span>
                       </div>
+
+                      {/* Quick Import Tools: Topic Clusters, Excel/CSV, Sample Preset */}
+                      <div className="flex flex-wrap items-center gap-2 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800">
+                        {topicClusters.length > 0 && (
+                          <div className="flex items-center gap-1.5">
+                            <FolderTree className="w-3.5 h-3.5 text-purple-600" />
+                            <select
+                              onChange={(e) => {
+                                if (e.target.value) {
+                                  handleSelectCluster(Number(e.target.value));
+                                  e.target.value = '';
+                                }
+                              }}
+                              defaultValue=""
+                              className="text-xs h-7 px-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-700 dark:text-slate-300 font-medium"
+                            >
+                              <option value="">+ Chọn từ Cụm chủ đề ({topicClusters.length})</option>
+                              {topicClusters.map((c) => (
+                                <option key={c.id} value={c.id}>
+                                  {c.topic} ({(c.keywords?.length ?? 0) + (c.pillar_keyword ? 1 : 0)} từ khóa)
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
+
+                        <label className="inline-flex items-center gap-1.5 text-xs h-7 px-2.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-700 dark:text-slate-300 font-medium cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800">
+                          <Upload className="w-3 h-3 text-sky-600" />
+                          <span>Nhập file Excel/CSV/TXT</span>
+                          <input
+                            type="file"
+                            accept=".csv,.txt"
+                            onChange={handleFileUpload}
+                            className="hidden"
+                          />
+                        </label>
+
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={handleInsertSampleKeywords}
+                          className="h-7 text-xs px-2 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-950/40"
+                        >
+                          <FileSpreadsheet className="w-3 h-3 mr-1" />
+                          Mẫu 10 từ khóa Nha khoa
+                        </Button>
+                      </div>
+
                       <Textarea
                         rows={8}
                         placeholder={"dịch vụ seo tổng thể 2026\ncách tối ưu h1 h4 chuẩn seo\nchiến lược entity seo cho doanh nghiệp\n..."}

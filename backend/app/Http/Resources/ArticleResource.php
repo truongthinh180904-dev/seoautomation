@@ -52,6 +52,13 @@ class ArticleResource extends JsonResource
             'image_assets' => $this->image_assets,
             'quality_report' => $this->quality_report,
             'pipeline_status' => $this->pipeline_status,
+            'content_type' => $this->content_type ?? data_get($this->outline, 'content_type') ?? data_get($this->quality_report, 'output_package_19_fields.3_content_type.key'),
+            'search_intent' => $this->search_intent ?? data_get($this->outline, 'primary_search_intent') ?? data_get($this->quality_report, 'output_package_19_fields.4_search_intent.primary_intent'),
+            'secondary_intents' => $this->secondary_intents ?? data_get($this->outline, 'secondary_search_intents', []),
+            'schema_markup' => $this->schema_markup ?? data_get($this->quality_report, 'schema_markup'),
+            'gate_status' => $this->gate_status ?? data_get($this->quality_report, 'content_quality_scoring.gate_status'),
+            'review_pipeline_report' => $this->review_pipeline_report ?? data_get($this->quality_report, 'review_pipeline_4_roles'),
+            'output_package' => data_get($this->quality_report, 'output_package_19_fields'),
             'approval_required' => $this->approval_required,
             'approved_at' => $this->approved_at,
             'keyword' => $this->whenLoaded('keyword', fn () => [

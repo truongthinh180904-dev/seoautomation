@@ -35,6 +35,7 @@ use App\Http\Controllers\Api\V1\InternalLinkController;
 use App\Http\Controllers\Api\V1\KeywordController;
 use App\Http\Controllers\Api\V1\KeywordResearchController;
 use App\Http\Controllers\Api\V1\MediaAssetController;
+use App\Http\Controllers\Api\V1\EditorMediaController;
 use App\Http\Controllers\Api\V1\NotificationController;
 use App\Http\Controllers\Api\V1\QueueStatusController;
 use App\Http\Controllers\Api\V1\ScheduleController;
@@ -221,7 +222,9 @@ Route::prefix('v1')->group(function () {
             Route::post('competitor/content-gaps/{id}/ignore', [ContentGapController::class, 'ignore']);
             Route::delete('competitor/content-gaps/{id}', [ContentGapController::class, 'destroy']);
 
-            // Brand Knowledge Base
+            // Brand Knowledge Base & Business Profile
+            Route::get('brand-knowledge/industries', [BrandKnowledgeController::class, 'industries']);
+            Route::post('brand-knowledge/detect-industry', [BrandKnowledgeController::class, 'detectIndustry']);
             Route::get('brand-knowledge', [BrandKnowledgeController::class, 'index']);
             Route::post('brand-knowledge', [BrandKnowledgeController::class, 'store']);
             Route::post('brand-knowledge/inject-context', [BrandKnowledgeController::class, 'injectContext']);
@@ -230,6 +233,9 @@ Route::prefix('v1')->group(function () {
             Route::put('brand-knowledge/{id}', [BrandKnowledgeController::class, 'update']);
             Route::delete('brand-knowledge/{id}', [BrandKnowledgeController::class, 'destroy']);
             Route::post('brand-knowledge/{id}/set-default', [BrandKnowledgeController::class, 'setDefault']);
+
+            // Editor media upload (chèn/thay ảnh trong trình soạn thảo)
+            Route::post('editor/images', [EditorMediaController::class, 'store']);
 
             // AI Content Studio
             Route::get('content-studio/{id}', [ContentStudioController::class, 'show']);
@@ -379,6 +385,7 @@ Route::prefix('v1')->group(function () {
             Route::delete('conversations/{uuid}', [ConversationController::class, 'destroy']);
             Route::get('conversations/{uuid}/messages', [ConversationController::class, 'messages']);
             Route::post('conversations/{uuid}/messages', [ConversationController::class, 'sendMessage']);
+            Route::post('conversations/{uuid}/interact', [ConversationController::class, 'interact']);
             Route::post('conversations/{uuid}/clear', [ConversationController::class, 'clear']);
 
             // Google Integrations & OAuth (Phase 3.1)

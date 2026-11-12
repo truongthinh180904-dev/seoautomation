@@ -16,7 +16,8 @@ return [
         'gemini' => [
             'api_key' => env('GEMINI_API_KEY'),
             'default_model' => env('GEMINI_DEFAULT_MODEL', 'gemini-2.5-flash'),
-            'fallback_models' => array_values(array_filter(explode(',', env('GEMINI_FALLBACK_MODELS', 'gemini-1.5-flash')))),
+            'content_model' => env('GEMINI_CONTENT_MODEL', 'gemini-3.1-pro-preview'),
+            'fallback_models' => array_values(array_filter(explode(',', env('GEMINI_FALLBACK_MODELS', 'gemini-3.5-flash,gemini-2.5-flash')))),
         ],
         'deepseek' => [
             'api_key' => env('DEEPSEEK_API_KEY'),

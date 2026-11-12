@@ -16,21 +16,23 @@ class GeminiProvider implements AIProviderInterface
     public function complete(AIRequestDTO $request): AIResponseDTO
     {
         $startTime = microtime(true);
+        $contentModel = config('ai.providers.gemini.content_model', 'gemini-3.1-pro-preview');
+        $defaultModel = config('ai.providers.gemini.default_model', 'gemini-2.5-flash');
         $modelMap = [
-            'gpt-4o' => 'gemini-1.5-pro',
-            'gpt-4' => 'gemini-1.5-pro',
-            'gpt-4o-mini' => 'gemini-1.5-flash',
-            'gpt-3.5-turbo' => 'gemini-1.5-flash',
-            'claude-3-opus-20240229' => 'gemini-1.5-pro',
-            'claude-3-opus' => 'gemini-1.5-pro',
-            'claude-3-sonnet-20240229' => 'gemini-1.5-flash',
-            'claude-3-haiku-20240307' => 'gemini-1.5-flash',
-            'claude-3-5-sonnet' => 'gemini-1.5-pro',
+            'gpt-4o' => $contentModel,
+            'gpt-4' => $contentModel,
+            'gpt-4o-mini' => $defaultModel,
+            'gpt-3.5-turbo' => $defaultModel,
+            'claude-3-opus-20240229' => $contentModel,
+            'claude-3-opus' => $contentModel,
+            'claude-3-sonnet-20240229' => $defaultModel,
+            'claude-3-haiku-20240307' => $defaultModel,
+            'claude-3-5-sonnet' => $contentModel,
         ];
 
         $rawModel = $request->model;
         if (! $rawModel || isset($modelMap[$rawModel]) || str_starts_with((string) $rawModel, 'gpt-') || str_starts_with((string) $rawModel, 'claude-')) {
-            $model = $modelMap[$rawModel] ?? config('ai.providers.gemini.default_model', 'gemini-2.5-flash');
+            $model = $modelMap[$rawModel] ?? $defaultModel;
         } else {
             $model = $rawModel;
         }
@@ -73,7 +75,22 @@ class GeminiProvider implements AIProviderInterface
             }
 
             $data = $response->json();
-            $content = data_get($data, 'candidates.0.content.parts.0.text', '');
+            $parts = data_get($data, 'candidates.0.content.parts', []);
+            $nonThoughtTexts = [];
+            $allTexts = [];
+            if (is_array($parts)) {
+                foreach ($parts as $part) {
+                    if (is_array($part) && isset($part['text']) && is_string($part['text'])) {
+                        $allTexts[] = $part['text'];
+                        if (empty($part['thought'])) {
+                            $nonThoughtTexts[] = $part['text'];
+                        }
+                    }
+                }
+            }
+            $content = ! empty($nonThoughtTexts)
+                ? implode("\n", $nonThoughtTexts)
+                : (! empty($allTexts) ? implode("\n", $allTexts) : (string) data_get($data, 'candidates.0.content.parts.0.text', ''));
             $promptTokens = (int) data_get($data, 'usageMetadata.promptTokenCount', 0);
             $completionTokens = (int) data_get($data, 'usageMetadata.candidatesTokenCount', 0);
             $totalTokens = (int) data_get($data, 'usageMetadata.totalTokenCount', $promptTokens + $completionTokens);

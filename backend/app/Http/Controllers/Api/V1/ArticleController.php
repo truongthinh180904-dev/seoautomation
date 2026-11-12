@@ -157,6 +157,20 @@ class ArticleController extends Controller
         }
 
         if (! $article->wordpress_site_id) {
+            $candidateSiteId = $request->input('wordpress_site_id')
+                ?: $article->website?->wordpress_site_id
+                ?: $article->campaign?->wordpress_site_id;
+
+            if ($candidateSiteId) {
+                $site = \App\Models\WordPressSite::where('tenant_id', $request->user()->tenant_id)->find($candidateSiteId);
+                if ($site && (! $article->workspace_id || ! $site->workspace_id || $site->workspace_id === $article->workspace_id)) {
+                    $article->update(['wordpress_site_id' => $site->id]);
+                    $article->refresh();
+                }
+            }
+        }
+
+        if (! $article->wordpress_site_id) {
             return response()->json([
                 'message' => 'Bài viết chưa gắn WordPress site. Hãy gắn site từ keyword/campaign hoặc cấu hình lại bài trước khi publish.',
             ], 422);
@@ -287,20 +301,75 @@ class ArticleController extends Controller
         $tenantId = $request->user()->tenant_id;
         $validated = $request->validated();
 
-        $keyword = $this->keywords->findByIdForTenant($validated['keyword_id'], $tenantId);
-        if (! $keyword) {
-            abort(404);
-        }
-
         $currentWorkspace = $request->attributes->get('current_workspace');
-        if ($currentWorkspace && $keyword->workspace_id && $keyword->workspace_id !== $currentWorkspace->id) {
-            abort(404);
+        $workspace = $currentWorkspace
+            ?: ($request->user()->default_workspace_id ? Workspace::where('id', $request->user()->default_workspace_id)->where('legacy_tenant_id', $tenantId)->first() : null);
+        $workspaceId = $workspace?->id ?: $request->user()->default_workspace_id;
+
+        if (! empty($validated['keyword_id'])) {
+            $keyword = $this->keywords->findByIdForTenant((int) $validated['keyword_id'], $tenantId);
+            if (! $keyword) {
+                abort(404);
+            }
+            if ($currentWorkspace && $keyword->workspace_id && $keyword->workspace_id !== $currentWorkspace->id) {
+                abort(404);
+            }
+            $workspaceId = $keyword->workspace_id ?: $workspaceId;
+        } else {
+            $primaryKeyword = trim((string) ($validated['primary_keyword'] ?? ''));
+            $websiteId = ! empty($validated['website_id']) ? (int) $validated['website_id'] : null;
+
+            if (! $websiteId && ! empty($validated['brand_knowledge_id'])) {
+                $kb = \App\Models\BrandKnowledgeBase::where('workspace_id', $workspaceId)->find((int) $validated['brand_knowledge_id']);
+                $websiteId = $kb?->website_id;
+            }
+            if (! $websiteId) {
+                $firstWebsite = \App\Models\Website::where('workspace_id', $workspaceId)->first()
+                    ?: \App\Models\Website::where('tenant_id', $tenantId)->first();
+                $websiteId = $firstWebsite?->id;
+            }
+
+            $keyword = \App\Models\Keyword::firstOrCreate(
+                [
+                    'tenant_id' => $tenantId,
+                    'workspace_id' => $workspaceId,
+                    'website_id' => $websiteId,
+                    'keyword' => $primaryKeyword,
+                ],
+                [
+                    'campaign_id' => $validated['campaign_id'] ?? null,
+                    'wordpress_site_id' => $validated['wordpress_site_id'] ?? null,
+                    'intent' => $validated['search_intent'] ?? 'informational',
+                    'language' => $validated['content_language'] ?? 'vi',
+                    'status' => KeywordStatus::PENDING,
+                ]
+            );
         }
 
-        $workspace = $currentWorkspace
-            ?: ($keyword->workspace_id ? Workspace::where('id', $keyword->workspace_id)->where('legacy_tenant_id', $tenantId)->first() : null)
-            ?: ($request->user()->default_workspace_id ? Workspace::where('id', $request->user()->default_workspace_id)->where('legacy_tenant_id', $tenantId)->first() : null);
-        $workspaceId = $workspace?->id ?: ($keyword->workspace_id ?: $request->user()->default_workspace_id);
+        // Xây dựng Content Brief từ biểu mẫu tạo bài viết (Section 4)
+        $contentBrief = array_filter([
+            'brand_knowledge_id' => $validated['brand_knowledge_id'] ?? ($keyword->meta['content_brief']['brand_knowledge_id'] ?? null),
+            'primary_keyword' => $validated['primary_keyword'] ?? $keyword->keyword,
+            'topic_description' => $validated['topic_description'] ?? ($keyword->meta['content_brief']['topic_description'] ?? null),
+            'content_language' => $validated['content_language'] ?? $keyword->language ?? 'vi',
+            'secondary_keywords' => $validated['secondary_keywords'] ?? ($keyword->meta['content_brief']['secondary_keywords'] ?? null),
+            'related_keywords' => $validated['related_keywords'] ?? ($keyword->meta['content_brief']['related_keywords'] ?? null),
+            'local_seo_location' => $validated['local_seo_location'] ?? ($keyword->meta['content_brief']['local_seo_location'] ?? null),
+            'target_product_service' => $validated['target_product_service'] ?? ($keyword->meta['content_brief']['target_product_service'] ?? null),
+            'target_audience' => $validated['target_audience'] ?? ($keyword->meta['content_brief']['target_audience'] ?? null),
+            'article_goal' => $validated['article_goal'] ?? ($keyword->meta['content_brief']['article_goal'] ?? null),
+            'desired_length' => $validated['desired_length'] ?? ($keyword->meta['content_brief']['desired_length'] ?? null),
+            'writing_style' => $validated['writing_style'] ?? ($keyword->meta['content_brief']['writing_style'] ?? null),
+            'desired_cta' => $validated['desired_cta'] ?? ($keyword->meta['content_brief']['desired_cta'] ?? null),
+            'reference_urls' => $validated['reference_urls'] ?? ($keyword->meta['content_brief']['reference_urls'] ?? null),
+            'internal_link_urls' => $validated['internal_link_urls'] ?? ($keyword->meta['content_brief']['internal_link_urls'] ?? null),
+            'competitor_urls' => $validated['competitor_urls'] ?? ($keyword->meta['content_brief']['competitor_urls'] ?? null),
+            'desired_image_count' => $validated['desired_image_count'] ?? ($keyword->meta['content_brief']['desired_image_count'] ?? null),
+            'special_requirements' => $validated['special_requirements'] ?? ($keyword->meta['content_brief']['special_requirements'] ?? null),
+            'content_type' => $validated['content_type'] ?? ($keyword->meta['content_brief']['content_type'] ?? 'auto'),
+            'search_intent' => $validated['search_intent'] ?? ($keyword->meta['content_brief']['search_intent'] ?? $keyword->intent ?? null),
+            'require_outline_approval' => $validated['require_outline_approval'] ?? false,
+        ], fn ($v) => $v !== null && $v !== '');
 
         $quota = $workspace ? $this->costTracking->checkWorkspaceQuota($workspace) : $this->costTracking->checkQuota($tenantId);
 
@@ -311,14 +380,18 @@ class ArticleController extends Controller
             ], 402);
         }
 
-        $article = DB::transaction(function () use ($tenantId, $workspaceId, $validated, $keyword, $request) {
+        $article = DB::transaction(function () use ($tenantId, $workspaceId, $validated, $keyword, $request, $contentBrief) {
             $existingArticle = $this->repository->findByKeywordIdForTenant($keyword->id, $tenantId);
+            $keywordMeta = $keyword->meta ?? [];
+            $inlineImgCount = isset($contentBrief['desired_image_count'])
+                ? (int) $contentBrief['desired_image_count']
+                : ($keywordMeta['inline_image_count'] ?? config('ai.image_generation.default_inline_count', 3));
 
             if (! $existingArticle) {
-                $keywordMeta = $keyword->meta ?? [];
                 $article = $this->repository->create([
                     'tenant_id' => $tenantId,
                     'workspace_id' => $workspaceId ?: $keyword->workspace_id,
+                    'website_id' => $keyword->website_id ?? ($validated['website_id'] ?? null),
                     'keyword_id' => $keyword->id,
                     'campaign_id' => $validated['campaign_id'] ?? $keyword->campaign_id,
                     'wordpress_site_id' => $validated['wordpress_site_id'] ?? $keyword->wordpress_site_id,
@@ -326,6 +399,7 @@ class ArticleController extends Controller
                     'title' => 'Bài viết: '.$keyword->keyword,
                     'slug' => Str::slug($keyword->keyword),
                     'focus_keyword' => $keyword->keyword,
+                    'primary_cta' => $contentBrief['desired_cta'] ?? null,
                     'featured_image_url' => $keywordMeta['featured_image_url'] ?? null,
                     'media_plan' => array_filter([
                         'featured_image_url' => $keywordMeta['featured_image_url'] ?? null,
@@ -334,8 +408,8 @@ class ArticleController extends Controller
                         'image_generation_prompt' => $keywordMeta['image_generation_prompt'] ?? null,
                         'image_search_query' => $keywordMeta['image_search_query'] ?? null,
                         'image_source' => $keywordMeta['image_source'] ?? config('ai.image_generation.source_strategy', 'hybrid'),
-                        'inline_image_count' => $keywordMeta['inline_image_count'] ?? config('ai.image_generation.default_inline_count', 3),
-                    ]),
+                        'inline_image_count' => $inlineImgCount,
+                    ], fn ($v) => $v !== null),
                     'wp_tag_names' => ! empty($keywordMeta['wp_tag_names'])
                         ? array_values(array_filter(array_map('trim', explode(',', str_replace('|', ',', (string) $keywordMeta['wp_tag_names'])))))
                         : null,
@@ -344,9 +418,10 @@ class ArticleController extends Controller
                     'status' => ArticleStatus::DRAFT,
                 ]);
             } else {
-                $keywordMeta = $keyword->meta ?? [];
                 $existingArticle->update([
                     'status' => ArticleStatus::DRAFT,
+                    'website_id' => $existingArticle->website_id ?: ($keyword->website_id ?? ($validated['website_id'] ?? null)),
+                    'primary_cta' => $contentBrief['desired_cta'] ?? $existingArticle->primary_cta,
                     'review_notes' => null,
                     'rejection_reason' => null,
                     'media_plan' => array_merge($existingArticle->media_plan ?? [], array_filter([
@@ -356,14 +431,19 @@ class ArticleController extends Controller
                         'image_generation_prompt' => $keywordMeta['image_generation_prompt'] ?? null,
                         'image_search_query' => $keywordMeta['image_search_query'] ?? null,
                         'image_source' => $keywordMeta['image_source'] ?? null,
-                        'inline_image_count' => $keywordMeta['inline_image_count'] ?? null,
-                    ])),
+                        'inline_image_count' => $inlineImgCount,
+                    ], fn ($v) => $v !== null)),
                 ]);
                 $article = $existingArticle->fresh();
             }
 
             $this->pipeline->reset($article);
             $this->pipeline->start($article, 'queued', 'Đang chờ queue worker nhận job.');
+
+            // Lưu Content Brief vào pipeline_status để các Job kế tiếp sử dụng
+            $pipelineStatus = $article->fresh()->pipeline_status ?? [];
+            $pipelineStatus['content_brief'] = $contentBrief;
+            $article->update(['pipeline_status' => $pipelineStatus]);
 
             $this->attachKeywordMediaToArticle($keyword, $article);
 
@@ -382,7 +462,7 @@ class ArticleController extends Controller
 
             $keyword->update(['status' => KeywordStatus::PROCESSING]);
 
-            return $article;
+            return $article->fresh();
         });
 
         GenerateOutlineJob::dispatch($keyword->id, $article->id)->onQueue('ai-writing');

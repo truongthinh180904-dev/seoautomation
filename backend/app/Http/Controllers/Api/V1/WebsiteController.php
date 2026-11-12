@@ -89,7 +89,11 @@ class WebsiteController extends Controller
         if ($workspaceId) {
             $found = Workspace::find((int) $workspaceId);
             if ($found) {
-                return $found;
+                $user = $request->user();
+                $isSuperAdmin = ($user->is_platform_admin || $user->role === \App\Enums\UserRole::SUPER_ADMIN);
+                if ($isSuperAdmin || $found->members()->where('user_id', $user->id)->where('is_active', true)->exists()) {
+                    return $found;
+                }
             }
         }
 

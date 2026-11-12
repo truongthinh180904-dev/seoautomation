@@ -1,10 +1,12 @@
 "use client";
 
 import React, { useMemo, useState } from 'react';
-import { ImagePlus, Save } from 'lucide-react';
+import { ImagePlus, Save, Globe, CheckCircle2, AlertCircle, RefreshCw, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { useMediaAssetActions, useMediaAssets } from '@/hooks/useMediaAssets';
 import { useArticleActions } from '@/hooks/useArticles';
+import { useWordPressSites, useWordPressSiteActions } from '@/hooks/useWordPressSites';
 import { toast } from 'sonner';
 
 interface ArticleImportSettingsProps {
@@ -41,6 +43,13 @@ export default function ArticleImportSettings({
   const [newImageAlt, setNewImageAlt] = useState('');
   const [newImageCaption, setNewImageCaption] = useState('');
 
+  const [selectedWpSiteId, setSelectedWpSiteId] = useState<string>(
+    String(article.wordpress_site?.id || article.wordpress_site_id || '')
+  );
+  const { data: wpSitesResponse, isLoading: isLoadingWpSites } = useWordPressSites();
+  const wpSiteActions = useWordPressSiteActions();
+  const wpSites = wpSitesResponse?.data ?? [];
+
   const { data: mediaResponse } = useMediaAssets({ article_id: article.id, per_page: 100 });
   const mediaAssets = mediaResponse?.data ?? [];
   const mediaActions = useMediaAssetActions();
@@ -65,6 +74,7 @@ export default function ArticleImportSettings({
     const count = Math.min(10, Math.max(0, inlineImageCount || 0));
     if (onSave) {
       await onSave({
+        wordpress_site_id: selectedWpSiteId ? Number(selectedWpSiteId) : null,
         media_plan: {
           ...mediaPlan,
           inline_image_count: count,
@@ -76,6 +86,32 @@ export default function ArticleImportSettings({
           image_source: imageSource,
         },
       });
+    }
+  };
+
+  const handleSaveWordPressSite = async () => {
+    if (!onSave) return;
+    try {
+      await onSave({
+        wordpress_site_id: selectedWpSiteId ? Number(selectedWpSiteId) : null,
+      });
+      toast.success('Đã lưu cấu hình WordPress site cho bài viết thành công!');
+    } catch {
+      toast.error('Lỗi khi lưu cấu hình WordPress site');
+    }
+  };
+
+  const handleTestConnection = async (siteId: number) => {
+    try {
+      toast.loading('Đang kiểm tra kết nối REST API WordPress...', { id: 'wp-test' });
+      const res = await wpSiteActions.test.mutateAsync(siteId);
+      if (res.success) {
+        toast.success('Kết nối WordPress REST API thành công!', { id: 'wp-test' });
+      } else {
+        toast.error(`Kết nối thất bại: ${res.message || 'Lỗi không xác định'}`, { id: 'wp-test' });
+      }
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Lỗi kiểm tra kết nối', { id: 'wp-test' });
     }
   };
 
@@ -131,6 +167,96 @@ export default function ArticleImportSettings({
           </div>
         </div>
       )}
+
+      {/* WordPress Publishing Site Connection */}
+      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Globe className="w-4 h-4 text-sky-600" />
+            <h2 className="text-base font-black text-slate-900">WordPress Xuất Bản</h2>
+          </div>
+          {selectedWpSiteId && wpSites.find((s) => String(s.id) === String(selectedWpSiteId)) ? (
+            <Badge
+              variant="outline"
+              className={
+                wpSites.find((s) => String(s.id) === String(selectedWpSiteId))?.connection_status === 'connected'
+                  ? 'bg-emerald-50 text-emerald-700 border-emerald-300 text-[10px]'
+                  : 'bg-amber-50 text-amber-700 border-amber-300 text-[10px]'
+              }
+            >
+              {wpSites.find((s) => String(s.id) === String(selectedWpSiteId))?.connection_status === 'connected'
+                ? 'Đã kết nối'
+                : 'Chưa kiểm tra'}
+            </Badge>
+          ) : (
+            <Badge variant="outline" className="bg-slate-50 text-slate-500 border-slate-200 text-[10px]">
+              Chưa gắn site
+            </Badge>
+          )}
+        </div>
+
+        <div className="space-y-2">
+          <label className="block">
+            <span className="text-xs font-bold text-slate-500">Chọn Website WordPress đích</span>
+            <select
+              value={selectedWpSiteId}
+              onChange={(e) => setSelectedWpSiteId(e.target.value)}
+              className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 bg-white"
+              disabled={isLoadingWpSites}
+            >
+              <option value="">-- Chọn WordPress Site --</option>
+              {wpSites.map((site) => (
+                <option key={site.id} value={site.id}>
+                  {site.name} ({site.url})
+                </option>
+              ))}
+            </select>
+          </label>
+
+          {(article.wordpress_post_url || article.wordpress_url) && (
+            <div className="rounded-lg bg-sky-50 p-2.5 border border-sky-100 flex items-center justify-between text-xs text-sky-800">
+              <span className="font-medium truncate max-w-[200px]">
+                Đã đăng: {article.wordpress_post_url || article.wordpress_url}
+              </span>
+              <a
+                href={article.wordpress_post_url || article.wordpress_url || '#'}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1 font-bold text-sky-600 hover:text-sky-800"
+              >
+                <span>Xem bài</span>
+                <ExternalLink className="w-3 h-3" />
+              </a>
+            </div>
+          )}
+
+          <div className="flex items-center gap-2 pt-1">
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleSaveWordPressSite}
+              disabled={isSaving}
+              className="flex-1 bg-sky-600 hover:bg-sky-700 text-white text-xs h-8 rounded-lg font-bold"
+            >
+              <Save className="w-3.5 h-3.5 mr-1.5" />
+              Lưu Site
+            </Button>
+            {selectedWpSiteId && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => handleTestConnection(Number(selectedWpSiteId))}
+                disabled={wpSiteActions.test.isPending}
+                className="text-xs h-8 rounded-lg border-sky-200 text-sky-700 hover:bg-sky-50"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 mr-1 ${wpSiteActions.test.isPending ? 'animate-spin' : ''}`} />
+                Test REST API
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
 
       <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="text-base font-black text-slate-900">Brief từ Excel</h2>

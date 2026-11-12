@@ -237,49 +237,53 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Welcome Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-gradient-to-br from-slate-900 via-slate-850 to-slate-900 text-white p-8 rounded-3xl border border-slate-800 shadow-xl overflow-hidden relative group">
-        <div className="relative z-10 max-w-xl space-y-3">
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-blue-500/20 text-blue-400 border border-blue-500/30 uppercase tracking-widest">
-            <Zap className="w-3.5 h-3.5" /> AI SEO Engine Active
+      {/* Welcome Header - White & Sky Blue Theme */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-gradient-to-br from-sky-500 via-sky-600 to-blue-600 text-white p-8 rounded-3xl border border-sky-400/50 shadow-lg shadow-sky-200/60 overflow-hidden relative group">
+        <div className="relative z-10 max-w-2xl space-y-3">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-white/20 text-white border border-white/30 uppercase tracking-widest backdrop-blur-xs">
+            <Zap className="w-3.5 h-3.5" /> AuraSEO AI Engine Active
           </span>
           <h1 className="text-3xl md:text-4xl font-black text-white tracking-tight">
             Chào mừng, {user?.name || 'Admin'}! 👋
           </h1>
-          <p className="text-slate-400 text-sm md:text-base font-medium leading-relaxed">
+          <p className="text-sky-50 text-sm md:text-base font-medium leading-relaxed">
             Hệ thống tự động hóa nội dung và tối ưu hóa SEO của bạn đã sẵn sàng. Bạn đang có{' '}
-            <strong className="text-amber-400 font-extrabold">{availableCredits.toLocaleString()} credit</strong> để sinh bài và tối ưu SEO.
+            <strong className="text-amber-200 font-extrabold underline decoration-amber-300/60 underline-offset-4">
+              {availableCredits.toLocaleString()} Credits
+            </strong>{' '}
+            khả dụng để tạo bài viết và tối ưu SEO.
           </p>
           <div className="flex flex-wrap gap-3 pt-3">
-            <Link href="/keywords/import">
-              <Button className="rounded-xl px-5 py-5 font-bold bg-blue-600 hover:bg-blue-700 border-none text-white shadow-lg shadow-blue-500/30 transition-all hover:scale-[1.02] cursor-pointer">
+            <Button asChild className="rounded-xl px-5 py-5 font-extrabold bg-white text-sky-700 hover:bg-sky-50 border-none shadow-md transition-all hover:scale-[1.02] cursor-pointer">
+              <Link href="/chatbot">
+                <Zap className="w-4 h-4 mr-2 text-sky-600" />
+                Mở Trợ Lý AI Viết Bài
+              </Link>
+            </Button>
+            <Button asChild variant="outline" className="rounded-xl px-5 py-5 font-bold border-white/40 bg-white/15 text-white hover:bg-white/25 hover:text-white transition-all hover:scale-[1.02] cursor-pointer">
+              <Link href="/keywords/import">
                 <Plus className="w-4 h-4 mr-2" />
-                Import Keywords
-              </Button>
-            </Link>
-            <Link href="/campaigns">
-              <Button variant="outline" className="rounded-xl px-5 py-5 font-bold border-slate-700 bg-slate-800/50 text-slate-200 hover:bg-slate-800 hover:text-white transition-all hover:scale-[1.02] cursor-pointer">
-                Quản lý chiến dịch
-              </Button>
-            </Link>
-            <Link href="/settings/subscription">
-              <Button variant="outline" className="rounded-xl px-5 py-5 font-bold border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 transition-all hover:scale-[1.02] cursor-pointer">
-                <CreditCard className="w-4 h-4 mr-2" /> Nạp Credit & Nâng Gói
-              </Button>
-            </Link>
+                Nhập Từ Khóa
+              </Link>
+            </Button>
+            <Button asChild variant="outline" className="rounded-xl px-5 py-5 font-bold border-white/40 bg-white/15 text-white hover:bg-white/25 hover:text-white transition-all hover:scale-[1.02] cursor-pointer">
+              <Link href="/settings/subscription">
+                <CreditCard className="w-4 h-4 mr-2" /> Nạp Credit & Gói Cước
+              </Link>
+            </Button>
             <Button 
               variant="ghost" 
               size="icon" 
               onClick={handleRefresh}
-              className="rounded-xl border border-slate-700 bg-slate-800/30 text-slate-400 hover:bg-slate-800 hover:text-white cursor-pointer"
+              className="rounded-xl border border-white/30 bg-white/15 text-white hover:bg-white/25 hover:text-white cursor-pointer"
               title="Làm mới dữ liệu"
             >
               <RefreshCw className={`w-4 h-4 ${summary.isFetching || subQuery.isFetching ? 'animate-spin' : ''}`} />
             </Button>
           </div>
         </div>
-        <div className="absolute right-0 top-0 bottom-0 w-1/3 bg-gradient-to-l from-blue-500/10 to-transparent opacity-40 hidden md:block" />
-        <div className="w-48 h-48 rounded-full bg-blue-500/10 blur-3xl absolute -right-6 -bottom-6 hidden md:block" />
+        <div className="absolute right-0 top-0 bottom-0 w-1/3 bg-gradient-to-l from-white/15 to-transparent opacity-60 hidden md:block" />
+        <div className="w-56 h-56 rounded-full bg-white/15 blur-3xl absolute -right-6 -bottom-6 hidden md:block" />
       </div>
 
       {/* Plan & Quota Usage Tracker Widget */}
@@ -550,11 +554,11 @@ export default function DashboardPage() {
           </div>
 
           <div className="pt-4 border-t border-slate-100 mt-4">
-            <Link href="/wordpress">
-              <Button variant="outline" className="w-full rounded-xl text-xs font-bold text-slate-700 py-4 cursor-pointer">
+            <Button asChild variant="outline" className="w-full rounded-xl text-xs font-bold text-slate-700 py-4 cursor-pointer">
+              <Link href="/wordpress">
                 Quản lý WordPress Sites <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
-              </Button>
-            </Link>
+              </Link>
+            </Button>
           </div>
         </div>
 
@@ -629,11 +633,11 @@ export default function DashboardPage() {
               </span>
             </div>
             <div className="pt-2">
-              <Link href="/queue">
-                <Button variant="outline" className="w-full rounded-xl border-slate-700 bg-slate-800/40 hover:bg-slate-800 text-slate-200 text-xs font-bold py-5 cursor-pointer">
+              <Button asChild variant="outline" className="w-full rounded-xl border-slate-700 bg-slate-800/40 hover:bg-slate-800 text-slate-200 text-xs font-bold py-5 cursor-pointer">
+                <Link href="/queue">
                   Theo dõi hàng đợi AI (Queue)
-                </Button>
-              </Link>
+                </Link>
+              </Button>
             </div>
           </div>
         </div>

@@ -62,7 +62,7 @@ export function ChatMessageList({
         {/* Empty State / Welcome Screen */}
         {messages.length === 0 ? (
           <div className="flex min-h-[70vh] flex-col items-center justify-center text-center max-w-2xl mx-auto px-4 py-8">
-            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-tr from-purple-600 via-indigo-600 to-blue-500 text-white shadow-lg ring-4 ring-purple-100 dark:ring-purple-950/50">
+            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-tr from-sky-500 via-sky-600 to-blue-600 text-white shadow-lg ring-4 ring-sky-100">
               <Sparkles className="h-8 w-8 animate-pulse" />
             </div>
 

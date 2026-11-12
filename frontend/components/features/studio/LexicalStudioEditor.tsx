@@ -10,6 +10,10 @@ import { OnChangePlugin } from '@lexical/react/LexicalOnChangePlugin';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import { HeadingNode, QuoteNode, $createHeadingNode, $createQuoteNode } from '@lexical/rich-text';
 import { ListItemNode, ListNode, INSERT_ORDERED_LIST_COMMAND, INSERT_UNORDERED_LIST_COMMAND } from '@lexical/list';
+import { TableNode, TableCellNode, TableRowNode } from '@lexical/table';
+import { LinkNode, AutoLinkNode } from '@lexical/link';
+import { CodeNode, CodeHighlightNode } from '@lexical/code';
+import { ImageNode } from '../articles/ArticleEditor/nodes/ImageNode';
 import { $generateHtmlFromNodes, $generateNodesFromDOM } from '@lexical/html';
 import { $setBlocksType } from '@lexical/selection';
 import {
@@ -50,7 +54,7 @@ interface LexicalStudioEditorProps {
   placeholder?: string;
 }
 
-// 1. Plugin khởi tạo nội dung HTML ban đầu vào Lexical
+// 1. Plugin khởi tạo nội dung HTML ban đầu vào Lexical an toàn tuyệt đối
 function HtmlInitializerPlugin({ initialHtml }: { initialHtml: string }) {
   const [editor] = useLexicalComposerContext();
   const hasInitialized = useRef(false);
@@ -58,12 +62,18 @@ function HtmlInitializerPlugin({ initialHtml }: { initialHtml: string }) {
   useEffect(() => {
     if (!hasInitialized.current && initialHtml) {
       editor.update(() => {
-        const root = $getRoot();
-        root.clear();
-        const parser = new DOMParser();
-        const dom = parser.parseFromString(initialHtml, 'text/html');
-        const nodes = $generateNodesFromDOM(editor, dom);
-        root.append(...nodes);
+        try {
+          const root = $getRoot();
+          root.clear();
+          const parser = new DOMParser();
+          const dom = parser.parseFromString(initialHtml, 'text/html');
+          const nodes = $generateNodesFromDOM(editor, dom);
+          if (nodes && nodes.length > 0) {
+            root.append(...nodes);
+          }
+        } catch (err) {
+          console.error('Error parsing initial HTML in LexicalStudioEditor:', err);
+        }
       });
       hasInitialized.current = true;
     }
@@ -258,6 +268,8 @@ export function LexicalStudioEditor({
   const [showPill, setShowPill] = useState(false);
   const [pillPosition, setPillPosition] = useState<{ top: number; left: number } | null>(null);
 
+  const isFirstRunRef = useRef(true);
+
   const initialConfig: React.ComponentProps<typeof LexicalComposer>['initialConfig'] = {
     namespace: 'ContentStudioLexicalEditor',
     theme: {
@@ -273,6 +285,12 @@ export function LexicalStudioEditor({
         listitem: 'text-foreground',
       },
       quote: 'border-l-4 border-primary pl-4 italic my-4 text-muted-foreground',
+      table: 'w-full border-collapse my-4 border border-border text-xs sm:text-sm',
+      tableCell: 'border border-border p-2 text-foreground',
+      tableCellHeader: 'border border-border p-2 font-semibold bg-muted/50 text-foreground',
+      tableRow: 'border-b border-border',
+      link: 'text-primary underline cursor-pointer hover:text-primary/80',
+      code: 'bg-muted px-1.5 py-0.5 rounded font-mono text-xs text-foreground',
       text: {
         bold: 'font-bold',
         italic: 'italic',
@@ -280,9 +298,22 @@ export function LexicalStudioEditor({
         strikethrough: 'line-through',
       },
     },
-    nodes: [HeadingNode, QuoteNode, ListNode, ListItemNode],
-    onError: () => {
-      // Lexical internal error handler
+    nodes: [
+      HeadingNode,
+      QuoteNode,
+      ListNode,
+      ListItemNode,
+      TableNode,
+      TableCellNode,
+      TableRowNode,
+      LinkNode,
+      AutoLinkNode,
+      CodeNode,
+      CodeHighlightNode,
+      ImageNode,
+    ],
+    onError: (error) => {
+      console.warn('ContentStudioLexicalEditor handled internal error:', error);
     },
   };
 
@@ -384,10 +415,15 @@ export function LexicalStudioEditor({
     setIsMenuOpen(false);
   };
 
-  // Đồng bộ nội dung HTML ra bên ngoài khi có thay đổi
+  // Đồng bộ nội dung HTML ra bên ngoài khi có thay đổi (bỏ qua lần đầu mount)
   const handleEditorChange = useCallback(
     (editorState: EditorState, editor: LexicalEditor) => {
       editorRef.current = editor;
+
+      if (isFirstRunRef.current) {
+        isFirstRunRef.current = false;
+        return;
+      }
 
       editorState.read(() => {
         const html = $generateHtmlFromNodes(editor, null);

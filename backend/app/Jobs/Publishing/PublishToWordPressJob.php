@@ -255,6 +255,11 @@ class PublishToWordPressJob implements ShouldBeUnique, ShouldQueue
             ->whereNotNull('wordpress_media_url')
             ->get();
 
+        $totalInline = $inlineAssets->count();
+        preg_match_all('/<\/h2>/i', $content, $h2Matches);
+        $totalH2 = count($h2Matches[0] ?? []);
+        $usableH2 = ($totalH2 > $totalInline && $totalH2 > 3) ? ($totalH2 - 1) : max(1, $totalH2);
+
         foreach ($inlineAssets as $index => $asset) {
             if (str_contains($content, (string) $asset->wordpress_media_url)) {
                 continue;
@@ -269,7 +274,13 @@ class PublishToWordPressJob implements ShouldBeUnique, ShouldQueue
             }
 
             $figure .= '</figure>';
-            $content = $this->insertFigureAfterHeading($content, $figure, $index + 1);
+
+            $plannedH2Index = (int) data_get($asset->metadata, 'target_h2_index', 0);
+            if ($plannedH2Index <= 0) {
+                $plannedH2Index = (int) floor(($index * $usableH2) / max(1, $totalInline)) + 1;
+            }
+
+            $content = $this->insertFigureAfterHeading($content, $figure, $plannedH2Index);
         }
 
         // Embed FAQ Schema JSON-LD if FAQs exist and not already embedded
@@ -311,9 +322,21 @@ class PublishToWordPressJob implements ShouldBeUnique, ShouldQueue
             return $content."\n\n".$figure;
         }
 
-        $targetIndex = min($position - 1, count($matches[0]) - 1);
-        $offset = $matches[0][$targetIndex][1] + strlen($matches[0][$targetIndex][0]);
+        $targetIndex = max(0, min($position - 1, count($matches[0]) - 1));
+        $h2CloseOffset = $matches[0][$targetIndex][1] + strlen($matches[0][$targetIndex][0]);
 
-        return substr($content, 0, $offset)."\n\n".$figure.substr($content, $offset);
+        // Tìm vị trí đóng thẻ </p> đầu tiên bên trong mục H2 này (trước thẻ <h2 tiếp theo) để ảnh hiển thị tự nhiên sau đoạn dẫn nhập
+        $nextH2Start = isset($matches[0][$targetIndex + 1])
+            ? $matches[0][$targetIndex + 1][1]
+            : strlen($content);
+
+        $sectionSlice = substr($content, $h2CloseOffset, $nextH2Start - $h2CloseOffset);
+        if (preg_match('/<\/p>/i', $sectionSlice, $pMatch, PREG_OFFSET_CAPTURE)) {
+            $insertOffset = $h2CloseOffset + $pMatch[0][1] + strlen($pMatch[0][0]);
+
+            return substr($content, 0, $insertOffset)."\n\n".$figure.substr($content, $insertOffset);
+        }
+
+        return substr($content, 0, $h2CloseOffset)."\n\n".$figure.substr($content, $h2CloseOffset);
     }
 }

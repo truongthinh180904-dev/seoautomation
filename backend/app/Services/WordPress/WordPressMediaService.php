@@ -14,11 +14,20 @@ class WordPressMediaService
 
     public function upload(MediaAsset $asset, WordPressSite $site): MediaAsset
     {
-        if (! $asset->local_path || ! Storage::exists($asset->local_path)) {
+        $disk = null;
+        if ($asset->local_path && Storage::exists($asset->local_path)) {
+            $disk = 'default';
+        } elseif ($asset->local_path && Storage::disk('public')->exists($asset->local_path)) {
+            $disk = 'public';
+        }
+
+        if (! $asset->local_path || $disk === null) {
             throw new WordPressPublishException('Media asset local file is missing.');
         }
 
-        $contents = Storage::get($asset->local_path);
+        $contents = $disk === 'public'
+            ? Storage::disk('public')->get($asset->local_path)
+            : Storage::get($asset->local_path);
         $fileName = basename($asset->local_path);
         $apiUrl = rtrim($site->api_url, '/');
 

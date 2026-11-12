@@ -90,11 +90,12 @@ class DatabaseSeeder extends Seeder
             $admin->save();
         }
 
-        // 7. Seed Plans & Prompts
+        // 7. Seed Plans & Prompts & Demo Data
         $this->call([
             PlanSeeder::class,
             SubscriptionPlanSeeder::class,
             AIPromptSeeder::class,
+            DemoDataSeeder::class,
         ]);
     }
 }

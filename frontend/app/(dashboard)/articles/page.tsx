@@ -3,8 +3,9 @@
 import { Suspense, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import ArticleTable from '@/components/features/articles/ArticleTable';
+import { ContentGenerationModal } from '@/components/features/articles/ContentGenerationModal';
 import { useArticles } from '@/hooks/useArticles';
-import { Search, Filter, Loader2, Sparkles } from 'lucide-react';
+import { Search, Filter, Loader2, Sparkles, Plus } from 'lucide-react';
 import Link from 'next/link';
 
 function ArticlesPageContent() {
@@ -14,8 +15,9 @@ function ArticlesPageContent() {
   const [status, setStatus] = useState('');
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [isGenerateModalOpen, setIsGenerateModalOpen] = useState(false);
 
-  const { data, isLoading } = useArticles({
+  const { data, isLoading, refetch } = useArticles({
     page,
     status,
     search: debouncedSearch,
@@ -27,15 +29,31 @@ function ArticlesPageContent() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Bài viết AI</h1>
-          <p className="text-slate-500 mt-1">Theo dõi tiến độ, chi phí và chất lượng SEO</p>
+          <p className="text-slate-500 mt-1">Theo dõi tiến độ, chi phí và chất lượng SEO đa ngành</p>
         </div>
-        <Link href="/keywords">
-          <button className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-medium transition-all shadow-sm active:scale-95 cursor-pointer">
-            <Sparkles className="w-4 h-4" />
-            Tạo bài viết từ Keywords
+        <div className="flex flex-wrap items-center gap-2.5">
+          <button
+            type="button"
+            onClick={() => setIsGenerateModalOpen(true)}
+            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-medium transition-all shadow-sm active:scale-95 cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            Tạo Bài Viết Chuyên Sâu
           </button>
-        </Link>
+          <Link href="/keywords">
+            <button className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-medium transition-all shadow-sm active:scale-95 cursor-pointer">
+              <Sparkles className="w-4 h-4 text-blue-600" />
+              Từ Keywords
+            </button>
+          </Link>
+        </div>
       </div>
+
+      <ContentGenerationModal
+        open={isGenerateModalOpen}
+        onOpenChange={setIsGenerateModalOpen}
+        onSuccess={() => refetch()}
+      />
 
       <div className="bg-white p-3 rounded-2xl shadow-sm border border-slate-200 flex flex-col sm:flex-row gap-3 items-center">
         <div className="relative flex-1 w-full">

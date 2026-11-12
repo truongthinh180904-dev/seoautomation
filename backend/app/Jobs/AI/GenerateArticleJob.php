@@ -11,9 +11,12 @@ use App\Models\Article;
 use App\Models\CompetitorAnalysis;
 use App\Models\Keyword;
 use App\Models\Task;
+use App\Models\Website;
 use App\Services\Article\ArticleContentFormatter;
 use App\Services\Article\ArticlePipelineService;
+use App\Services\Article\ContentStrategyService;
 use App\Services\Billing\CreditLedgerService;
+use App\Services\Brand\BrandKnowledgeService;
 use App\Services\Cost\CostTrackingService;
 use App\Services\Queue\TaskService;
 use App\Traits\BelongsToTenant;
@@ -131,19 +134,58 @@ class GenerateArticleJob implements ShouldBeUnique, ShouldQueue
                 }
             }
 
+            // Kết hợp dữ liệu từ 5-Step Strategy Analysis & Brand Knowledge
+            $brief = (array) (data_get($article->pipeline_status, 'content_brief')
+                ?? data_get($article->outline, 'content_brief')
+                ?? []);
+            $brandKnowledgeId = isset($brief['brand_knowledge_id']) ? (int) $brief['brand_knowledge_id'] : null;
+            $website = $article->website ?: Website::find($article->website_id);
+
+            $brandKnowledgeService = app(BrandKnowledgeService::class);
+            $strategyService = app(ContentStrategyService::class);
+
+            $brandContext = $website
+                ? $brandKnowledgeService->buildPromptContext($website, $brandKnowledgeId)
+                : '';
+
+            $strategyAnalysis = (array) (data_get($article->outline, 'strategy_analysis') ?? []);
+            if (empty($strategyAnalysis) && $website) {
+                $strategyAnalysis = $strategyService->analyzeBeforeWriting($website, $keyword, $brief);
+            }
+            $strategyBlock = ! empty($strategyAnalysis)
+                ? $strategyService->buildStrategyPromptBlock($strategyAnalysis)
+                : '';
+
+            $strategySemantic = (array) data_get($strategyAnalysis, 'step_2_keyword_analysis.semantic_keywords', []);
+            $strategySecondary = (array) data_get($strategyAnalysis, 'step_2_keyword_analysis.secondary_keywords', []);
+            $strategyEntities = (array) data_get($strategyAnalysis, 'step_2_keyword_analysis.related_entities', []);
+            $outlineFaqs = (array) data_get($article->outline, 'faqs', []);
+
+            $semanticKeywords = array_values(array_unique(array_merge($semanticKeywords, $strategySecondary, $strategySemantic)));
+            $entities = array_values(array_unique(array_merge($entities, $strategyEntities)));
+            $faqs = ! empty($outlineFaqs) ? $outlineFaqs : $faqs;
+
+            $resolvedTargetWordCount = (int) (
+                data_get($strategyAnalysis, 'step_4_content_strategy.target_word_count')
+                ?: ($keyword->target_word_count ?: 1800)
+            );
+            $specialRequirements = (string) ($brief['special_requirements'] ?? $keyword->brief_notes ?? '');
+
             $context = [
                 'keyword' => $keyword->keyword,
                 'outline' => $article->outline,
-                'semantic_keywords' => array_unique($semanticKeywords),
-                'entities' => array_unique($entities),
+                'semantic_keywords' => $semanticKeywords,
+                'entities' => $entities,
                 'faqs' => $faqs,
                 'competitor_data' => $competitorAnalyses->toArray(),
+                'brand_context' => $brandContext,
+                'strategy_block' => $strategyBlock,
                 'article_id' => $this->articleId,
                 'keyword_id' => $this->keywordId,
                 'tenant_id' => $article->tenant_id,
                 'workspace_id' => $article->workspace_id,
-                'target_word_count' => $keyword->target_word_count ?: 3000,
-                'brief_notes' => $keyword->brief_notes,
+                'target_word_count' => $resolvedTargetWordCount,
+                'brief_notes' => $specialRequirements,
                 'must_include_points' => $keyword->must_include_points ?? [],
                 'avoid_topics' => $keyword->avoid_topics ?? [],
             ];
@@ -156,7 +198,20 @@ class GenerateArticleJob implements ShouldBeUnique, ShouldQueue
 
             $data = $result->data;
             $content = $formatter->normalize($data['content'], $data['title']);
-            [$content, $internalLinks] = $formatter->insertInternalLinks($content, $keyword->meta['internal_links'] ?? null);
+            $rawInternalLinks = $keyword->meta['internal_links'] ?? null;
+            if (empty($rawInternalLinks)) {
+                $opps = (array) data_get($strategyAnalysis, 'step_4_content_strategy.internal_link_opportunities', []);
+                if (! empty($opps)) {
+                    $pairs = [];
+                    foreach ($opps as $opp) {
+                        if (! empty($opp['anchor']) && ! empty($opp['url'])) {
+                            $pairs[] = $opp['anchor'].'|'.$opp['url'];
+                        }
+                    }
+                    $rawInternalLinks = implode(', ', $pairs);
+                }
+            }
+            [$content, $internalLinks] = $formatter->insertInternalLinks($content, $rawInternalLinks);
 
             $article->update([
                 'title' => $data['title'],

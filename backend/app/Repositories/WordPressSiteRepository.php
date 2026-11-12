@@ -16,16 +16,40 @@ class WordPressSiteRepository implements WordPressSiteRepositoryInterface
 
     public function paginateForTenant(int $tenantId, int $perPage = 20): LengthAwarePaginator
     {
-        return WordPressSite::where('tenant_id', $tenantId)
-            ->latest()
-            ->paginate($perPage);
+        $query = WordPressSite::query();
+
+        if (app()->bound('current_workspace_id')) {
+            $workspaceId = app('current_workspace_id');
+            $query->where(function ($q) use ($tenantId, $workspaceId) {
+                $q->where('workspace_id', $workspaceId)
+                    ->orWhere(function ($sub) use ($tenantId) {
+                        $sub->whereNull('workspace_id')->where('tenant_id', $tenantId);
+                    });
+            });
+        } else {
+            $query->where('tenant_id', $tenantId);
+        }
+
+        return $query->latest()->paginate($perPage);
     }
 
     public function findActiveForTenant(int $tenantId): Collection
     {
-        return WordPressSite::where('tenant_id', $tenantId)
-            ->where('is_active', true)
-            ->get();
+        $query = WordPressSite::query()->where('is_active', true);
+
+        if (app()->bound('current_workspace_id')) {
+            $workspaceId = app('current_workspace_id');
+            $query->where(function ($q) use ($tenantId, $workspaceId) {
+                $q->where('workspace_id', $workspaceId)
+                    ->orWhere(function ($sub) use ($tenantId) {
+                        $sub->whereNull('workspace_id')->where('tenant_id', $tenantId);
+                    });
+            });
+        } else {
+            $query->where('tenant_id', $tenantId);
+        }
+
+        return $query->get();
     }
 
     public function findByIdForTenant(int $id, int $tenantId): ?WordPressSite

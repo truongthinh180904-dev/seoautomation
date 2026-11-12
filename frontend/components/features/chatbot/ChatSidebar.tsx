@@ -157,17 +157,12 @@ export function ChatSidebar({
         {/* Workspace Selector */}
         <div className="flex items-center justify-between">
           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                type="button"
-                className="flex items-center gap-2 rounded-lg border border-border/80 bg-background/80 px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-muted/60 transition-colors w-full justify-between shadow-2xs"
-              >
-                <div className="flex items-center gap-2 truncate">
-                  <Building2 className="h-3.5 w-3.5 text-purple-600 shrink-0" />
-                  <span className="truncate">{activeWorkspace.name}</span>
-                </div>
-                <ChevronDown className="h-3 w-3 text-muted-foreground shrink-0" />
-              </button>
+            <DropdownMenuTrigger className="flex items-center gap-2 rounded-lg border border-border/80 bg-background/80 px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-muted/60 transition-colors w-full justify-between shadow-2xs cursor-pointer">
+              <div className="flex items-center gap-2 truncate">
+                <Building2 className="h-3.5 w-3.5 text-purple-600 shrink-0" />
+                <span className="truncate">{activeWorkspace.name}</span>
+              </div>
+              <ChevronDown className="h-3 w-3 text-muted-foreground shrink-0" />
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-56" align="start">
               <DropdownMenuLabel className="text-xs">Chuyển Workspace</DropdownMenuLabel>
@@ -197,19 +192,14 @@ export function ChatSidebar({
         {/* Website Selector */}
         <div className="flex items-center justify-between">
           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                type="button"
-                className="flex items-center gap-2 rounded-lg border border-border/80 bg-background/80 px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-muted/60 transition-colors w-full justify-between shadow-2xs"
-              >
-                <div className="flex items-center gap-2 truncate">
-                  <Globe className="h-3.5 w-3.5 text-blue-600 shrink-0" />
-                  <span className="truncate">
-                    {activeWebsite ? activeWebsite.name : 'Chưa kết nối Website'}
-                  </span>
-                </div>
-                <ChevronDown className="h-3 w-3 text-muted-foreground shrink-0" />
-              </button>
+            <DropdownMenuTrigger className="flex items-center gap-2 rounded-lg border border-border/80 bg-background/80 px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-muted/60 transition-colors w-full justify-between shadow-2xs cursor-pointer">
+              <div className="flex items-center gap-2 truncate">
+                <Globe className="h-3.5 w-3.5 text-blue-600 shrink-0" />
+                <span className="truncate">
+                  {activeWebsite ? activeWebsite.name : 'Chưa kết nối Website'}
+                </span>
+              </div>
+              <ChevronDown className="h-3 w-3 text-muted-foreground shrink-0" />
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-64" align="start">
               <DropdownMenuLabel className="text-xs">
@@ -290,11 +280,12 @@ export function ChatSidebar({
               <span>Đã Ghim ({pinnedConversations.length})</span>
             </div>
             {pinnedConversations.map((conv) => {
-              const isActive = conv.id === activeConversationId;
+              const isActive =
+                conv.id === activeConversationId || conv.uuid === activeConversationId;
               return (
                 <div
-                  key={conv.id}
-                  onClick={() => onSelectConversation(conv.id)}
+                  key={conv.uuid || conv.id}
+                  onClick={() => onSelectConversation(conv.uuid || conv.id)}
                   className={cn(
                     'group relative flex cursor-pointer items-center justify-between rounded-lg px-2.5 py-2 text-xs transition-colors',
                     isActive
@@ -371,11 +362,12 @@ export function ChatSidebar({
             </div>
           ) : (
             unpinnedConversations.map((conv) => {
-              const isActive = conv.id === activeConversationId;
+              const isActive =
+                conv.id === activeConversationId || conv.uuid === activeConversationId;
               return (
                 <div
-                  key={conv.id}
-                  onClick={() => onSelectConversation(conv.id)}
+                  key={conv.uuid || conv.id}
+                  onClick={() => onSelectConversation(conv.uuid || conv.id)}
                   className={cn(
                     'group relative flex cursor-pointer items-center justify-between rounded-lg px-2.5 py-2 text-xs transition-colors',
                     isActive
@@ -412,7 +404,7 @@ export function ChatSidebar({
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        onTogglePin(conv.id);
+                        onTogglePin(conv.uuid || conv.id);
                       }}
                       className={cn(
                         'p-1 rounded-md hover:bg-black/10',
@@ -426,7 +418,7 @@ export function ChatSidebar({
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        onDeleteConversation(conv.id);
+                        onDeleteConversation(conv.uuid || conv.id);
                       }}
                       className={cn(
                         'p-1 rounded-md hover:bg-destructive/20 hover:text-destructive',
@@ -445,13 +437,13 @@ export function ChatSidebar({
       </div>
 
       {/* Footer Model info */}
-      <div className="border-t border-border p-3 text-[11px] text-muted-foreground bg-muted/20 flex items-center justify-between">
+      <div className="border-t border-sky-100 p-3 text-[11px] text-slate-500 bg-sky-50/40 flex items-center justify-between">
         <div className="flex items-center gap-1.5">
-          <Sparkles className="h-3.5 w-3.5 text-purple-600" />
-          <span className="font-semibold text-foreground">Aura Assistant v2.5</span>
+          <Sparkles className="h-3.5 w-3.5 text-sky-600" />
+          <span className="font-bold text-slate-700">Aura Assistant v3.1</span>
         </div>
-        <Badge variant="outline" className="text-[9px] py-0 px-1.5 h-4 border-purple-300 text-purple-700 bg-purple-50">
-          Gemini Flash
+        <Badge variant="outline" className="text-[9px] py-0 px-1.5 h-4 border-sky-200 text-sky-700 bg-sky-50 font-semibold">
+          Gemini 3.1 Pro
         </Badge>
       </div>
     </aside>

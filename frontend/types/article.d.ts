@@ -41,6 +41,7 @@ interface Article {
     auto_fixable?: string[];
   } | null;
   ai_cost_usd: number;
+  wordpress_site_id?: number | null;
   wordpress_site: {
     id: number;
     name: string;
@@ -79,6 +80,7 @@ interface ArticleUpdatePayload {
   seo_title?: string;
   seo_description?: string;
   status?: Article['status'];
+  wordpress_site_id?: number | null;
   media_plan?: Record<string, unknown> | null;
   internal_links?: unknown[] | null;
 }

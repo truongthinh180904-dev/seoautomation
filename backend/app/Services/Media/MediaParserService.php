@@ -83,11 +83,12 @@ class MediaParserService
         $plan = $article->media_plan ?? [];
         $created = 0;
 
-        if (! empty($plan['featured_image_url'])) {
+        $featuredUrl = $plan['featured_image_url'] ?? $article->featured_image_url;
+        if (! empty($featuredUrl)) {
             $created += $this->createAsset(
                 tenantId: $article->tenant_id,
                 campaignId: $article->campaign_id,
-                sourceUrl: $plan['featured_image_url'],
+                sourceUrl: $featuredUrl,
                 altText: $article->focus_keyword ?: $article->title,
                 metadata: ['role' => 'featured', 'keyword' => $article->focus_keyword],
                 articleId: $article->id,
@@ -106,6 +107,40 @@ class MediaParserService
                 articleId: $article->id,
                 workspaceId: $article->workspace_id
             );
+        }
+
+        // Bóc tách toàn bộ ảnh chèn trong trình soạn thảo (Gutenberg Lexical editor) từ mã HTML
+        if (! empty($article->content)) {
+            preg_match_all('/<img[^>]+src=["\']([^"\']+)["\'][^>]*>/i', $article->content, $matches, PREG_SET_ORDER);
+            foreach ($matches as $match) {
+                $imgTag = $match[0];
+                $src = $match[1];
+
+                if (! filter_var($src, FILTER_VALIDATE_URL)) {
+                    continue;
+                }
+
+                // Không xử lý lại nếu trùng ảnh đại diện
+                if (! empty($featuredUrl) && $src === $featuredUrl) {
+                    continue;
+                }
+
+                $alt = null;
+                if (preg_match('/alt=["\']([^"\']*)["\']/i', $imgTag, $altMatch)) {
+                    $alt = $altMatch[1];
+                }
+
+                $created += $this->createAsset(
+                    tenantId: $article->tenant_id,
+                    campaignId: $article->campaign_id,
+                    sourceUrl: $src,
+                    altText: $alt ?: ($article->focus_keyword ?: $article->title),
+                    caption: null,
+                    metadata: ['role' => 'inline', 'keyword' => $article->focus_keyword],
+                    articleId: $article->id,
+                    workspaceId: $article->workspace_id
+                );
+            }
         }
 
         return $created;

@@ -4,8 +4,13 @@ import Providers from "./providers";
 import { Toaster } from "@/components/ui/sonner";
 
 export const metadata: Metadata = {
-  title: "AI SEO Automation",
-  description: "AI-powered SEO Automation Platform",
+  title: "AuraSEO - AI Content & SEO Suite",
+  description: "Nền tảng Tự động hóa Nội dung & Chiến dịch SEO Thông minh",
+  icons: {
+    icon: "/logo.png",
+    shortcut: "/logo.png",
+    apple: "/logo.png",
+  },
 };
 
 export default function RootLayout({
