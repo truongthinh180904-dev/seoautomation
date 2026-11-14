@@ -26,7 +26,7 @@ abstract class BaseAgent implements AgentInterface
 
         try {
             $result = $this->run($context);
-            
+
             if ($result->success) {
                 $latencyMs = (int) round((microtime(true) - $startTime) * 1000);
                 // Update latency if it was not set by the AI provider explicitly
@@ -34,11 +34,11 @@ abstract class BaseAgent implements AgentInterface
                     $result->latencyMs = $latencyMs;
                 }
             }
-            
+
             return $result;
         } catch (Throwable $e) {
             $error = $e->getMessage();
-            
+
             if (isset($context['article_id']) || isset($context['keyword_id'])) {
                 AILog::create([
                     'tenant_id' => $context['tenant_id'] ?? null,
@@ -48,7 +48,7 @@ abstract class BaseAgent implements AgentInterface
                     'provider' => 'system',
                     'model' => 'none',
                     'status' => 'failed',
-                    'error_message' => "Agent Execution Error: " . $error,
+                    'error_message' => 'Agent Execution Error: '.$error,
                     'prompt_tokens' => 0,
                     'completion_tokens' => 0,
                     'total_tokens' => 0,

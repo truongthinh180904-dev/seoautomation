@@ -1,4 +1,8 @@
 # AI Coding Workflow
+{
+  "email": "test1@example.com",
+  "password": "TestPassword123!"
+}
 
 ## Workflow Rules
 

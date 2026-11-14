@@ -18,6 +18,7 @@ class SendNotificationJob implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public int $tries = 3;
+
     public array $backoff = [30, 60, 120];
 
     public function __construct(public int $notificationId)
@@ -28,7 +29,7 @@ class SendNotificationJob implements ShouldQueue
     public function handle(): void
     {
         $notification = Notification::find($this->notificationId);
-        if (!$notification) {
+        if (! $notification) {
             return;
         }
 
@@ -48,12 +49,12 @@ class SendNotificationJob implements ShouldQueue
 
     protected function sendEmail(Notification $notification): void
     {
-        if (!config('notifications.email_enabled', true)) {
+        if (! config('notifications.email_enabled', true)) {
             return;
         }
 
         $user = $notification->user ?: User::where('tenant_id', $notification->tenant_id)->orderBy('id')->first();
-        if (!$user?->email) {
+        if (! $user?->email) {
             return;
         }
 
@@ -64,13 +65,13 @@ class SendNotificationJob implements ShouldQueue
 
     protected function sendTelegram(Notification $notification): void
     {
-        if (!config('notifications.telegram_enabled')) {
+        if (! config('notifications.telegram_enabled')) {
             return;
         }
 
-        Http::post('https://api.telegram.org/bot' . config('notifications.telegram_bot_token') . '/sendMessage', [
+        Http::post('https://api.telegram.org/bot'.config('notifications.telegram_bot_token').'/sendMessage', [
             'chat_id' => config('notifications.telegram_chat_id'),
-            'text' => trim(($notification->subject ?? '') . "\n\n" . ($notification->message ?? '')),
+            'text' => trim(($notification->subject ?? '')."\n\n".($notification->message ?? '')),
             'parse_mode' => 'Markdown',
         ]);
     }

@@ -18,15 +18,15 @@ class QAValidationAgent extends BaseAgent
         $articleData = $context['article_data'] ?? [];
         $tenantId = $context['tenant_id'] ?? null;
 
-        if (empty($articleData) || !$tenantId) {
-            throw new \InvalidArgumentException("Missing required context fields.");
+        if (empty($articleData) || ! $tenantId) {
+            throw new \InvalidArgumentException('Missing required context fields.');
         }
 
         $promptData = $this->promptBuilderService->build($this->getType(), [
             'article_data' => json_encode($articleData, JSON_UNESCAPED_UNICODE),
         ], $tenantId);
 
-        $systemPrompt = $promptData['system_prompt'] . "\n\nYou MUST return the response ONLY as a JSON object with this exact structure: {\"passed\": boolean, \"score\": number, \"checks\": [{\"name\": \"string\", \"passed\": boolean, \"message\": \"string\"}]}. Do not include markdown formatting.";
+        $systemPrompt = $promptData['system_prompt']."\n\nYou MUST return the response ONLY as a JSON object with this exact structure: {\"passed\": boolean, \"score\": number, \"checks\": [{\"name\": \"string\", \"passed\": boolean, \"message\": \"string\"}]}. Do not include markdown formatting.";
 
         $request = new AIRequestDTO(
             systemPrompt: $systemPrompt,
@@ -44,7 +44,7 @@ class QAValidationAgent extends BaseAgent
         $parsed = json_decode($content, true);
 
         if (json_last_error() !== JSON_ERROR_NONE) {
-            return AgentResultDTO::failure($this->getType(), "Failed to parse JSON QA report: " . json_last_error_msg());
+            return AgentResultDTO::failure($this->getType(), 'Failed to parse JSON QA report: '.json_last_error_msg());
         }
 
         return AgentResultDTO::success(
@@ -69,6 +69,7 @@ class QAValidationAgent extends BaseAgent
         if (str_ends_with($content, '```')) {
             $content = substr($content, 0, -3);
         }
+
         return trim($content);
     }
 }

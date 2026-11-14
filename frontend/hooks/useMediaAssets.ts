@@ -6,6 +6,7 @@ type MediaFilters = {
   article_id?: number;
   status?: string;
   page?: number;
+  per_page?: number;
 };
 
 export function useMediaAssets(filters: MediaFilters = {}) {
@@ -31,6 +32,16 @@ export function useMediaAssetActions() {
     uploadToWordPress: useMutation({
       mutationFn: ({ id, wordpressSiteId }: { id: number; wordpressSiteId: number }) =>
         apiClient.post(`/media-assets/${id}/upload-wordpress`, { wordpress_site_id: wordpressSiteId }),
+      onSuccess: () => queryClient.invalidateQueries({ queryKey: ['media-assets'] }),
+    }),
+    createAsset: useMutation({
+      mutationFn: (payload: Partial<MediaAsset> & { metadata?: Record<string, unknown> | null }) =>
+        apiClient.post('/media-assets', payload),
+      onSuccess: () => queryClient.invalidateQueries({ queryKey: ['media-assets'] }),
+    }),
+    updateAsset: useMutation({
+      mutationFn: ({ id, data }: { id: number; data: Partial<MediaAsset> }) =>
+        apiClient.put(`/media-assets/${id}`, data),
       onSuccess: () => queryClient.invalidateQueries({ queryKey: ['media-assets'] }),
     }),
   };

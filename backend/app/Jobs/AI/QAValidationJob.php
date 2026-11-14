@@ -4,6 +4,7 @@ namespace App\Jobs\AI;
 
 use App\Agents\QAValidationAgent;
 use App\Models\Article;
+use App\Services\Article\ArticlePipelineService;
 use App\Services\SEO\ArticleQualityReportService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -11,12 +12,14 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class QAValidationJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public $tries = 2;
+
     public $backoff = [60, 180];
 
     public function __construct(public int $articleId)
@@ -24,20 +27,25 @@ class QAValidationJob implements ShouldQueue
         $this->onQueue('ai-writing');
     }
 
-    public function handle(QAValidationAgent $agent, ArticleQualityReportService $qualityReportService): void
-    {
+    public function handle(
+        QAValidationAgent $agent,
+        ArticleQualityReportService $qualityReportService,
+        ArticlePipelineService $pipeline
+    ): void {
         $article = Article::with('keyword')->find($this->articleId);
 
-        if (!$article) {
+        if (! $article) {
             return;
         }
+
+        $pipeline->start($article, 'quality_check', 'AI đang kiểm tra chất lượng bài viết.');
 
         $keyword = $article->keyword->keyword ?? '';
         $wordCount = $article->word_count ?? 0;
         $density = 0;
-        
+
         $content = mb_strtolower(strip_tags($article->content ?? ''));
-        if (!empty($keyword) && $wordCount > 0) {
+        if (! empty($keyword) && $wordCount > 0) {
             $keywordCount = substr_count($content, mb_strtolower($keyword));
             $density = ($keywordCount / $wordCount) * 100;
         }
@@ -50,8 +58,8 @@ class QAValidationJob implements ShouldQueue
             'seo_description_length' => mb_strlen($article->seo_description ?? ''),
             'word_count' => $wordCount,
             'keyword_density_percentage' => round($density, 2),
-            'has_faqs' => !empty($article->faqs),
-            'content_excerpt' => mb_substr($content, 0, 1000) . '...',
+            'has_faqs' => ! empty($article->faqs),
+            'content_excerpt' => mb_substr($content, 0, 1000).'...',
         ];
 
         $context = [
@@ -66,7 +74,7 @@ class QAValidationJob implements ShouldQueue
         if ($result->success) {
             $data = $result->data;
             $report = $data['qa_report'] ?? [];
-            
+
             if (isset($data['score']) && is_numeric($data['score'])) {
                 // Combine algorithmic score with AI score (average or override)
                 // We use AI override here
@@ -75,10 +83,19 @@ class QAValidationJob implements ShouldQueue
             }
 
             $qualityReportService->generate($article->fresh(['keyword', 'wordpressSite']));
+            $pipeline->complete($article->fresh(), 'quality_check', 'Đã kiểm tra chất lượng bài viết.');
 
-            Log::info("QA Validation Report for Article {$article->id}: " . json_encode($report));
+            Log::info("QA Validation Report for Article {$article->id}: ".json_encode($report));
         } else {
-            Log::warning("QA Validation Agent failed for Article {$article->id}: " . $result->error);
+            $pipeline->fail($article, 'quality_check', $result->error ?? 'QA Validation Agent failed.');
+            Log::warning("QA Validation Agent failed for Article {$article->id}: ".$result->error);
+        }
+    }
+
+    public function failed(Throwable $exception): void
+    {
+        if ($article = Article::find($this->articleId)) {
+            app(ArticlePipelineService::class)->fail($article, 'quality_check', $exception->getMessage());
         }
     }
 }

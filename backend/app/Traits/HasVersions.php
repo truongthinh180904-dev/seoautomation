@@ -12,7 +12,7 @@ trait HasVersions
     public function createVersion(array $data, User $changedBy, string $reason): ArticleVersion
     {
         $versionNumber = $this->versionCount() + 1;
-        
+
         return $this->versions()->create(array_merge($data, [
             'tenant_id' => $this->tenant_id,
             'version_number' => $versionNumber,

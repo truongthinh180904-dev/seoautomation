@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Models\Workspace;
 use App\Services\Analytics\AnalyticsService;
 use App\Services\Cost\CostTrackingService;
 use Illuminate\Http\JsonResponse;
@@ -15,13 +16,70 @@ class AnalyticsController extends Controller
         protected CostTrackingService $costTracking
     ) {}
 
+    protected function resolveWorkspaceId(Request $request): ?int
+    {
+        $workspace = $request->attributes->get('current_workspace');
+        if ($workspace instanceof Workspace) {
+            return $workspace->id;
+        }
+
+        $user = $request->user();
+        if (! $user) {
+            return null;
+        }
+
+        $rawId = $request->header('X-Workspace-Id')
+            ?: $request->query('workspace_id')
+            ?: $user->default_workspace_id;
+
+        if ($rawId) {
+            $workspaceId = (int) $rawId;
+            if ($this->isSuperAdmin($request)) {
+                return $workspaceId;
+            }
+
+            $isMember = $user->workspaces()
+                ->where('workspaces.id', $workspaceId)
+                ->wherePivot('is_active', true)
+                ->exists();
+
+            if ($isMember) {
+                return $workspaceId;
+            }
+        }
+
+        $fallback = $user->workspaces()->wherePivot('is_active', true)->first();
+
+        return $fallback ? $fallback->id : null;
+    }
+
+    protected function isSuperAdmin(Request $request): bool
+    {
+        $user = $request->user();
+        if (! $user) {
+            return false;
+        }
+
+        return (bool) ($user->is_platform_admin ?? false) ||
+            ($user->role?->value === 'super_admin' || $user->role === 'super_admin');
+    }
+
     /**
-     * Article counts per status + word count / SEO score averages.
+     * Article counts per status + word count / SEO score averages + credit ledger and website costs.
      */
     public function summary(Request $request): JsonResponse
     {
+        $days = max(1, min((int) $request->input('days', 30), 90));
+
+        if ($request->query('scope') === 'platform' && $this->isSuperAdmin($request)) {
+            return response()->json($this->analytics->platformOverview($days));
+        }
+
+        $tenantId = (int) ($request->user()?->tenant_id ?? 0);
+        $workspaceId = $this->resolveWorkspaceId($request);
+
         return response()->json(
-            $this->analytics->summary($request->user()->tenant_id)
+            $this->analytics->summary($tenantId, $workspaceId, $days)
         );
     }
 
@@ -30,10 +88,12 @@ class AnalyticsController extends Controller
      */
     public function aiCosts(Request $request): JsonResponse
     {
-        $days = min((int) $request->input('days', 30), 90);
+        $days = max(1, min((int) $request->input('days', 30), 90));
+        $tenantId = (int) ($request->user()?->tenant_id ?? 0);
+        $workspaceId = $this->resolveWorkspaceId($request);
 
         return response()->json(
-            $this->analytics->aiCosts($request->user()->tenant_id, $days)
+            $this->analytics->aiCosts($tenantId, $days, $workspaceId)
         );
     }
 
@@ -42,10 +102,12 @@ class AnalyticsController extends Controller
      */
     public function keywordsDaily(Request $request): JsonResponse
     {
-        $days = min((int) $request->input('days', 30), 90);
+        $days = max(1, min((int) $request->input('days', 30), 90));
+        $tenantId = (int) ($request->user()?->tenant_id ?? 0);
+        $workspaceId = $this->resolveWorkspaceId($request);
 
         return response()->json(
-            $this->analytics->keywordsDaily($request->user()->tenant_id, $days)
+            $this->analytics->keywordsDaily($tenantId, $days, $workspaceId)
         );
     }
 
@@ -54,17 +116,21 @@ class AnalyticsController extends Controller
      */
     public function failingAgents(Request $request): JsonResponse
     {
-        $days = min((int) $request->input('days', 30), 90);
+        $days = max(1, min((int) $request->input('days', 30), 90));
+        $tenantId = (int) ($request->user()?->tenant_id ?? 0);
+        $workspaceId = $this->resolveWorkspaceId($request);
 
         return response()->json(
-            $this->analytics->failingAgents($request->user()->tenant_id, $days)
+            $this->analytics->failingAgents($tenantId, $days, $workspaceId)
         );
     }
 
     public function usage(Request $request): JsonResponse
     {
+        $tenantId = (int) ($request->user()?->tenant_id ?? 0);
+
         return response()->json(
-            $this->costTracking->getMonthlyUsage($request->user()->tenant_id)
+            $this->costTracking->getMonthlyUsage($tenantId)
         );
     }
 }

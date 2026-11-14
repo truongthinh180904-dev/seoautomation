@@ -4,11 +4,13 @@ namespace App\Services\WordPress;
 
 use App\Models\WordPressSite;
 use App\Repositories\Contracts\WordPressSiteRepositoryInterface;
-use Illuminate\Support\Facades\Http;
+use App\Services\WordPress\Concerns\ConfiguresWordPressHttp;
 use Exception;
 
 class WordPressSiteService
 {
+    use ConfiguresWordPressHttp;
+
     public function __construct(
         protected WordPressSiteRepositoryInterface $repository
     ) {}
@@ -16,34 +18,38 @@ class WordPressSiteService
     public function testConnection(int $id): array
     {
         $site = $this->repository->findById($id);
-        if (!$site) {
+        if (! $site) {
             return ['success' => false, 'message' => 'Site not found'];
         }
 
         try {
-            $response = Http::withBasicAuth($site->username, $site->app_password)
+            $response = $this->wordpressHttp()
+                ->withBasicAuth($site->username, $site->app_password)
                 ->timeout(10)
                 ->get($this->usersMeEndpoint($site));
 
             if ($response->successful()) {
                 $this->repository->updateConnectionStatus($site->id, 'connected');
+
                 return ['success' => true, 'message' => 'Connection successful'];
             }
 
             $this->repository->updateConnectionStatus($site->id, 'error');
+
             return [
-                'success' => false, 
-                'message' => 'Connection failed: ' . $response->status()
+                'success' => false,
+                'message' => 'Connection failed: '.$response->status(),
             ];
 
         } catch (Exception $e) {
             $this->repository->updateConnectionStatus($site->id, 'error');
-            return ['success' => false, 'message' => 'Error: ' . $e->getMessage()];
+
+            return ['success' => false, 'message' => 'Error: '.$e->getMessage()];
         }
     }
 
     protected function usersMeEndpoint(WordPressSite $site): string
     {
-        return rtrim($site->api_url ?: rtrim($site->url, '/') . '/wp-json', '/') . '/wp/v2/users/me';
+        return rtrim($site->api_url ?: rtrim($site->url, '/').'/wp-json', '/').'/wp/v2/users/me';
     }
 }

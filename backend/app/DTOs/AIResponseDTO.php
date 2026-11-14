@@ -21,11 +21,14 @@ class AIResponseDTO extends Data
     public function totalCostUsd(): float
     {
         $model = strtolower($this->model);
-        
+
         $inputPricePerM = 0;
         $outputPricePerM = 0;
 
-        if (str_contains($model, 'gpt-4o')) {
+        if (str_contains($model, 'gpt-4o-mini')) {
+            $inputPricePerM = 0.15;
+            $outputPricePerM = 0.60;
+        } elseif (str_contains($model, 'gpt-4o')) {
             $inputPricePerM = 5.0;
             $outputPricePerM = 15.0;
         } elseif (str_contains($model, 'claude-3-5-sonnet')) {
@@ -40,14 +43,18 @@ class AIResponseDTO extends Data
         } elseif (str_contains($model, 'gemini-1.5-pro')) {
             $inputPricePerM = 1.25;
             $outputPricePerM = 5.0;
+        } elseif (str_contains($model, 'deepseek-chat')) {
+            $inputPricePerM = 0.14;
+            $outputPricePerM = 0.28;
         } else {
-            $inputPricePerM = 1.0;
-            $outputPricePerM = 2.0;
+            $fallback = config('ai_costs.fallback_model_rate', ['input' => 1.0, 'output' => 2.0]);
+            $inputPricePerM = (float) ($fallback['input'] ?? 1.0);
+            $outputPricePerM = (float) ($fallback['output'] ?? 2.0);
         }
 
         $inputCost = ($this->promptTokens / 1000000) * $inputPricePerM;
         $outputCost = ($this->completionTokens / 1000000) * $outputPricePerM;
 
-        return $inputCost + $outputCost;
+        return round($inputCost + $outputCost, 8);
     }
 }

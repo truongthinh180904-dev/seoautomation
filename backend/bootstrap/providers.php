@@ -1,10 +1,17 @@
 <?php
 
+use App\Providers\AIServiceProvider;
+use App\Providers\AppServiceProvider;
+use App\Providers\EventServiceProvider;
+use App\Providers\HorizonServiceProvider;
+use App\Providers\RepositoryServiceProvider;
+use App\Providers\RouteServiceProvider;
+
 return [
-    App\Providers\AppServiceProvider::class,
-    App\Providers\HorizonServiceProvider::class,
-    App\Providers\RepositoryServiceProvider::class,
-    App\Providers\AIServiceProvider::class,
-    App\Providers\RouteServiceProvider::class,
-    App\Providers\EventServiceProvider::class,
+    AppServiceProvider::class,
+    HorizonServiceProvider::class,
+    RepositoryServiceProvider::class,
+    AIServiceProvider::class,
+    RouteServiceProvider::class,
+    EventServiceProvider::class,
 ];

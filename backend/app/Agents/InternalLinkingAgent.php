@@ -20,18 +20,22 @@ class InternalLinkingAgent extends BaseAgent
         $relatedPosts = $context['related_posts'] ?? [];
         $tenantId = $context['tenant_id'] ?? null;
 
-        if (!$articleContent || !$tenantId || empty($relatedPosts)) {
+        if (! $articleContent || ! $tenantId || empty($relatedPosts)) {
             return AgentResultDTO::success($this->getType(), ['content' => $articleContent, 'links_added' => []]);
         }
 
         $postsSummary = json_encode($relatedPosts, JSON_UNESCAPED_UNICODE);
+        $contentLength = mb_strlen($articleContent);
+        $chunkLimit = 50000;
+        $contentChunk = $contentLength > $chunkLimit ? mb_substr($articleContent, 0, $chunkLimit) : $articleContent;
+        $tail = $contentLength > $chunkLimit ? mb_substr($articleContent, $chunkLimit) : '';
 
         $promptData = $this->promptBuilderService->build($this->getType(), [
-            'article_content' => mb_substr($articleContent, 0, 15000), // Protect token limit
+            'article_content' => $contentChunk,
             'related_posts' => $postsSummary,
         ], $tenantId);
 
-        $systemPrompt = $promptData['system_prompt'] . "\n\nYou MUST return the response ONLY as a JSON object with this exact structure: {\"modified_content\": \"HTML string with <a> tags inserted\", \"links_added\": [{\"url\": \"string\", \"anchor_text\": \"string\"}]}. Do not include markdown formatting.";
+        $systemPrompt = $promptData['system_prompt']."\n\nYou MUST return the response ONLY as a JSON object with this exact structure: {\"modified_content\": \"HTML string with <a> tags inserted\", \"links_added\": [{\"url\": \"string\", \"anchor_text\": \"string\"}]}. Do not include markdown formatting.";
 
         $request = new AIRequestDTO(
             systemPrompt: $systemPrompt,
@@ -42,6 +46,7 @@ class InternalLinkingAgent extends BaseAgent
             articleId: $context['article_id'] ?? null,
             keywordId: $context['keyword_id'] ?? null,
             promptVersion: $promptData['version'],
+            workspaceId: $context['workspace_id'] ?? null,
         );
 
         $response = $this->callAI($request);
@@ -49,11 +54,15 @@ class InternalLinkingAgent extends BaseAgent
         $parsed = json_decode($content, true);
 
         if (json_last_error() !== JSON_ERROR_NONE) {
-            Log::warning("InternalLinkingAgent failed to parse JSON: " . json_last_error_msg());
+            Log::warning('InternalLinkingAgent failed to parse JSON: '.json_last_error_msg());
+
             return AgentResultDTO::success($this->getType(), ['content' => $articleContent, 'links_added' => []]);
         }
 
-        $modifiedContent = $parsed['modified_content'] ?? $articleContent;
+        $modifiedContent = $parsed['modified_content'] ?? $contentChunk;
+        if ($tail !== '') {
+            $modifiedContent .= $tail;
+        }
         $linksAdded = $parsed['links_added'] ?? [];
 
         return AgentResultDTO::success(
@@ -78,6 +87,7 @@ class InternalLinkingAgent extends BaseAgent
         if (str_ends_with($content, '```')) {
             $content = substr($content, 0, -3);
         }
+
         return trim($content);
     }
 }

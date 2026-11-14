@@ -4,6 +4,9 @@ namespace App\Jobs\Crawl;
 
 use App\Agents\CompetitorAnalysisAgent;
 use App\Models\CompetitorAnalysis;
+use App\Models\Keyword;
+use App\Traits\BelongsToTenant;
+use App\Traits\BelongsToWorkspace;
 use Illuminate\Bus\Batchable;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -18,6 +21,7 @@ class CrawlCompetitorJob implements ShouldQueue
     use Batchable, Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public $tries = 2;
+
     public $backoff = [60, 180];
 
     public function __construct(
@@ -25,7 +29,8 @@ class CrawlCompetitorJob implements ShouldQueue
         public int $keywordId,
         public int $tenantId,
         public string $url,
-        public string $keyword
+        public string $keyword,
+        public ?int $workspaceId = null
     ) {
         $this->onQueue('ai-research');
     }
@@ -36,27 +41,44 @@ class CrawlCompetitorJob implements ShouldQueue
             return;
         }
 
-        $context = [
-            'url' => $this->url,
-            'keyword' => $this->keyword,
-            'keyword_id' => $this->keywordId,
-            'serp_result_id' => $this->serpResultId,
-            'tenant_id' => $this->tenantId,
-        ];
-
-        $result = $agent->execute($context);
-
-        if (!$result->success) {
-            $this->markAsFailed("Agent error: " . $result->error);
-            if (str_contains(strtolower($result->error ?? ''), 'crawl failed')) {
-                throw new \Exception($result->error);
+        try {
+            $workspaceId = $this->workspaceId;
+            if (! $workspaceId) {
+                $kw = Keyword::find($this->keywordId);
+                $workspaceId = $kw?->workspace_id;
             }
+
+            BelongsToTenant::setExecutionContext($this->tenantId);
+            if ($workspaceId) {
+                BelongsToWorkspace::setExecutionContext($workspaceId);
+            }
+
+            $context = [
+                'url' => $this->url,
+                'keyword' => $this->keyword,
+                'keyword_id' => $this->keywordId,
+                'serp_result_id' => $this->serpResultId,
+                'tenant_id' => $this->tenantId,
+                'workspace_id' => $workspaceId,
+            ];
+
+            $result = $agent->execute($context);
+
+            if (! $result->success) {
+                $this->markAsFailed('Agent error: '.$result->error);
+                if (str_contains(strtolower($result->error ?? ''), 'crawl failed')) {
+                    throw new \Exception($result->error);
+                }
+            }
+        } finally {
+            BelongsToTenant::setExecutionContext(null);
+            BelongsToWorkspace::setExecutionContext(null);
         }
     }
 
     public function failed(Throwable $exception): void
     {
-        $this->markAsFailed("Job failed: " . $exception->getMessage());
+        $this->markAsFailed('Job failed: '.$exception->getMessage());
     }
 
     protected function markAsFailed(string $error): void
@@ -67,7 +89,7 @@ class CrawlCompetitorJob implements ShouldQueue
                 'tenant_id' => $this->tenantId,
                 'url' => $this->url,
                 'analysis_completed' => false,
-                'faqs' => ['error' => $error], 
+                'faqs' => ['error' => $error],
             ]
         );
         Log::error("CrawlCompetitorJob failed for URL {$this->url}: {$error}");

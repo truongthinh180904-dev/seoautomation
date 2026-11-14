@@ -19,18 +19,18 @@ class PromptBuilderService
     {
         $promptVersion = $this->getActivePrompt($agentType, $tenantId);
 
-        if (!$promptVersion) {
+        if (! $promptVersion) {
             throw new \RuntimeException("No active prompt found for agent: {$agentType->value}");
         }
 
         $systemPrompt = $this->substituteVariables($promptVersion->system_prompt ?? '', $variables);
-        $userPrompt   = $this->substituteVariables($promptVersion->user_prompt_template, $variables);
+        $userPrompt = $this->substituteVariables($promptVersion->user_prompt_template, $variables);
 
         return [
             'system_prompt' => $systemPrompt,
-            'user_prompt'   => $userPrompt,
-            'version'       => $promptVersion->version,
-            'prompt_id'     => $promptVersion->id,
+            'user_prompt' => $userPrompt,
+            'version' => $promptVersion->version,
+            'prompt_id' => $promptVersion->id,
         ];
     }
 
@@ -40,7 +40,7 @@ class PromptBuilderService
      */
     protected function getActivePrompt(AgentType $agentType, ?int $tenantId): ?AIPromptVersion
     {
-        $cacheKey = "ai_prompt_active:{$agentType->value}:" . ($tenantId ?? 'default');
+        $cacheKey = "ai_prompt_active:{$agentType->value}:".($tenantId ?? 'default');
 
         $promptId = Cache::remember($cacheKey, 3600, function () use ($agentType, $tenantId) {
             if ($tenantId) {
@@ -68,7 +68,7 @@ class PromptBuilderService
                 ->value('id');
         });
 
-        if (!is_numeric($promptId)) {
+        if (! is_numeric($promptId)) {
             Cache::forget($cacheKey);
             $promptId = $this->resolveActivePromptId($agentType, $tenantId);
             if ($promptId) {
@@ -109,7 +109,7 @@ class PromptBuilderService
      */
     public function invalidateCache(AgentType $agentType, ?int $tenantId = null): void
     {
-        $cacheKey = "ai_prompt_active:{$agentType->value}:" . ($tenantId ?? 'default');
+        $cacheKey = "ai_prompt_active:{$agentType->value}:".($tenantId ?? 'default');
         Cache::forget($cacheKey);
     }
 
@@ -120,7 +120,9 @@ class PromptBuilderService
     public function recordPerformance(int $promptId, float $seoScore): void
     {
         $prompt = AIPromptVersion::find($promptId);
-        if (!$prompt) return;
+        if (! $prompt) {
+            return;
+        }
 
         // Exponential moving average with alpha = 0.3
         if ($prompt->performance_score === null) {
@@ -141,8 +143,9 @@ class PromptBuilderService
             if (is_array($value) || is_object($value)) {
                 $value = json_encode($value, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
             }
-            $template = str_replace('{{' . $key . '}}', (string) $value, $template);
+            $template = str_replace('{{'.$key.'}}', (string) $value, $template);
         }
+
         return $template;
     }
 }

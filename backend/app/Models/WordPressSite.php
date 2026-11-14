@@ -4,14 +4,19 @@ namespace App\Models;
 
 use App\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class WordPressSite extends Model
 {
     use BelongsToTenant;
 
+    protected $table = 'wordpress_sites';
+
     protected $fillable = [
         'tenant_id',
+        'workspace_id',
+        'website_id',
         'name',
         'url',
         'api_url',
@@ -26,6 +31,10 @@ class WordPressSite extends Model
         'settings',
     ];
 
+    protected $hidden = [
+        'app_password',
+    ];
+
     protected $casts = [
         'app_password' => 'encrypted',
         'settings' => 'array',
@@ -33,6 +42,16 @@ class WordPressSite extends Model
         'last_connected_at' => 'datetime',
         'connection_status' => 'string',
     ];
+
+    public function workspace(): BelongsTo
+    {
+        return $this->belongsTo(Workspace::class);
+    }
+
+    public function website(): BelongsTo
+    {
+        return $this->belongsTo(Website::class);
+    }
 
     public function keywords(): HasMany
     {

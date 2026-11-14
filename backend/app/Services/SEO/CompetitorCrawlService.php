@@ -2,6 +2,7 @@
 
 namespace App\Services\SEO;
 
+use App\Services\Security\UrlSafetyValidator;
 use DOMDocument;
 use DOMXPath;
 use Illuminate\Support\Facades\Http;
@@ -18,6 +19,10 @@ class CompetitorCrawlService
 
     public function crawl(string $url): array
     {
+        if (! UrlSafetyValidator::isSafeUrl($url)) {
+            throw new \InvalidArgumentException("URL {$url} is unsafe or restricted (SSRF protection).");
+        }
+
         $userAgent = $this->userAgents[array_rand($this->userAgents)];
 
         try {
@@ -27,15 +32,16 @@ class CompetitorCrawlService
                 'Accept-Language' => 'vi-VN,vi;q=0.9,en-US;q=0.8,en;q=0.7',
             ])->timeout(15)->get($url);
 
-            if (!$response->successful()) {
-                throw new \Exception("HTTP Error: " . $response->status());
+            if (! $response->successful()) {
+                throw new \Exception('HTTP Error: '.$response->status());
             }
 
             $html = $response->body();
+
             return $this->parseHtml($html);
 
         } catch (\Exception $e) {
-            Log::warning("Crawl failed for {$url}: " . $e->getMessage());
+            Log::warning("Crawl failed for {$url}: ".$e->getMessage());
             throw $e;
         }
     }
@@ -44,8 +50,8 @@ class CompetitorCrawlService
     {
         // Suppress warnings for malformed HTML
         libxml_use_internal_errors(true);
-        $dom = new DOMDocument();
-        $dom->loadHTML('<?xml encoding="utf-8" ?>' . $html, LIBXML_NOBLANKS | LIBXML_NOERROR);
+        $dom = new DOMDocument;
+        $dom->loadHTML('<?xml encoding="utf-8" ?>'.$html, LIBXML_NOBLANKS | LIBXML_NOERROR);
         libxml_clear_errors();
 
         $xpath = new DOMXPath($dom);
@@ -70,7 +76,9 @@ class CompetitorCrawlService
         $body = $dom->getElementsByTagName('body')->item(0);
         $textContent = $body ? trim($body->textContent) : '';
         $textContent = preg_replace('/\s+/', ' ', $textContent);
-        $wordCount = str_word_count(strip_tags($textContent));
+        $stripped = trim(strip_tags($textContent));
+        $words = preg_split('/\s+/u', $stripped, -1, PREG_SPLIT_NO_EMPTY);
+        $wordCount = is_array($words) ? count($words) : 0;
 
         // Identify FAQs (heuristic)
         $faqs = [];
@@ -82,18 +90,18 @@ class CompetitorCrawlService
                 $answer = '';
                 while ($answerNode) {
                     if ($answerNode->nodeType === XML_ELEMENT_NODE && in_array(strtolower($answerNode->nodeName), ['p', 'div', 'ul', 'ol', 'li'])) {
-                        $answer .= trim($answerNode->textContent) . " ";
+                        $answer .= trim($answerNode->textContent).' ';
                     }
                     if ($answerNode->nodeType === XML_ELEMENT_NODE && in_array(strtolower($answerNode->nodeName), ['h1', 'h2', 'h3'])) {
                         break;
                     }
                     $answerNode = $answerNode->nextSibling;
                 }
-                
+
                 if (trim($answer)) {
                     $faqs[] = [
                         'question' => $text,
-                        'answer' => trim($answer)
+                        'answer' => trim($answer),
                     ];
                 }
             }

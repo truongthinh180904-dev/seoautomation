@@ -7,6 +7,8 @@ use App\Providers\AI\GeminiProvider;
 use App\Providers\AI\OpenAIProvider;
 use App\Services\AI\AIProviderService;
 use App\Services\AI\TokenUsageService;
+use App\Services\Cost\CostTrackingService;
+use App\Services\Notifications\NotificationService;
 use Illuminate\Support\ServiceProvider;
 
 class AIServiceProvider extends ServiceProvider
@@ -30,7 +32,9 @@ class AIServiceProvider extends ServiceProvider
 
             return new AIProviderService(
                 $providers,
-                $app->make(TokenUsageService::class)
+                $app->make(TokenUsageService::class),
+                $app->make(CostTrackingService::class),
+                $app->make(NotificationService::class)
             );
         });
     }

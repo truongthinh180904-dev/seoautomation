@@ -7,7 +7,8 @@ use Illuminate\Console\Command;
 
 class ProcessScheduledArticles extends Command
 {
-    protected $signature   = 'seo:process-scheduled {--dry-run : Show what would be dispatched without actually dispatching}';
+    protected $signature = 'seo:process-scheduled {--dry-run : Show what would be dispatched without actually dispatching}';
+
     protected $description = 'Process keywords scheduled for SERP research and AI content generation';
 
     public function handle(JobDispatcherService $dispatcher): int
@@ -16,6 +17,7 @@ class ProcessScheduledArticles extends Command
 
         if ($this->option('dry-run')) {
             $this->warn('[dry-run] Would dispatch keywords scheduled up to now. No jobs queued.');
+
             return self::SUCCESS;
         }
 

@@ -33,8 +33,15 @@ class CampaignController extends Controller
 
     public function store(StoreCampaignRequest $request)
     {
+        $data = $request->validated();
+        $workspace = $request->attributes->get('current_workspace');
+        $workspaceId = $workspace?->id ?: $request->user()->default_workspace_id;
+        if ($workspaceId) {
+            $data['workspace_id'] = $workspaceId;
+        }
+
         $campaign = $this->campaignService->create(
-            $request->validated(),
+            $data,
             $request->user()->tenant_id,
             $request->user()->id
         );
@@ -45,7 +52,9 @@ class CampaignController extends Controller
     public function show(Request $request, int $id)
     {
         $campaign = $this->campaigns->findByIdForTenant($id, $request->user()->tenant_id);
-        if (!$campaign) abort(404);
+        if (! $campaign) {
+            abort(404);
+        }
 
         return new CampaignResource($campaign);
     }
@@ -53,14 +62,16 @@ class CampaignController extends Controller
     public function update(UpdateCampaignRequest $request, int $id)
     {
         $campaign = $this->campaigns->findByIdForTenant($id, $request->user()->tenant_id);
-        if (!$campaign) abort(404);
+        if (! $campaign) {
+            abort(404);
+        }
 
         return new CampaignResource($this->campaignService->update($campaign, $request->validated()));
     }
 
     public function destroy(Request $request, int $id): JsonResponse
     {
-        if (!$this->campaigns->deleteForTenant($id, $request->user()->tenant_id)) {
+        if (! $this->campaigns->deleteForTenant($id, $request->user()->tenant_id)) {
             abort(404);
         }
 
@@ -70,30 +81,49 @@ class CampaignController extends Controller
     public function stats(Request $request, int $id): JsonResponse
     {
         $campaign = $this->campaigns->findByIdForTenant($id, $request->user()->tenant_id);
-        if (!$campaign) abort(404);
+        if (! $campaign) {
+            abort(404);
+        }
 
         return response()->json($this->statsService->getStats($campaign));
     }
 
-    public function start(Request $request, int $id)
+    public function start(Request $request, int $id): CampaignResource
     {
-        return $this->transition($request, $id, CampaignStatus::PROCESSING);
+        $campaign = $this->campaigns->findByIdForTenant($id, $request->user()->tenant_id);
+        if (! $campaign) {
+            abort(404);
+        }
+
+        return new CampaignResource($this->campaignService->start($campaign, $request->user()));
     }
 
-    public function pause(Request $request, int $id)
+    public function pause(Request $request, int $id): CampaignResource
     {
-        return $this->transition($request, $id, CampaignStatus::PAUSED);
+        $campaign = $this->campaigns->findByIdForTenant($id, $request->user()->tenant_id);
+        if (! $campaign) {
+            abort(404);
+        }
+
+        return new CampaignResource($this->campaignService->pause($campaign));
     }
 
-    public function resume(Request $request, int $id)
+    public function resume(Request $request, int $id): CampaignResource
     {
-        return $this->transition($request, $id, CampaignStatus::PROCESSING);
+        $campaign = $this->campaigns->findByIdForTenant($id, $request->user()->tenant_id);
+        if (! $campaign) {
+            abort(404);
+        }
+
+        return new CampaignResource($this->campaignService->resume($campaign, $request->user()));
     }
 
     protected function transition(Request $request, int $id, CampaignStatus $status): CampaignResource
     {
         $campaign = $this->campaigns->findByIdForTenant($id, $request->user()->tenant_id);
-        if (!$campaign) abort(404);
+        if (! $campaign) {
+            abort(404);
+        }
 
         return new CampaignResource($this->campaignService->setStatus($campaign, $status));
     }

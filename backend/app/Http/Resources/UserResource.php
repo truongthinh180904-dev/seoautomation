@@ -13,12 +13,14 @@ class UserResource extends JsonResource
             'id' => $this->id,
             'name' => $this->name,
             'email' => $this->email,
-            'role' => $this->role?->value,
+            'role' => $this->role?->value ?? (string) $this->role,
             'tenant_id' => $this->tenant_id,
+            'default_workspace_id' => $this->default_workspace_id,
+            'is_platform_admin' => (bool) $this->is_platform_admin,
             'avatar_url' => $this->avatar_url,
             'zalo_user_id' => $this->zalo_user_id,
             'last_login_at' => $this->last_login_at,
-            'is_active' => $this->is_active,
+            'is_active' => (bool) $this->is_active,
             'tenant' => $this->whenLoaded('tenant', function () {
                 return [
                     'id' => $this->tenant->id,
@@ -27,6 +29,10 @@ class UserResource extends JsonResource
                     'plan' => $this->tenant->plan,
                 ];
             }),
+            'default_workspace' => $this->whenLoaded('defaultWorkspace', function () {
+                return new WorkspaceResource($this->defaultWorkspace);
+            }),
+            'workspaces' => WorkspaceResource::collection($this->whenLoaded('workspaces')),
         ];
     }
 }

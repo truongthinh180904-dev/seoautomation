@@ -2,9 +2,10 @@
 
 namespace App\Services\Keyword;
 
+use Exception;
 use Illuminate\Http\UploadedFile;
 use PhpOffice\PhpSpreadsheet\IOFactory;
-use Exception;
+use PhpOffice\PhpSpreadsheet\Shared\Date;
 
 class KeywordParserService
 {
@@ -24,15 +25,15 @@ class KeywordParserService
             $worksheet = $spreadsheet->getActiveSheet();
             $rows = $worksheet->toArray();
         } catch (Exception $e) {
-            throw new Exception("Không đọc được file import: " . $e->getMessage());
+            throw new Exception('Không đọc được file import: '.$e->getMessage());
         }
 
         if (empty($rows)) {
             return [];
         }
 
-        $headers = array_map(fn($h) => $this->normalizeHeader((string) $h), array_shift($rows));
-        
+        $headers = array_map(fn ($h) => $this->normalizeHeader((string) $h), array_shift($rows));
+
         $colMap = [
             'keyword' => -1,
             'campaign_id' => -1,
@@ -66,16 +67,27 @@ class KeywordParserService
         ];
 
         foreach ($headers as $index => $header) {
-            if (in_array($header, ['keyword', 'keywords', 'tu khoa', 'từ khóa', 'từ khoá'])) $colMap['keyword'] = $index;
-            elseif (in_array($header, ['campaign_id', 'campaign id'])) $colMap['campaign_id'] = $index;
-            elseif (in_array($header, ['language', 'lang', 'ngon ngu', 'ngôn ngữ'])) $colMap['language'] = $index;
-            elseif (in_array($header, ['search_volume', 'search volume', 'volume', 'luot tim kiem', 'lượt tìm kiếm'])) $colMap['search_volume'] = $index;
-            elseif (in_array($header, ['difficulty', 'do kho', 'độ khó'])) $colMap['difficulty'] = $index;
-            elseif (in_array($header, ['priority', 'uu tien', 'ưu tiên'])) $colMap['priority'] = $index;
-            elseif (in_array($header, ['search_intent', 'search intent', 'intent'])) $colMap['search_intent'] = $index;
-            elseif (in_array($header, ['wordpress_site_id', 'website_id'])) $colMap['wordpress_site_id'] = $index;
-            elseif (in_array($header, ['scheduled_at', 'len lich', 'lên lịch'])) $colMap['scheduled_at'] = $index;
-            elseif (array_key_exists($header, $colMap)) $colMap[$header] = $index;
+            if (in_array($header, ['keyword', 'keywords', 'tu khoa', 'từ khóa', 'từ khoá'])) {
+                $colMap['keyword'] = $index;
+            } elseif (in_array($header, ['campaign_id', 'campaign id'])) {
+                $colMap['campaign_id'] = $index;
+            } elseif (in_array($header, ['language', 'lang', 'ngon ngu', 'ngôn ngữ'])) {
+                $colMap['language'] = $index;
+            } elseif (in_array($header, ['search_volume', 'search volume', 'volume', 'luot tim kiem', 'lượt tìm kiếm'])) {
+                $colMap['search_volume'] = $index;
+            } elseif (in_array($header, ['difficulty', 'do kho', 'độ khó'])) {
+                $colMap['difficulty'] = $index;
+            } elseif (in_array($header, ['priority', 'uu tien', 'ưu tiên'])) {
+                $colMap['priority'] = $index;
+            } elseif (in_array($header, ['search_intent', 'search intent', 'intent'])) {
+                $colMap['search_intent'] = $index;
+            } elseif (in_array($header, ['wordpress_site_id', 'website_id'])) {
+                $colMap['wordpress_site_id'] = $index;
+            } elseif (in_array($header, ['scheduled_at', 'len lich', 'lên lịch'])) {
+                $colMap['scheduled_at'] = $index;
+            } elseif (array_key_exists($header, $colMap)) {
+                $colMap[$header] = $index;
+            }
         }
 
         if ($colMap['keyword'] === -1) {
@@ -84,8 +96,10 @@ class KeywordParserService
 
         $parsedRows = [];
         foreach ($rows as $row) {
-            $keyword = trim((string)($row[$colMap['keyword']] ?? ''));
-            if (empty($keyword)) continue;
+            $keyword = trim((string) ($row[$colMap['keyword']] ?? ''));
+            if (empty($keyword)) {
+                continue;
+            }
 
             $parsedRow = [
                 'keyword' => $keyword,
@@ -122,8 +136,18 @@ class KeywordParserService
                 ], fn ($value) => $value !== null && $value !== ''),
             ];
 
-            if ($colMap['scheduled_at'] !== -1 && !empty($row[$colMap['scheduled_at']])) {
-                $parsedRow['scheduled_at'] = date('Y-m-d H:i:s', strtotime((string)$row[$colMap['scheduled_at']]));
+            if ($colMap['scheduled_at'] !== -1 && ! empty($row[$colMap['scheduled_at']])) {
+                $rawDate = $row[$colMap['scheduled_at']];
+                if (is_numeric($rawDate) && (float) $rawDate > 1000) {
+                    try {
+                        $parsedRow['scheduled_at'] = Date::excelToDateTimeObject((float) $rawDate)->format('Y-m-d H:i:s');
+                    } catch (\Throwable) {
+                        $parsedRow['scheduled_at'] = null;
+                    }
+                } else {
+                    $ts = strtotime((string) $rawDate);
+                    $parsedRow['scheduled_at'] = ($ts && $ts > 0) ? date('Y-m-d H:i:s', $ts) : null;
+                }
             }
 
             if (empty($parsedRow['wordpress_site_id'])) {
@@ -169,7 +193,7 @@ class KeywordParserService
 
     protected function stringOrNull(array $row, int $index): ?string
     {
-        if ($index === -1 || !isset($row[$index])) {
+        if ($index === -1 || ! isset($row[$index])) {
             return null;
         }
 

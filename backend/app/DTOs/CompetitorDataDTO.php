@@ -22,21 +22,21 @@ class CompetitorDataDTO extends Data
     {
         $lines = [
             "URL: {$this->url}",
-            "Word Count: " . ($this->wordCount ?? 'N/A'),
-            "Search Intent: " . ($this->searchIntent ?? 'N/A'),
-            "Topical Relevance: " . ($this->topicalRelevance ?? 'N/A'),
+            'Word Count: '.($this->wordCount ?? 'N/A'),
+            'Search Intent: '.($this->searchIntent ?? 'N/A'),
+            'Topical Relevance: '.($this->topicalRelevance ?? 'N/A'),
         ];
 
-        if (!empty($this->headingStructure)) {
-            $lines[] = "Headings: " . json_encode($this->headingStructure, JSON_UNESCAPED_UNICODE);
+        if (! empty($this->headingStructure)) {
+            $lines[] = 'Headings: '.json_encode($this->headingStructure, JSON_UNESCAPED_UNICODE);
         }
 
-        if (!empty($this->semanticKeywords)) {
-            $lines[] = "Keywords: " . implode(', ', $this->semanticKeywords);
+        if (! empty($this->semanticKeywords)) {
+            $lines[] = 'Keywords: '.implode(', ', $this->semanticKeywords);
         }
 
-        if (!empty($this->faqs)) {
-            $lines[] = "FAQs: " . json_encode($this->faqs, JSON_UNESCAPED_UNICODE);
+        if (! empty($this->faqs)) {
+            $lines[] = 'FAQs: '.json_encode($this->faqs, JSON_UNESCAPED_UNICODE);
         }
 
         return implode("\n", $lines);

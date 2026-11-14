@@ -2,12 +2,18 @@
 
 namespace App\Models;
 
+use App\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class QualityReport extends Model
 {
+    use BelongsToTenant;
+
     protected $fillable = [
+        'tenant_id',
+        'workspace_id',
+        'website_id',
         'article_id',
         'seo_score',
         'readability_score',
@@ -33,6 +39,21 @@ class QualityReport extends Model
         'wordpress_readiness_score' => 'integer',
         'total_score' => 'integer',
     ];
+
+    public function tenant(): BelongsTo
+    {
+        return $this->belongsTo(Tenant::class);
+    }
+
+    public function workspace(): BelongsTo
+    {
+        return $this->belongsTo(Workspace::class);
+    }
+
+    public function website(): BelongsTo
+    {
+        return $this->belongsTo(Website::class);
+    }
 
     public function article(): BelongsTo
     {

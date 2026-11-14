@@ -24,7 +24,7 @@ class ScheduleResource extends JsonResource
             'run_count' => $this->run_count,
             'created_by' => $this->created_by,
             'creator' => $this->whenLoaded('creator', function () {
-                if (!$this->creator) {
+                if (! $this->creator) {
                     return null;
                 }
 

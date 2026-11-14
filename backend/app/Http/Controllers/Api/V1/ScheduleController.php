@@ -7,8 +7,8 @@ use App\Http\Requests\StoreScheduleRequest;
 use App\Http\Requests\UpdateScheduleRequest;
 use App\Http\Resources\ScheduleResource;
 use App\Repositories\Contracts\ScheduleRepositoryInterface;
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class ScheduleController extends Controller
 {
@@ -19,7 +19,7 @@ class ScheduleController extends Controller
     /**
      * List all keywords with a scheduled_at date (upcoming schedules).
      */
-    public function index(Request $request): JsonResponse
+    public function index(Request $request)
     {
         $schedules = $this->schedules->paginateForTenant(
             $request->user()->tenant_id,
@@ -27,7 +27,7 @@ class ScheduleController extends Controller
             $request->integer('per_page', 20)
         );
 
-        return response()->json(ScheduleResource::collection($schedules));
+        return ScheduleResource::collection($schedules);
     }
 
     /**
@@ -35,8 +35,12 @@ class ScheduleController extends Controller
      */
     public function store(StoreScheduleRequest $request): JsonResponse
     {
+        $workspace = $request->attributes->get('current_workspace');
+        $workspaceId = $workspace?->id ?: $request->user()->default_workspace_id;
+
         $schedule = $this->schedules->create(array_merge($request->validated(), [
             'tenant_id' => $request->user()->tenant_id,
+            'workspace_id' => $workspaceId,
             'created_by' => $request->user()->id,
         ]));
 
@@ -53,7 +57,7 @@ class ScheduleController extends Controller
     {
         $schedule = $this->schedules->findByIdForTenant($id, $request->user()->tenant_id);
 
-        if (!$schedule) {
+        if (! $schedule) {
             abort(404);
         }
 
@@ -69,7 +73,7 @@ class ScheduleController extends Controller
     {
         $schedule = $this->schedules->findByIdForTenant($id, $request->user()->tenant_id);
 
-        if (!$schedule) {
+        if (! $schedule) {
             abort(404);
         }
 

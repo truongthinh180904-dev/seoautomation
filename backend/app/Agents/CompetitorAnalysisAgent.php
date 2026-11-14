@@ -33,15 +33,15 @@ class CompetitorAnalysisAgent extends BaseAgent
         $serpResultId = $context['serp_result_id'] ?? null;
         $tenantId = $context['tenant_id'] ?? null;
 
-        if (!$url || !$keyword || !$keywordId || !$serpResultId || !$tenantId) {
-            throw new \InvalidArgumentException("Missing required context fields.");
+        if (! $url || ! $keyword || ! $keywordId || ! $serpResultId || ! $tenantId) {
+            throw new \InvalidArgumentException('Missing required context fields.');
         }
 
         // 1. Crawl URL
         try {
             $crawlData = $this->crawlService->crawl($url);
         } catch (\Exception $e) {
-            return AgentResultDTO::failure($this->getType(), "Crawl Failed: " . $e->getMessage());
+            return AgentResultDTO::failure($this->getType(), 'Crawl Failed: '.$e->getMessage());
         }
 
         // 2. Extract Semantics using ContentAnalysisAgent
@@ -50,6 +50,7 @@ class CompetitorAnalysisAgent extends BaseAgent
             'keyword_id' => $keywordId,
             'content' => $crawlData['raw_text'],
             'tenant_id' => $tenantId,
+            'workspace_id' => $context['workspace_id'] ?? null,
         ]);
 
         $semanticData = $analysisResult->success ? $analysisResult->data : [];

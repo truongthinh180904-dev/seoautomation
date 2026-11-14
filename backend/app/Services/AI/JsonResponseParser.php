@@ -14,7 +14,7 @@ class JsonResponseParser
         }
 
         $json = $this->extractJsonObject($content);
-        if (!$json) {
+        if (! $json) {
             return null;
         }
 

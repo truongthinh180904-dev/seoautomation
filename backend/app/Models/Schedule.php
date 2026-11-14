@@ -12,6 +12,8 @@ class Schedule extends Model
 
     protected $fillable = [
         'tenant_id',
+        'workspace_id',
+        'website_id',
         'name',
         'type',
         'cron_expression',
@@ -37,6 +39,16 @@ class Schedule extends Model
     public function tenant(): BelongsTo
     {
         return $this->belongsTo(Tenant::class);
+    }
+
+    public function workspace(): BelongsTo
+    {
+        return $this->belongsTo(Workspace::class);
+    }
+
+    public function website(): BelongsTo
+    {
+        return $this->belongsTo(Website::class);
     }
 
     public function creator(): BelongsTo

@@ -22,15 +22,12 @@ class RouteServiceProvider extends ServiceProvider
 
         RateLimiter::for('ai_generation', function (Request $request) {
             $tenantId = $request->user()?->tenant_id ?: $request->ip();
+
             return Limit::perHour(50)->by($tenantId);
         });
 
         RateLimiter::for('serp', function (Request $request) {
             return Limit::perMinute(10); // 10 req/min globally
-        });
-
-        RateLimiter::for('zalo_webhook', function (Request $request) {
-            return Limit::perMinute(100)->by($request->ip());
         });
     }
 }

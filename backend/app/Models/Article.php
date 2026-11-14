@@ -8,7 +8,6 @@ use App\Traits\HasVersions;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Support\Str;
 
 class Article extends Model
 {
@@ -16,6 +15,8 @@ class Article extends Model
 
     protected $fillable = [
         'tenant_id',
+        'workspace_id',
+        'website_id',
         'keyword_id',
         'campaign_id',
         'wordpress_site_id',
@@ -61,9 +62,17 @@ class Article extends Model
         'media_plan',
         'image_assets',
         'quality_report',
+        'pipeline_status',
         'approval_required',
         'approved_at',
         'duplicate_check_hash',
+        'last_optimized_at',
+        'optimization_notes',
+        'pre_optimization_score',
+    ];
+
+    protected $hidden = [
+        'review_token',
     ];
 
     protected $casts = [
@@ -77,10 +86,13 @@ class Article extends Model
         'media_plan' => 'array',
         'image_assets' => 'array',
         'quality_report' => 'array',
+        'pipeline_status' => 'array',
         'scheduled_publish_at' => 'datetime',
         'published_at' => 'datetime',
         'approved_at' => 'datetime',
         'approval_required' => 'boolean',
+        'last_optimized_at' => 'datetime',
+        'pre_optimization_score' => 'integer',
         'word_count' => 'integer',
         'seo_score' => 'integer',
         'readability_score' => 'integer',
@@ -91,6 +103,16 @@ class Article extends Model
     public function tenant(): BelongsTo
     {
         return $this->belongsTo(Tenant::class);
+    }
+
+    public function workspace(): BelongsTo
+    {
+        return $this->belongsTo(Workspace::class);
+    }
+
+    public function website(): BelongsTo
+    {
+        return $this->belongsTo(Website::class);
     }
 
     public function keyword(): BelongsTo
@@ -133,11 +155,6 @@ class Article extends Model
         return $this->hasMany(InternalLink::class, 'source_article_id');
     }
 
-    public function zaloNotifications(): HasMany
-    {
-        return $this->hasMany(ZaloNotification::class);
-    }
-
     public function publishingLogs(): HasMany
     {
         return $this->hasMany(PublishingLog::class);
@@ -153,11 +170,27 @@ class Article extends Model
         return $this->hasMany(QualityReport::class);
     }
 
+    public function tasks(): HasMany
+    {
+        return $this->hasMany(Task::class);
+    }
+
+    public function usageRecords(): HasMany
+    {
+        return $this->hasMany(UsageRecord::class);
+    }
+
+    public function seoInsights(): HasMany
+    {
+        return $this->hasMany(SeoIntelligenceInsight::class);
+    }
+
     public function generateReviewToken(): string
     {
         $token = bin2hex(random_bytes(32));
         $this->review_token = $token;
         $this->save();
+
         return $token;
     }
 

@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Laravel\Horizon\Horizon;
 use Laravel\Horizon\HorizonApplicationServiceProvider;
@@ -16,8 +17,8 @@ class HorizonServiceProvider extends HorizonApplicationServiceProvider
         parent::boot();
 
         Horizon::auth(function ($request) {
-            return \Illuminate\Support\Facades\Auth::check() && 
-                   in_array(\Illuminate\Support\Facades\Auth::user()->role?->value, ['super_admin', 'admin']);
+            return Auth::check() &&
+                   in_array(Auth::user()->role?->value, ['super_admin', 'admin']);
         });
     }
 

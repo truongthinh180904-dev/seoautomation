@@ -20,6 +20,13 @@ interface Keyword {
   target_url?: string | null;
   canonical_url?: string | null;
   brief_notes?: string | null;
+  must_include_points?: string[] | null;
+  avoid_topics?: string[] | null;
+  reference_urls?: string[] | null;
+  competitor_urls_override?: string[] | null;
+  raw_import_row?: Record<string, unknown> | null;
+  template_version?: string | null;
+  meta?: Record<string, unknown> | null;
   scheduled_at: string | null;
   processed_at: string | null;
   batch_id: string | null;
@@ -28,6 +35,12 @@ interface Keyword {
     name: string;
   } | null;
   article_id?: number | null;
+  article?: {
+    id: number;
+    status: Article['status'];
+    review_notes?: string | null;
+    pipeline_status?: ArticlePipelineStatus | null;
+  } | null;
   created_at: string;
 }
 

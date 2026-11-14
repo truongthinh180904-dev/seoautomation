@@ -1,22 +1,16 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Providers from "./providers";
 import { Toaster } from "@/components/ui/sonner";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
 export const metadata: Metadata = {
-  title: "AI SEO Automation",
-  description: "AI-powered SEO Automation Platform",
+  title: "AuraSEO - AI Content & SEO Suite",
+  description: "Nền tảng Tự động hóa Nội dung & Chiến dịch SEO Thông minh",
+  icons: {
+    icon: "/logo.png",
+    shortcut: "/logo.png",
+    apple: "/logo.png",
+  },
 };
 
 export default function RootLayout({
@@ -26,10 +20,17 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      lang="vi"
+      className="h-full antialiased font-sans"
+      suppressHydrationWarning
+      style={
+        {
+          "--font-roboto": 'Roboto, -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif',
+          "--font-geist-mono": 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+        } as React.CSSProperties
+      }
     >
-      <body className="min-h-full flex flex-col">
+      <body className="min-h-full flex flex-col font-sans">
         <Providers>
           {children}
           <Toaster />

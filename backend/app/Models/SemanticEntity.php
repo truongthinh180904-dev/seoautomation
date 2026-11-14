@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class SemanticEntity extends Model
 {
+    use BelongsToTenant;
+
     protected $fillable = [
         'article_id',
         'tenant_id',
@@ -18,6 +21,7 @@ class SemanticEntity extends Model
     ];
 
     public $timestamps = false;
+
     const UPDATED_AT = null;
 
     protected $casts = [

@@ -2,7 +2,7 @@
 
 import React from 'react';
 import {
-  Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, AreaChart, Area
+  ComposedChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Area
 } from 'recharts';
 import { useAICosts } from '@/hooks/useAnalytics';
 
@@ -55,7 +55,7 @@ export default function AIUsageChart({ days }: AIUsageChartProps) {
 
   return (
     <ResponsiveContainer width="100%" height={288}>
-      <AreaChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+      <ComposedChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
         <defs>
           <linearGradient id="costGrad" x1="0" y1="0" x2="0" y2="1">
             <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.15} />
@@ -69,7 +69,7 @@ export default function AIUsageChart({ days }: AIUsageChartProps) {
         <Legend />
         <Area type="monotone" dataKey="cost" name="Chi phí (USD)" stroke="#3b82f6" fill="url(#costGrad)" strokeWidth={2} dot={false} />
         <Line type="monotone" dataKey="calls" name="Lượt gọi" stroke="#a855f7" strokeWidth={1.5} dot={false} yAxisId={0} />
-      </AreaChart>
+      </ComposedChart>
     </ResponsiveContainer>
   );
 }

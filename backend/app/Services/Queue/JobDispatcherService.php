@@ -2,7 +2,9 @@
 
 namespace App\Services\Queue;
 
+use App\Enums\CampaignStatus;
 use App\Enums\KeywordStatus;
+use App\Enums\WorkspaceStatus;
 use App\Jobs\Keywords\ProcessKeywordBatchJob;
 use App\Models\Keyword;
 use Illuminate\Support\Facades\Log;
@@ -18,8 +20,24 @@ class JobDispatcherService
         $keywords = Keyword::query()
             ->where('status', KeywordStatus::PENDING)
             ->where(function ($q) {
-                $q->whereNull('scheduled_at')
-                  ->orWhere('scheduled_at', '<=', now());
+                $q->whereNull('workspace_id')
+                    ->orWhereDoesntHave('workspace')
+                    ->orWhereHas('workspace', function ($w) {
+                        $w->where('status', '!=', WorkspaceStatus::SUSPENDED);
+                    });
+            })
+            ->where(function ($q) {
+                $q->where(function ($sub) {
+                    $sub->whereNotNull('scheduled_at')
+                        ->where('scheduled_at', '<=', now());
+                })->orWhere(function ($sub) {
+                    $sub->whereHas('campaign', function ($c) {
+                        $c->where('status', CampaignStatus::PROCESSING);
+                    })->where(function ($dateQ) {
+                        $dateQ->whereNull('scheduled_at')
+                            ->orWhere('scheduled_at', '<=', now());
+                    });
+                });
             })
             ->limit(50) // safety cap per cron tick
             ->pluck('id')
@@ -37,7 +55,7 @@ class JobDispatcherService
         // Mark as processing so they're not re-picked
         Keyword::whereIn('id', $keywords)->update(['status' => KeywordStatus::PROCESSING]);
 
-        Log::info("JobDispatcherService: dispatched " . count($keywords) . " keywords into queue.");
+        Log::info('JobDispatcherService: dispatched '.count($keywords).' keywords into queue.');
 
         return count($keywords);
     }

@@ -12,6 +12,17 @@ export function useKeywords(page = 1, search = '', campaignId?: number) {
   });
 }
 
+export function useKeyword(id: number) {
+  return useQuery({
+    queryKey: ['keyword', id],
+    queryFn: async () => {
+      const { data } = await apiClient.get(`/keywords/${id}`);
+      return data as { data: Keyword };
+    },
+    enabled: !!id,
+  });
+}
+
 export function useKeywordImport() {
   const queryClient = useQueryClient();
 
@@ -48,6 +59,16 @@ export function useKeywordImportPreview() {
 export function useKeywordActions() {
   const queryClient = useQueryClient();
 
+  const createKeyword = useMutation({
+    mutationFn: async (data: { keyword: string; campaign_id?: number; search_volume?: number }) => {
+      const response = await apiClient.post('/keywords', data);
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['keywords'] });
+    },
+  });
+
   const bulkDelete = useMutation({
     mutationFn: async (ids: number[]) => {
       await apiClient.post('/keywords/bulk-destroy', { ids });
@@ -57,5 +78,15 @@ export function useKeywordActions() {
     }
   });
 
-  return { bulkDelete };
+  const updateKeyword = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: Partial<Keyword> }) => {
+      await apiClient.put(`/keywords/${id}`, data);
+    },
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ['keyword', id] });
+      queryClient.invalidateQueries({ queryKey: ['keywords'] });
+    }
+  });
+
+  return { createKeyword, bulkDelete, updateKeyword };
 }

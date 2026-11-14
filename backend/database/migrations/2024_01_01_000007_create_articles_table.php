@@ -1,9 +1,13 @@
 <?php
+
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
-return new class extends Migration {
-    public function up(): void {
+
+return new class extends Migration
+{
+    public function up(): void
+    {
         Schema::create('articles', function (Blueprint $table) {
             $table->id();
             $table->foreignId('tenant_id')->constrained('tenants');
@@ -40,7 +44,7 @@ return new class extends Migration {
             $table->string('wordpress_post_url', 2000)->nullable();
             $table->char('duplicate_check_hash', 64)->nullable();
             $table->timestamps();
-            
+
             $table->index(['tenant_id', 'status']);
             $table->index('keyword_id');
             $table->index('review_token');
@@ -48,7 +52,9 @@ return new class extends Migration {
             $table->index('duplicate_check_hash');
         });
     }
-    public function down(): void {
+
+    public function down(): void
+    {
         Schema::dropIfExists('articles');
     }
 };

@@ -17,13 +17,13 @@ class ApiRateLimiter
             $retryAfter = $e->getHeaders()['Retry-After'] ?? 60;
 
             return response()->json([
-                'success'     => false,
-                'message'     => 'Too Many Requests. Please wait before retrying.',
+                'success' => false,
+                'message' => 'Too Many Requests. Please wait before retrying.',
                 'retry_after' => (int) $retryAfter,
             ], 429, [
-                'Retry-After'        => $retryAfter,
-                'X-RateLimit-Reset'  => time() + (int) $retryAfter,
-                'Content-Type'       => 'application/json',
+                'Retry-After' => $retryAfter,
+                'X-RateLimit-Reset' => time() + (int) $retryAfter,
+                'Content-Type' => 'application/json',
             ]);
         }
     }

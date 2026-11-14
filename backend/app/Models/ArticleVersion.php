@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ArticleVersion extends Model
 {
+    use BelongsToTenant;
+
     protected $fillable = [
         'article_id',
         'tenant_id',

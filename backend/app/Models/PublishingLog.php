@@ -2,13 +2,18 @@
 
 namespace App\Models;
 
+use App\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class PublishingLog extends Model
 {
+    use BelongsToTenant;
+
     protected $fillable = [
         'tenant_id',
+        'workspace_id',
+        'website_id',
         'article_id',
         'wordpress_site_id',
         'wordpress_post_id',
@@ -23,6 +28,7 @@ class PublishingLog extends Model
     ];
 
     public $timestamps = false;
+
     const UPDATED_AT = null;
 
     protected $casts = [
@@ -31,6 +37,21 @@ class PublishingLog extends Model
         'duration_ms' => 'integer',
         'created_at' => 'datetime',
     ];
+
+    public function tenant(): BelongsTo
+    {
+        return $this->belongsTo(Tenant::class);
+    }
+
+    public function workspace(): BelongsTo
+    {
+        return $this->belongsTo(Workspace::class);
+    }
+
+    public function website(): BelongsTo
+    {
+        return $this->belongsTo(Website::class);
+    }
 
     public function article(): BelongsTo
     {

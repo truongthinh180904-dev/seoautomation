@@ -2,16 +2,17 @@
 
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Edit, ExternalLink, Loader2 } from 'lucide-react';
+import { ArrowLeft, Edit, ExternalLink, Loader2, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import ArticlePreview from '@/components/features/articles/ArticlePreview';
 import { useArticle, useArticleActions } from '@/hooks/useArticles';
+import { toast } from 'sonner';
 
 export default function ArticleDetailPage() {
   const { id } = useParams();
   const articleId = Number(id);
   const { data: articleResponse, isLoading, error } = useArticle(articleId);
-  const { autoFixArticle } = useArticleActions();
+  const { autoFixArticle, publishArticle } = useArticleActions();
   const article = articleResponse?.data;
 
   if (isLoading) {
@@ -33,6 +34,21 @@ export default function ArticleDetailPage() {
     );
   }
 
+  const canPublish = ['review', 'approved'].includes(article.status) && !!article.wordpress_site;
+
+  const handlePublish = async () => {
+    if (!window.confirm('Duyệt bài và gửi lên WordPress site đã kết nối?')) {
+      return;
+    }
+
+    try {
+      await publishArticle.mutateAsync(article.id);
+      toast.success('Đã đưa bài vào queue đăng WordPress.');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Không thể gửi bài lên WordPress.');
+    }
+  };
+
   return (
     <div className="mx-auto max-w-5xl space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -49,6 +65,15 @@ export default function ArticleDetailPage() {
         </div>
 
         <div className="flex gap-2">
+          <Button
+            className="rounded-xl bg-emerald-600 hover:bg-emerald-700"
+            disabled={!canPublish || publishArticle.isPending}
+            onClick={handlePublish}
+            title={article.wordpress_site ? 'Gửi bài lên WordPress' : 'Bài viết chưa gắn WordPress site'}
+          >
+            {publishArticle.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+            Gửi WordPress
+          </Button>
           {article.review_token && (
             <Link href={`/review/${article.review_token}`} target="_blank">
               <Button variant="outline" className="rounded-xl">

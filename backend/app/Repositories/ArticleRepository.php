@@ -18,7 +18,12 @@ class ArticleRepository implements ArticleRepositoryInterface
     public function findByIdForTenant(int $id, int $tenantId): ?Article
     {
         return Article::with(['keyword', 'wordpressSite', 'user'])
-            ->where('tenant_id', $tenantId)
+            ->where(function ($q) use ($tenantId) {
+                $q->where('tenant_id', $tenantId);
+                if (app()->bound('current_workspace_id')) {
+                    $q->orWhere('workspace_id', app('current_workspace_id'));
+                }
+            })
             ->find($id);
     }
 
@@ -47,34 +52,46 @@ class ArticleRepository implements ArticleRepositoryInterface
 
     public function paginateForTenant(int $tenantId, array $filters, int $perPage = 20): LengthAwarePaginator
     {
-        $query = Article::where('tenant_id', $tenantId)
+        $query = Article::query()
             ->with(['keyword:id,keyword', 'campaign:id,name,status', 'wordpressSite:id,name', 'user:id,name']);
 
-        if (!empty($filters['status'])) {
+        if (app()->bound('current_workspace_id')) {
+            $workspaceId = app('current_workspace_id');
+            $query->where(function ($q) use ($tenantId, $workspaceId) {
+                $q->where('workspace_id', $workspaceId)
+                    ->orWhere(function ($sub) use ($tenantId) {
+                        $sub->whereNull('workspace_id')->where('tenant_id', $tenantId);
+                    });
+            });
+        } else {
+            $query->where('tenant_id', $tenantId);
+        }
+
+        if (! empty($filters['status'])) {
             $query->where('status', $filters['status']);
         }
 
-        if (!empty($filters['keyword_id'])) {
+        if (! empty($filters['keyword_id'])) {
             $query->where('keyword_id', $filters['keyword_id']);
         }
 
-        if (!empty($filters['campaign_id'])) {
+        if (! empty($filters['campaign_id'])) {
             $query->where('campaign_id', $filters['campaign_id']);
         }
 
-        if (!empty($filters['wordpress_site_id'])) {
+        if (! empty($filters['wordpress_site_id'])) {
             $query->where('wordpress_site_id', $filters['wordpress_site_id']);
         }
 
-        if (!empty($filters['wp_site_id'])) {
+        if (! empty($filters['wp_site_id'])) {
             $query->where('wordpress_site_id', $filters['wp_site_id']);
         }
 
-        if (!empty($filters['search'])) {
+        if (! empty($filters['search'])) {
             $search = $filters['search'];
             $query->where(function ($q) use ($search) {
-                $q->where('title', 'like', '%' . $search . '%')
-                    ->orWhereHas('keyword', fn ($keywordQuery) => $keywordQuery->where('keyword', 'like', '%' . $search . '%'));
+                $q->where('title', 'like', '%'.$search.'%')
+                    ->orWhereHas('keyword', fn ($keywordQuery) => $keywordQuery->where('keyword', 'like', '%'.$search.'%'));
             });
         }
 
@@ -100,17 +117,32 @@ class ArticleRepository implements ArticleRepositoryInterface
 
     public function update(int $id, array $data): bool
     {
-        return Article::where('id', $id)->update($data) > 0;
+        $article = Article::find($id);
+        if (! $article) {
+            return false;
+        }
+
+        return $article->update($data);
     }
 
     public function updateStatus(int $id, ArticleStatus $status): bool
     {
-        return Article::where('id', $id)->update(['status' => $status]) > 0;
+        $article = Article::find($id);
+        if (! $article) {
+            return false;
+        }
+
+        return $article->update(['status' => $status]);
     }
 
     public function deleteForTenant(int $id, int $tenantId): bool
     {
-        return Article::where('tenant_id', $tenantId)
+        return Article::where(function ($q) use ($tenantId) {
+            $q->where('tenant_id', $tenantId);
+            if (app()->bound('current_workspace_id')) {
+                $q->orWhere('workspace_id', app('current_workspace_id'));
+            }
+        })
             ->where('id', $id)
             ->delete() > 0;
     }

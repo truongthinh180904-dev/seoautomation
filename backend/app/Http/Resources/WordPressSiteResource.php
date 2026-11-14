@@ -11,6 +11,8 @@ class WordPressSiteResource extends JsonResource
     {
         return [
             'id' => $this->id,
+            'workspace_id' => $this->workspace_id,
+            'website_id' => $this->website_id,
             'name' => $this->name,
             'url' => $this->url,
             'api_url' => $this->api_url,

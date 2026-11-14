@@ -45,13 +45,19 @@ return [
     ],
 
     'zalo' => [
-        'oa_token'       => env('ZALO_OA_TOKEN'),
-        'app_secret'     => env('ZALO_APP_SECRET'),
-        'admin_user_id'  => env('ZALO_ADMIN_USER_ID'),
+        'oa_token' => env('ZALO_OA_TOKEN'),
+        'app_secret' => env('ZALO_APP_SECRET'),
+        'admin_user_id' => env('ZALO_ADMIN_USER_ID'),
     ],
 
     'serp' => [
         'api_key' => env('SERP_API_KEY'),
+    ],
+
+    'google' => [
+        'client_id' => env('GOOGLE_CLIENT_ID'),
+        'client_secret' => env('GOOGLE_CLIENT_SECRET'),
+        'redirect_uri' => env('GOOGLE_REDIRECT_URI', env('APP_URL', 'http://localhost:8000').'/api/v1/integrations/google/callback'),
     ],
 
 ];

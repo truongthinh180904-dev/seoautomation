@@ -6,4 +6,5 @@ return [
     'min_word_count' => env('SEO_MIN_WORD_COUNT', 1500),
     'target_keyword_density' => env('SEO_TARGET_KEYWORD_DENSITY', 1.5),
     'internal_links_per_article' => env('SEO_INTERNAL_LINKS_PER_ARTICLE', 4),
+    'serp_cache_ttl_days' => (int) env('SERP_CACHE_TTL_DAYS', 14),
 ];

@@ -15,6 +15,8 @@ class Keyword extends Model
 
     protected $fillable = [
         'tenant_id',
+        'workspace_id',
+        'website_id',
         'user_id',
         'campaign_id',
         'keyword',
@@ -43,12 +45,14 @@ class Keyword extends Model
         'template_version',
         'batch_id',
         'meta',
+        'lsi_keywords',
     ];
 
     protected $casts = [
         'status' => KeywordStatus::class,
         'search_intent' => 'string',
         'meta' => 'array',
+        'lsi_keywords' => 'array',
         'must_include_points' => 'array',
         'avoid_topics' => 'array',
         'reference_urls' => 'array',
@@ -63,6 +67,16 @@ class Keyword extends Model
     public function tenant(): BelongsTo
     {
         return $this->belongsTo(Tenant::class);
+    }
+
+    public function workspace(): BelongsTo
+    {
+        return $this->belongsTo(Workspace::class);
+    }
+
+    public function website(): BelongsTo
+    {
+        return $this->belongsTo(Website::class);
     }
 
     public function user(): BelongsTo

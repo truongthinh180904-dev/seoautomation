@@ -4,6 +4,7 @@ export const ROUTES = {
   },
   DASHBOARD: {
     HOME: '/dashboard',
+    CHATBOT: '/chatbot',
     CAMPAIGNS: '/campaigns',
     KEYWORDS: '/keywords',
     IMPORT_WIZARD: '/import/wizard',

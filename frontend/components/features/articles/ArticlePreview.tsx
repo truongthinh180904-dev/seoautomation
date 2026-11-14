@@ -1,46 +1,70 @@
-import React from 'react';
+import React, { useMemo } from 'react';
+import ArticlePipelineStatus from './ArticlePipelineStatus';
 
 interface ArticlePreviewProps {
   article: Article;
 }
 
+function sanitizeHtmlContent(html: string): string {
+  if (!html) return '<p>No content generated yet.</p>';
+
+  return html
+    // Loại bỏ thẻ script, iframe, object, embed, form, input
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+    .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, '')
+    .replace(/<object\b[^<]*(?:(?!<\/object>)<[^<]*)*<\/object>/gi, '')
+    .replace(/<embed\b[^<]*(?:(?!<\/embed>)<[^<]*)*<\/embed>/gi, '')
+    .replace(/<form\b[^<]*(?:(?!<\/form>)<[^<]*)*<\/form>/gi, '')
+    // Loại bỏ các thuộc tính event handler như onclick, onload, onerror...
+    .replace(/\s+on\w+\s*=\s*(?:'[^']*'|"[^"]*"|[^\s>]+)/gi, '')
+    // Loại bỏ giao thức javascript: trong href hoặc src
+    .replace(/href\s*=\s*['"]?javascript:[^'"]*['"]?/gi, 'href="#"')
+    .replace(/src\s*=\s*['"]?javascript:[^'"]*['"]?/gi, 'src=""');
+}
+
 export default function ArticlePreview({ article }: ArticlePreviewProps) {
   const quality = article.quality_report;
+
+  const sanitizedContent = useMemo(() => {
+    return sanitizeHtmlContent(article.content || '');
+  }, [article.content]);
 
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]">
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
         <div className="p-6 border-b border-slate-200 bg-slate-50/50">
-        <div className="flex flex-wrap gap-4 items-center justify-between mb-4">
-          <h1 className="text-2xl font-bold text-slate-900">{article.title || 'Untitled Article'}</h1>
-          <div className="flex gap-2">
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-              SEO Score: {article.seo_score ?? 'N/A'}
-            </span>
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-              Word Count: {article.word_count ?? 0}
-            </span>
+          <div className="flex flex-wrap gap-4 items-center justify-between mb-4">
+            <h1 className="text-2xl font-bold text-slate-900">{article.title || 'Untitled Article'}</h1>
+            <div className="flex gap-2">
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                SEO Score: {article.seo_score ?? 'N/A'}
+              </span>
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                Word Count: {article.word_count ?? 0}
+              </span>
+            </div>
           </div>
+          
+          <div className="text-sm text-slate-600 mb-2">
+            <strong className="text-slate-800">Keyword:</strong> {article.keyword?.keyword || 'N/A'}
+          </div>
+          
+          {article.seo_description && (
+            <div className="text-sm text-slate-600">
+              <strong className="text-slate-800">Meta Description:</strong> {article.seo_description}
+            </div>
+          )}
         </div>
         
-        <div className="text-sm text-slate-600 mb-2">
-          <strong className="text-slate-800">Keyword:</strong> {article.keyword?.keyword || 'N/A'}
-        </div>
-        
-        {article.seo_description && (
-          <div className="text-sm text-slate-600">
-            <strong className="text-slate-800">Meta Description:</strong> {article.seo_description}
-          </div>
-        )}
-      </div>
-      
         <div 
-          className="p-8 prose prose-slate max-w-none prose-headings:font-bold prose-a:text-blue-600" 
-          dangerouslySetInnerHTML={{ __html: article.content || '<p>No content generated yet.</p>' }} 
+          className="p-8 font-sans prose prose-slate max-w-none prose-headings:font-bold prose-a:text-blue-600 prose-p:leading-8" 
+          dangerouslySetInnerHTML={{ __html: sanitizedContent }} 
         />
       </div>
 
       <aside className="space-y-4">
+        <ArticlePipelineStatus pipeline={article.pipeline_status} />
+
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <h2 className="text-lg font-black text-slate-900">SEO QA</h2>
           {quality ? (

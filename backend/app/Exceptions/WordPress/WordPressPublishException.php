@@ -4,6 +4,4 @@ namespace App\Exceptions\WordPress;
 
 use RuntimeException;
 
-class WordPressPublishException extends RuntimeException
-{
-}
+class WordPressPublishException extends RuntimeException {}

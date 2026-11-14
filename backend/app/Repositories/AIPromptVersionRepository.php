@@ -17,7 +17,7 @@ class AIPromptVersionRepository implements AIPromptVersionRepositoryInterface
             })
             ->orderByDesc('created_at');
 
-        if (!empty($filters['agent_type'])) {
+        if (! empty($filters['agent_type'])) {
             $query->where('agent_type', $filters['agent_type']);
         }
 
@@ -64,7 +64,7 @@ class AIPromptVersionRepository implements AIPromptVersionRepositoryInterface
     {
         $prompt = AIPromptVersion::find($id);
 
-        if (!$prompt) {
+        if (! $prompt) {
             return false;
         }
 

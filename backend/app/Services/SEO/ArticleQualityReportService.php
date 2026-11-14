@@ -4,6 +4,9 @@ namespace App\Services\SEO;
 
 use App\Models\Article;
 use App\Models\QualityReport;
+use App\Services\Quality\ContentQualityScoringService;
+use Illuminate\Support\Facades\Schema;
+use Throwable;
 
 class ArticleQualityReportService
 {
@@ -34,11 +37,11 @@ class ArticleQualityReportService
         $readabilityScore = 0;
         $readabilityScore += $this->check($checks, 'word_count_ok', $wordCount >= config('quality.min_word_count'), 10, 'Đạt số từ tối thiểu');
         $readabilityScore += $this->check($checks, 'heading_structure_ok', $headingCount >= config('quality.min_heading_count'), 10, 'Đủ heading chính');
-        $readabilityScore += $this->check($checks, 'faq_exists', !config('quality.faq_required') || !empty($article->faqs), 5, 'FAQ đạt yêu cầu');
-        $readabilityScore += $this->check($checks, 'no_placeholder_text', !preg_match('/lorem ipsum|placeholder|TODO/i', (string) $article->content), 5, 'Không có placeholder text');
+        $readabilityScore += $this->check($checks, 'faq_exists', ! config('quality.faq_required') || ! empty($article->faqs), 5, 'FAQ đạt yêu cầu');
+        $readabilityScore += $this->check($checks, 'no_placeholder_text', ! preg_match('/lorem ipsum|placeholder|TODO/i', (string) $article->content), 5, 'Không có placeholder text');
 
         $mediaScore = 0;
-        $mediaScore += $this->check($checks, 'featured_image_exists', filled($article->featured_image_url) || filled($article->image_assets) || !config('quality.featured_image_required'), 10, 'Featured image đạt yêu cầu');
+        $mediaScore += $this->check($checks, 'featured_image_exists', filled($article->featured_image_url) || filled($article->image_assets) || ! config('quality.featured_image_required'), 10, 'Featured image đạt yêu cầu');
         $mediaScore += $this->check($checks, 'images_have_alt', true, 5, 'Alt ảnh sẵn sàng kiểm tra chi tiết ở media pipeline');
 
         $wpScore = 0;
@@ -47,7 +50,7 @@ class ArticleQualityReportService
         $wpScore += $this->check($checks, 'content_not_empty', trim($contentText) !== '', 5, 'Content không rỗng');
 
         foreach ($checks as $check) {
-            if (!$check['passed']) {
+            if (! $check['passed']) {
                 $warnings[] = $check['message'];
                 if (in_array($check['key'], ['meta_title_length_ok', 'meta_desc_length_ok', 'internal_links_count_ok', 'featured_image_exists'], true)) {
                     $autoFixable[] = $check['key'];
@@ -73,10 +76,45 @@ class ArticleQualityReportService
             'generated_at' => now(),
         ]);
 
-        $article->update([
-            'quality_report' => $report->toArray(),
-            'seo_score' => $report->total_score,
-        ]);
+        $qualityReportArray = $report->toArray();
+        $finalSeoScore = $report->total_score;
+
+        try {
+            if (app()->bound(ContentQualityScoringService::class)) {
+                $engineEvaluation = app(ContentQualityScoringService::class)->evaluateAndPackage($article, true);
+                $qualityReportArray['content_quality_scoring'] = $engineEvaluation['scoring'];
+                $qualityReportArray['review_pipeline_4_roles'] = $engineEvaluation['review_pipeline'];
+                $qualityReportArray['schema_markup'] = $engineEvaluation['schema_markup'];
+                $qualityReportArray['output_package_19_fields'] = $engineEvaluation['output_package_19_fields'];
+
+                // Đồng bộ critical errors từ Critical Error Gate nếu có
+                if (! empty($engineEvaluation['scoring']['critical_errors'])) {
+                    $qualityReportArray['blocking_errors'] = array_values(array_unique(array_merge(
+                        $qualityReportArray['blocking_errors'] ?? [],
+                        $engineEvaluation['scoring']['critical_errors']
+                    )));
+                }
+                $finalSeoScore = (int) ($engineEvaluation['scoring']['total_score'] ?? $report->total_score);
+            }
+        } catch (Throwable) {
+            // Giữ an toàn cho báo cáo cơ bản nếu có lỗi ngoại lệ
+        }
+
+        $updatePayload = [
+            'quality_report' => $qualityReportArray,
+            'seo_score' => $finalSeoScore,
+        ];
+
+        try {
+            if (Schema::hasColumn('articles', 'schema_markup') && isset($qualityReportArray['schema_markup'])) {
+                $updatePayload['schema_markup'] = $qualityReportArray['schema_markup'];
+                $updatePayload['review_pipeline_report'] = $qualityReportArray['review_pipeline_4_roles'] ?? null;
+                $updatePayload['gate_status'] = $qualityReportArray['content_quality_scoring']['gate_status'] ?? 'PASS';
+            }
+        } catch (Throwable) {
+        }
+
+        $article->update($updatePayload);
 
         return $report;
     }

@@ -30,10 +30,10 @@ export default function ArticleTable({ articles, isLoading }: ArticleTableProps)
             <tr>
               <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Tiêu đề</th>
               <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Từ khoá</th>
-              <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Trạng thái</th>
-              <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Điểm SEO</th>
-              <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Chi phí AI</th>
-              <th className="px-6 py-4 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Thao tác</th>
+              <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">Trạng thái</th>
+              <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">Điểm SEO</th>
+              <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">Chi phí AI</th>
+              <th className="px-6 py-4 text-right text-xs font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">Thao tác</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-slate-100">
@@ -49,10 +49,10 @@ export default function ArticleTable({ articles, isLoading }: ArticleTableProps)
                 <td className="px-6 py-4 text-sm font-medium text-slate-600">
                   {article.keyword?.keyword || 'N/A'}
                 </td>
-                <td className="px-6 py-4">
+                <td className="px-6 py-4 whitespace-nowrap">
                   <ArticleStatusBadge status={article.status} />
                 </td>
-                <td className="px-6 py-4">
+                <td className="px-6 py-4 whitespace-nowrap">
                   {article.seo_score ? (
                     <span className={`inline-flex items-center justify-center w-9 h-9 rounded-full font-bold text-sm ${article.seo_score >= 80 ? 'bg-green-100 text-green-700' : article.seo_score >= 60 ? 'bg-orange-100 text-orange-700' : 'bg-red-100 text-red-700'}`}>
                       {article.seo_score}
@@ -61,10 +61,10 @@ export default function ArticleTable({ articles, isLoading }: ArticleTableProps)
                     <span className="text-slate-300 font-bold">--</span>
                   )}
                 </td>
-                <td className="px-6 py-4 text-sm font-mono text-slate-600">
+                <td className="px-6 py-4 text-sm font-mono text-slate-600 whitespace-nowrap">
                   ${Number(article.ai_cost_usd || 0).toFixed(4)}
                 </td>
-                <td className="px-6 py-4 text-right text-sm font-medium">
+                <td className="px-6 py-4 text-right text-sm font-medium whitespace-nowrap">
                   <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <Link href={`/articles/${article.id}`} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all" title="Xem bài viết">
                       <Eye className="w-4 h-4" />

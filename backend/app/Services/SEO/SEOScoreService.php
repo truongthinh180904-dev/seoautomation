@@ -16,7 +16,7 @@ class SEOScoreService
         $wordCount = $article->word_count ?? 0;
 
         // Keyword in title
-        if (!empty($keyword) && !str_contains($title, $keyword)) {
+        if (! empty($keyword) && ! str_contains($title, $keyword)) {
             $score -= 20;
         }
 
@@ -39,7 +39,7 @@ class SEOScoreService
         }
 
         // Keyword density
-        if (!empty($keyword) && !empty($content)) {
+        if (! empty($keyword) && ! empty($content)) {
             $keywordCount = substr_count($content, $keyword);
             if ($wordCount > 0) {
                 $density = ($keywordCount / $wordCount) * 100;

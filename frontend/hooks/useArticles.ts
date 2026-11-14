@@ -28,6 +28,13 @@ export function useArticle(id: number) {
       return data;
     },
     enabled: !!id,
+    refetchInterval: (query) => {
+      const status = query.state.data?.data?.status;
+      if (status === 'processing' || status === 'publishing' || status === 'queued') {
+        return 5000;
+      }
+      return false;
+    },
   });
 }
 
@@ -72,6 +79,28 @@ export function useArticleActions() {
     },
   });
 
+  const publishArticle = useMutation({
+    mutationFn: async (id: number) => {
+      await apiClient.post(`/articles/${id}/approve-publish`);
+    },
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: ['article', id] });
+      queryClient.invalidateQueries({ queryKey: ['articles'] });
+      queryClient.invalidateQueries({ queryKey: ['queue-status'] });
+    },
+  });
+
+  const generateImages = useMutation({
+    mutationFn: async (id: number) => {
+      await apiClient.post(`/articles/${id}/generate-images`);
+    },
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: ['article', id] });
+      queryClient.invalidateQueries({ queryKey: ['media-assets'] });
+      queryClient.invalidateQueries({ queryKey: ['queue-status'] });
+    },
+  });
+
   const generateArticle = useMutation({
     mutationFn: async (keywordId: number) => {
       await apiClient.post('/articles/generate', { keyword_id: keywordId });
@@ -82,5 +111,5 @@ export function useArticleActions() {
     },
   });
 
-  return { updateArticle, deleteArticle, retryArticle, autoFixArticle, generateArticle };
+  return { updateArticle, deleteArticle, retryArticle, autoFixArticle, publishArticle, generateImages, generateArticle };
 }
